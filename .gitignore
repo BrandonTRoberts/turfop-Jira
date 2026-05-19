@@ -1,0 +1,30 @@
+# dependencies
+node_modules/
+backend/node_modules/
+
+# build output
+dist/
+backend/dist/
+
+# local environment files
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# runtime uploads
+backend/uploads/
+uploads/
+
+# misc
+coverage/
+.DS_Store
+
+# Android release signing
+android/keystore.properties
+android/*.jks
+android/*.keystore
+android/app/*.jks
+android/app/*.keystore

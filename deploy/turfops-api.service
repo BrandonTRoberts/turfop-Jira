@@ -1,0 +1,15 @@
+[Unit]
+Description=TurfOp API
+After=network.target
+
+[Service]
+Type=simple
+User=btr
+WorkingDirectory=/home/btr/Desktop/golf-ops-app/backend
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node src/server.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
