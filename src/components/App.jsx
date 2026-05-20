@@ -421,26 +421,26 @@ export default function App() {
               </p>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <Card>
+              <Card className="border border-blue-500/70 ring-blue-500/40">
                 <CardContent className="p-5">
                   <p className="text-sm text-muted-foreground">Accessible courses</p>
                   <p className="mt-2 text-4xl font-semibold">{courses.length}</p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="border border-blue-500/70 ring-blue-500/40">
                 <CardContent className="p-5">
                   <p className="text-sm text-muted-foreground">Equipment in scope</p>
                   <p className="mt-2 text-4xl font-semibold">{equipment.length}</p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="border border-blue-500/70 ring-blue-500/40">
                 <CardContent className="p-5">
                   <p className="text-sm text-muted-foreground">Users in scope</p>
                   <p className="mt-2 text-4xl font-semibold">{users.length}</p>
                 </CardContent>
               </Card>
             </div>
-            <Card>
+            <Card className="border border-blue-500/70 ring-blue-500/40">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Database className="h-4 w-4" />
