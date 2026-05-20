@@ -1,20 +1,8 @@
-import cors from 'cors';
+import { env } from './config/env.js';
+import { createApp } from './app.js';
 
-export function createApp() {
-  const app = express();
+const app = createApp();
 
-  app.use(cors({
-    origin: [
-      'https://turfop.com',
-      'https://www.turfop.com',
-      'https://turfopfrontend.brandonroberts.workers.dev',
-      'http://localhost:5173',
-      'https://turfopfrontend.pages.dev'
-    ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-  }));
-
-  // ... rest of your app setup
-}
+app.listen(env.port, () => {
+  console.log(`TurfOp API running on http://localhost:${env.port}`);
+});
