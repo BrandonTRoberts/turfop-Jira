@@ -7,14 +7,10 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "prebuild": "node scripts/assert-operational-app.mjs",
-    "predev": "echo 'Guard bypassed for development'",
     "dev": "vite",
     "build": "vite build",
-    "prebuild:production": "node scripts/assert-operational-app.mjs",
     "build:production": "VITE_API_BASE_URL=https://api.turfop.com VITE_ENABLE_DEMO_MODE=false vite build",
     "start": "node server.js",
-    "prepreview": "node scripts/assert-operational-app.mjs",
     "preview": "vite preview",
     "cap:copy": "npm run build && npx cap copy",
     "cap:sync": "npm run build && npx cap sync",

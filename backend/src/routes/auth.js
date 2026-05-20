@@ -70,7 +70,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       `
         select id, company_id, company_role, email, full_name, password_hash, must_change_password, profile_image_url, phone, address_line_1, address_line_2, city, state, postal_code, token_version
         from employees
-        where email = $1
+        where lower(email) = lower($1)
         limit 1
       `,
       [normalizedEmail]

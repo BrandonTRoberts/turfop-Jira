@@ -36,14 +36,14 @@ export async function getMembershipsForEmployee(employeeId) {
           'admin'::text as role,
           c.id as course_id,
           c.company_id,
-          co.name as company_name,
+          coalesce(co.name, 'Unassigned company') as company_name,
           c.name,
           c.region,
           c.superintendent_name,
           c.course_areas_config
         from courses c
-        join companies co on co.id = c.company_id
-        order by co.name asc, c.name asc
+        left join companies co on co.id = c.company_id
+        order by coalesce(co.name, 'Unassigned company') asc, c.name asc
       `
     );
 
@@ -58,13 +58,13 @@ export async function getMembershipsForEmployee(employeeId) {
           'admin'::text as role,
           c.id as course_id,
           c.company_id,
-          co.name as company_name,
+          coalesce(co.name, 'Unassigned company') as company_name,
           c.name,
           c.region,
           c.superintendent_name,
           c.course_areas_config
         from courses c
-        join companies co on co.id = c.company_id
+        left join companies co on co.id = c.company_id
         where c.company_id = $1
         order by co.name asc, c.name asc
       `,
@@ -81,14 +81,14 @@ export async function getMembershipsForEmployee(employeeId) {
           cm.role,
           cm.course_id,
           c.company_id,
-          co.name as company_name,
+          coalesce(co.name, 'Unassigned company') as company_name,
           c.name,
           c.region,
           c.superintendent_name,
           c.course_areas_config
       from course_memberships cm
       join courses c on c.id = cm.course_id
-      join companies co on co.id = c.company_id
+      left join companies co on co.id = c.company_id
       where cm.employee_id = $1
       order by c.name asc
     `,

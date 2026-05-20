@@ -1,7 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import { acceptInvite, requestPasswordReset, signInWithPassword } from './services/backend';
 import turfopLogo from './assets/turfop-logo-web.png';
+import { api } from './services/api';
 import './public-site.css';
+
+async function signInWithPassword(email, password) {
+  return api.login({ email, password });
+}
+
+async function requestPasswordReset(payload) {
+  return api.requestPasswordReset(payload);
+}
+
+async function acceptInvite(payload) {
+  return api.acceptInvite(payload);
+}
 
 const pricingTiers = [
   {
@@ -435,23 +447,61 @@ function ContactPage() {
 }
 
 function SignInPage() {
+  const resetTokenStorageKey = 'turfop.pendingResetToken';
+  const readResetTokenFromLocation = () => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const tokenFromParams = searchParams.get('token') || hashParams.get('token');
+    const tokenFromUrl = window.location.href.match(/token=([a-f0-9]{20,})/i)?.[1];
+    const tokenFromPath = window.location.pathname.match(/\/(?:signin|invite)\/([a-f0-9]{20,})/i)?.[1];
+
+    return (
+      tokenFromParams ||
+      tokenFromUrl ||
+      tokenFromPath ||
+      window.localStorage.getItem(resetTokenStorageKey) ||
+      ''
+    );
+  };
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [inviteToken, setInviteToken] = useState(() => new URLSearchParams(window.location.search).get('token') || '');
+  const [inviteToken, setInviteToken] = useState(readResetTokenFromLocation);
   const [confirmPassword, setConfirmPassword] = useState('');
   const [courseId, setCourseId] = useState('');
   const [loading, setLoading] = useState(false);
   const [showReset, setShowReset] = useState(false);
+  const [showTokenEntry, setShowTokenEntry] = useState(() => Boolean(readResetTokenFromLocation().trim()));
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [resetLink, setResetLink] = useState('');
 
-  const hasInviteToken = Boolean(inviteToken);
+  useEffect(() => {
+    const syncTokenFromUrl = () => {
+      const tokenFromUrl = readResetTokenFromLocation();
+
+      if (tokenFromUrl) {
+        setInviteToken(tokenFromUrl);
+        window.localStorage.setItem(resetTokenStorageKey, tokenFromUrl);
+        setShowTokenEntry(true);
+        setShowReset(false);
+        setError('');
+      }
+    };
+
+    syncTokenFromUrl();
+    window.addEventListener('popstate', syncTokenFromUrl);
+    return () => window.removeEventListener('popstate', syncTokenFromUrl);
+  }, []);
+
+  const normalizedInviteToken = inviteToken.trim();
+  const hasInviteToken = showTokenEntry || Boolean(normalizedInviteToken);
 
   async function handleSubmit(event) {
     event.preventDefault();
     setLoading(true);
     setError('');
     setMessage('');
+    setResetLink('');
     try {
       await signInWithPassword(email, password);
       window.location.href = '/my-work';
@@ -467,9 +517,11 @@ function SignInPage() {
     setLoading(true);
     setError('');
     setMessage('');
+    setResetLink('');
     try {
-      await requestPasswordReset({ email, courseId });
-      setMessage('If that account exists, reset instructions have been prepared.');
+      const response = await requestPasswordReset({ email, courseId });
+      setMessage(response.message || 'If that account exists, reset instructions have been prepared.');
+      setResetLink(response.inviteUrl || '');
     } catch (submitError) {
       setError(submitError.message || 'Unable to send reset instructions.');
     } finally {
@@ -479,6 +531,11 @@ function SignInPage() {
 
   async function handleInviteAccept(event) {
     event.preventDefault();
+    if (normalizedInviteToken.length < 20) {
+      setError('Open the reset link again. The token is missing or incomplete.');
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError('Passwords do not match.');
       return;
@@ -487,12 +544,15 @@ function SignInPage() {
     setLoading(true);
     setError('');
     setMessage('');
+    setResetLink('');
     try {
-      await acceptInvite({ token: inviteToken, password });
+      await acceptInvite({ token: normalizedInviteToken, password });
       setInviteToken('');
+      window.localStorage.removeItem(resetTokenStorageKey);
       setPassword('');
       setConfirmPassword('');
       window.history.replaceState({}, '', '/signin');
+      setShowTokenEntry(false);
       setMessage('Password set. You can sign in now.');
     } catch (submitError) {
       setError(submitError.message || 'Unable to finish account setup.');
@@ -512,12 +572,17 @@ function SignInPage() {
         <h3>{hasInviteToken ? 'Create your password' : showReset ? 'Request password reset' : 'Enter your account'}</h3>
         {error ? <div className="mk-inline-banner mk-inline-banner-error">{error}</div> : null}
         {message ? <div className="mk-inline-banner">{message}</div> : null}
+        {resetLink ? (
+          <div className="mk-inline-banner">
+            Local reset link: <a href={resetLink}>open password reset</a>
+          </div>
+        ) : null}
         <form className="mk-signin-form" onSubmit={hasInviteToken ? handleInviteAccept : showReset ? handleReset : handleSubmit}>
           {hasInviteToken ? (
             <>
               <label>
-                Invite token
-                <input type="text" value={inviteToken} onChange={(event) => setInviteToken(event.target.value)} autoCapitalize="none" autoCorrect="off" required />
+                Reset token
+                <input type="text" value={inviteToken} onChange={(event) => setInviteToken(event.target.value.trim())} autoCapitalize="none" autoCorrect="off" placeholder="Paste the token from your reset link" required />
               </label>
               <label>
                 New password
@@ -550,9 +615,14 @@ function SignInPage() {
             {loading ? (hasInviteToken ? 'Saving…' : showReset ? 'Sending…' : 'Signing in…') : (hasInviteToken ? 'Set password' : showReset ? 'Send reset instructions' : 'Enter app')}
           </button>
           {hasInviteToken ? null : (
-            <button className="mk-btn mk-btn-secondary" type="button" onClick={() => { setShowReset((current) => !current); setError(''); setMessage(''); }} disabled={loading}>
-              {showReset ? 'Back to sign in' : 'Forgot password?'}
-            </button>
+            <>
+              <button className="mk-btn mk-btn-secondary" type="button" onClick={() => { setShowReset((current) => !current); setError(''); setMessage(''); setResetLink(''); }} disabled={loading}>
+                {showReset ? 'Back to sign in' : 'Forgot password?'}
+              </button>
+              <button className="mk-btn mk-btn-secondary" type="button" onClick={() => { setShowTokenEntry(true); setShowReset(false); setError(''); setMessage(''); }} disabled={loading}>
+                Use reset token
+              </button>
+            </>
           )}
         </form>
       </div>

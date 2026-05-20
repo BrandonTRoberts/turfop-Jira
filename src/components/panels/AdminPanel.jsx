@@ -1,0 +1,255 @@
+import { useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Building2, Loader2, MapPinned, ShieldCheck } from "lucide-react";
+
+function adminRoleLabel(role) {
+  if (role === "platform_admin") return "Platform Admin";
+  if (role === "company_super_user") return "Company Admin";
+  return "Course Admin";
+}
+
+export default function AdminPanel({
+  employee,
+  companies,
+  courses,
+  loading,
+  error,
+  onCreateCompany,
+  onCreateCourse,
+}) {
+  const isPlatformAdmin = employee?.company_role === "platform_admin";
+  const [companyName, setCompanyName] = useState("");
+  const [courseForm, setCourseForm] = useState({
+    companyId: employee?.company_id || "",
+    name: "",
+    region: "",
+    superintendentName: "",
+  });
+  const [submittingCompany, setSubmittingCompany] = useState(false);
+  const [submittingCourse, setSubmittingCourse] = useState(false);
+  const [formError, setFormError] = useState("");
+
+  const visibleCompanies = useMemo(() => {
+    if (companies.length > 0) return companies;
+
+    const companyMap = new Map();
+    courses.forEach((course) => {
+      if (course.company_id && !companyMap.has(course.company_id)) {
+        companyMap.set(course.company_id, {
+          id: course.company_id,
+          name: course.company_name || "Assigned company",
+        });
+      }
+    });
+
+    return Array.from(companyMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [companies, courses]);
+
+  const coursesByCompany = useMemo(() => {
+    return visibleCompanies.map((company) => ({
+      ...company,
+      courses: courses.filter((course) => course.company_id === company.id),
+    }));
+  }, [courses, visibleCompanies]);
+
+  async function handleCreateCompany(event) {
+    event.preventDefault();
+    setFormError("");
+    setSubmittingCompany(true);
+
+    try {
+      const created = await onCreateCompany({ name: companyName.trim() });
+      setCompanyName("");
+      setCourseForm((current) => ({ ...current, companyId: created.id }));
+    } catch (createError) {
+      setFormError(createError.message);
+    } finally {
+      setSubmittingCompany(false);
+    }
+  }
+
+  async function handleCreateCourse(event) {
+    event.preventDefault();
+    setFormError("");
+    setSubmittingCourse(true);
+
+    try {
+      await onCreateCourse({
+        companyId: courseForm.companyId,
+        name: courseForm.name.trim(),
+        region: courseForm.region.trim() || null,
+        superintendentName: courseForm.superintendentName.trim() || null,
+      });
+      setCourseForm((current) => ({
+        ...current,
+        name: "",
+        region: "",
+        superintendentName: "",
+      }));
+    } catch (createError) {
+      setFormError(createError.message);
+    } finally {
+      setSubmittingCourse(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-4xl font-light">Admin</h1>
+          <Badge variant="outline" className="gap-1">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            {adminRoleLabel(employee?.company_role)}
+          </Badge>
+        </div>
+        <p className="mt-3 text-muted-foreground">
+          Manage the companies and courses available to this account.
+        </p>
+      </div>
+
+      {error ? <p className="text-sm text-red-400">{error}</p> : null}
+      {formError ? <p className="text-sm text-red-400">{formError}</p> : null}
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <Card>
+          <CardContent className="p-5">
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Building2 className="h-4 w-4" />
+              Companies
+            </p>
+            <p className="mt-2 text-4xl font-semibold">{visibleCompanies.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <MapPinned className="h-4 w-4" />
+              Courses
+            </p>
+            <p className="mt-2 text-4xl font-semibold">{courses.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-sm text-muted-foreground">Signed in as</p>
+            <p className="mt-2 truncate text-lg font-semibold">{employee?.full_name || employee?.email}</p>
+            <p className="truncate text-sm text-muted-foreground">{employee?.email}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[420px_1fr]">
+        <div className="space-y-6">
+          {isPlatformAdmin ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Create Company</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form className="space-y-3" onSubmit={handleCreateCompany}>
+                  <Input
+                    placeholder="Company name"
+                    value={companyName}
+                    onChange={(event) => setCompanyName(event.target.value)}
+                    required
+                  />
+                  <Button type="submit" className="w-full" disabled={submittingCompany}>
+                    {submittingCompany ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Create company
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Create Course</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form className="space-y-3" onSubmit={handleCreateCourse}>
+                <Select
+                  value={courseForm.companyId}
+                  onValueChange={(companyId) => setCourseForm((current) => ({ ...current, companyId }))}
+                  disabled={visibleCompanies.length === 0}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {visibleCompanies.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  placeholder="Course name"
+                  value={courseForm.name}
+                  onChange={(event) => setCourseForm((current) => ({ ...current, name: event.target.value }))}
+                  required
+                />
+                <Input
+                  placeholder="Region"
+                  value={courseForm.region}
+                  onChange={(event) => setCourseForm((current) => ({ ...current, region: event.target.value }))}
+                />
+                <Input
+                  placeholder="Superintendent"
+                  value={courseForm.superintendentName}
+                  onChange={(event) => setCourseForm((current) => ({ ...current, superintendentName: event.target.value }))}
+                />
+                <Button type="submit" className="w-full" disabled={submittingCourse || !courseForm.companyId}>
+                  {submittingCourse ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Create course
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Account Scope</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {loading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading admin scope
+              </div>
+            ) : null}
+            {coursesByCompany.map((company) => (
+              <div key={company.id} className="rounded-lg border border-border bg-muted/30 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">{company.name}</p>
+                    <p className="text-sm text-muted-foreground">{company.courses.length} courses</p>
+                  </div>
+                  {isPlatformAdmin ? <Badge>Platform scope</Badge> : <Badge variant="outline">Company scope</Badge>}
+                </div>
+                <div className="mt-4 space-y-2">
+                  {company.courses.map((course) => (
+                    <div key={course.course_id} className="flex items-center justify-between rounded-md bg-background px-3 py-2 text-sm">
+                      <span>{course.name}</span>
+                      <Badge variant="outline">{course.role}</Badge>
+                    </div>
+                  ))}
+                  {company.courses.length === 0 ? (
+                    <p className="rounded-md bg-background px-3 py-2 text-sm text-muted-foreground">No courses yet.</p>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

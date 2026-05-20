@@ -21,7 +21,7 @@ create table if not exists employees (
   city text,
   state text,
   postal_code text,
-  company_role text check (company_role in ('company_super_user')),
+  company_role text check (company_role in ('company_super_user', 'platform_admin')),
   token_version integer not null default 0,
   created_at timestamptz not null default now()
 );
@@ -35,7 +35,7 @@ alter table employees add column if not exists address_line_2 text;
 alter table employees add column if not exists city text;
 alter table employees add column if not exists state text;
 alter table employees add column if not exists postal_code text;
-alter table employees add column if not exists company_role text check (company_role in ('company_super_user'));
+alter table employees add column if not exists company_role text check (company_role in ('company_super_user', 'platform_admin'));
 alter table employees add column if not exists token_version integer not null default 0;
 
 create table if not exists courses (
@@ -68,6 +68,8 @@ create table if not exists work_orders (
   detail text,
   status text not null default 'Open',
   assignee text,
+  equipment_id uuid references equipment (id) on delete set null,
+  due_at timestamptz,
   technician_employee_id uuid references employees (id) on delete set null,
   technician_name text,
   labor_hours numeric(10,2),
@@ -78,11 +80,14 @@ create table if not exists work_orders (
   completed_work_notes text,
   completed_at timestamptz,
   image_urls jsonb not null default '[]'::jsonb,
+  attachments jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 alter table work_orders add column if not exists technician_employee_id uuid references employees (id) on delete set null;
+alter table work_orders add column if not exists equipment_id uuid references equipment (id) on delete set null;
+alter table work_orders add column if not exists due_at timestamptz;
 alter table work_orders add column if not exists technician_name text;
 alter table work_orders add column if not exists labor_hours numeric(10,2);
 alter table work_orders add column if not exists labor_rate numeric(10,2);
@@ -92,6 +97,7 @@ alter table work_orders add column if not exists total_cost numeric(10,2);
 alter table work_orders add column if not exists completed_work_notes text;
 alter table work_orders add column if not exists completed_at timestamptz;
 alter table work_orders add column if not exists image_urls jsonb not null default '[]'::jsonb;
+alter table work_orders add column if not exists attachments jsonb not null default '[]'::jsonb;
 alter table work_orders add column if not exists updated_at timestamptz not null default now();
 
 create table if not exists equipment (
@@ -108,6 +114,7 @@ create table if not exists equipment (
   detail text,
   status text not null default 'Scheduled',
   image_urls jsonb not null default '[]'::jsonb,
+  attachments jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -119,6 +126,7 @@ alter table equipment add column if not exists vin text;
 alter table equipment add column if not exists serial_number text;
 alter table equipment add column if not exists description text;
 alter table equipment add column if not exists image_urls jsonb not null default '[]'::jsonb;
+alter table equipment add column if not exists attachments jsonb not null default '[]'::jsonb;
 alter table equipment add column if not exists updated_at timestamptz not null default now();
 
 create table if not exists field_logs (
@@ -189,11 +197,15 @@ create table if not exists parts_inventory (
   unit_cost numeric(10,2) not null default 0,
   reorder_url text,
   image_urls jsonb not null default '[]'::jsonb,
+  attachments jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   unique (course_id, sku)
 );
 
 alter table parts_inventory add column if not exists image_urls jsonb not null default '[]'::jsonb;
+alter table parts_inventory add column if not exists attachments jsonb not null default '[]'::jsonb;
+alter table parts_inventory add column if not exists updated_at timestamptz not null default now();
 
 create table if not exists work_order_parts_usage (
   id uuid primary key default gen_random_uuid(),
@@ -222,6 +234,7 @@ create index if not exists idx_employees_company_role on employees (company_role
 create index if not exists idx_courses_company_id on courses (company_id);
 create index if not exists idx_course_memberships_course_id on course_memberships (course_id);
 create index if not exists idx_work_orders_course_id on work_orders (course_id);
+create index if not exists idx_work_orders_equipment_id on work_orders (equipment_id);
 create index if not exists idx_equipment_course_id on equipment (course_id);
 create index if not exists idx_audit_logs_course_id_created_at on audit_logs (course_id, created_at desc);
 create index if not exists idx_invite_tokens_employee_id on invite_tokens (employee_id);

@@ -72,6 +72,26 @@ async function ensureEmployeeInCompany(client, companyId, employeeId) {
   return result.rows[0] || null;
 }
 
+async function ensureEmployeeEditableForCourse(client, courseId, companyId, employeeId) {
+  const companyEmployee = await ensureEmployeeInCompany(client, companyId, employeeId);
+  if (companyEmployee) {
+    return companyEmployee;
+  }
+
+  const result = await client.query(
+    `
+      select e.id, e.company_id, e.email, e.full_name, e.password_hash, e.must_change_password, e.company_role
+      from employees e
+      join course_memberships cm on cm.employee_id = e.id
+      where e.id = $1 and cm.course_id = $2
+      limit 1
+    `,
+    [employeeId, courseId]
+  );
+
+  return result.rows[0] || null;
+}
+
 function buildAccountStatus(employee) {
   if (!employee.password_hash && employee.must_change_password) {
     return 'invited_pending_setup';
@@ -389,7 +409,7 @@ router.get('/directory', requireAuth, async (req, res) => {
 
     const result = await query(
       `
-        select e.id, e.email, e.full_name, e.hourly_rate, e.profile_image_url, e.created_at, cm.course_id
+        select e.id, e.email, e.full_name, e.hourly_rate, e.profile_image_url, e.created_at, cm.course_id, cm.role
         from employees e
         join course_memberships cm on cm.employee_id = e.id
         join courses c on c.id = cm.course_id
@@ -465,7 +485,12 @@ router.get('/:employeeId', requireAuth, async (req, res) => {
       `
         select e.id, e.email, e.full_name, e.hourly_rate, e.profile_image_url, e.phone, e.address_line_1, e.address_line_2, e.city, e.state, e.postal_code, e.created_at, e.must_change_password, e.password_hash
         from employees e
-        where e.id = $1 and e.company_id = (select company_id from courses where id = $2)
+        left join course_memberships cm on cm.employee_id = e.id and cm.course_id = $2
+        where e.id = $1
+          and (
+            e.company_id = (select company_id from courses where id = $2)
+            or cm.id is not null
+          )
         limit 1
       `,
       [employeeId, courseId]
@@ -521,7 +546,7 @@ router.patch('/:employeeId', requireAuth, async (req, res) => {
         return res.status(404).json({ error: 'Course not found' });
       }
 
-      const employee = await ensureEmployeeInCompany(client, course.company_id, employeeId);
+      const employee = await ensureEmployeeEditableForCourse(client, courseId, course.company_id, employeeId);
       if (!employee) {
         return res.status(404).json({ error: 'Employee not found' });
       }
@@ -540,10 +565,18 @@ router.patch('/:employeeId', requireAuth, async (req, res) => {
               state = $9,
               postal_code = $10,
               profile_image_url = $11
-          where id = $1 and company_id = $12
+          where id = $1
+            and (
+              company_id = $12
+              or exists (
+                select 1
+                from course_memberships cm
+                where cm.employee_id = employees.id and cm.course_id = $13
+              )
+            )
           returning id, email, full_name, hourly_rate, profile_image_url, phone, address_line_1, address_line_2, city, state, postal_code, created_at, must_change_password, password_hash
         `,
-        [employeeId, normalizeEmail(email), fullName.trim(), hourlyRate ?? null, phone?.trim() || null, addressLine1?.trim() || null, addressLine2?.trim() || null, city?.trim() || null, state?.trim() || null, postalCode?.trim() || null, profileImageUrl, course.company_id]
+        [employeeId, normalizeEmail(email), fullName.trim(), hourlyRate ?? null, phone?.trim() || null, addressLine1?.trim() || null, addressLine2?.trim() || null, city?.trim() || null, state?.trim() || null, postalCode?.trim() || null, profileImageUrl, course.company_id, courseId]
       );
 
       await logAuditEvent({

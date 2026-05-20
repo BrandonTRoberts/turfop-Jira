@@ -98,6 +98,57 @@ export function validateCourseSettingsInput({ name, region, superintendentName, 
   return fieldErrors[0] || null;
 }
 
+export function validateEquipmentInput({ courseId, name, make, model, assignedArea, vin, serialNumber, description, hours, detail, status }) {
+  if (!isUuid(courseId)) {
+    return 'Valid courseId is required';
+  }
+
+  if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 160) {
+    return 'Equipment name must be between 2 and 160 characters';
+  }
+
+  if (status !== undefined && status !== null && status !== '' && !['Scheduled', 'Operational', 'In Service', 'Needs Repair', 'Needs service', 'Overdue', 'Retired', 'Setup'].includes(status)) {
+    return 'Unsupported equipment status';
+  }
+
+  const fieldErrors = [
+    validateOptionalText(make, 'Make', 120),
+    validateOptionalText(model, 'Model', 120),
+    validateOptionalText(assignedArea, 'Assigned area', 120),
+    validateOptionalText(vin, 'VIN', 120),
+    validateOptionalText(serialNumber, 'Serial number', 120),
+    validateOptionalText(description, 'Description', 1000),
+    validateOptionalText(hours, 'Hours', 80),
+    validateOptionalText(detail, 'Detail', 1000)
+  ].filter(Boolean);
+
+  return fieldErrors[0] || null;
+}
+
+export function validatePartsInventoryInput({ courseId, sku, partDescription, quantityOnHand, unitCost, reorderUrl }) {
+  if (!isUuid(courseId)) {
+    return 'Valid courseId is required';
+  }
+
+  if (typeof sku !== 'string' || sku.trim().length < 1 || sku.trim().length > 80) {
+    return 'SKU must be between 1 and 80 characters';
+  }
+
+  if (typeof partDescription !== 'string' || partDescription.trim().length < 2 || partDescription.trim().length > 240) {
+    return 'Part description must be between 2 and 240 characters';
+  }
+
+  if (quantityOnHand !== undefined && quantityOnHand !== null && Number(quantityOnHand) < 0) {
+    return 'Quantity on hand must be zero or greater';
+  }
+
+  if (unitCost !== undefined && unitCost !== null && Number(unitCost) < 0) {
+    return 'Unit cost must be zero or greater';
+  }
+
+  return validateOptionalText(reorderUrl, 'Reorder URL', 1000);
+}
+
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function normalizeEmail(email) {

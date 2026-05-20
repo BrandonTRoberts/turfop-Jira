@@ -2,8 +2,9 @@ import { Router } from 'express';
 import { query } from '../lib/db.js';
 import { requireAuth } from '../lib/requireAuth.js';
 import { canWrite, getRoleForCourse } from '../lib/permissions.js';
-import { persistImageCollection } from '../lib/media.js';
+import { persistAttachmentCollection, persistImageCollection } from '../lib/media.js';
 import { handleUnexpectedError } from '../lib/http.js';
+import { validatePartsInventoryInput } from '../lib/validation.js';
 
 const router = Router();
 
@@ -18,7 +19,7 @@ router.get('/', requireAuth, async (req, res) => {
 
     const result = await query(
       `
-        select id, course_id, sku, part_description, quantity_on_hand, unit_cost, reorder_url, image_urls, created_at
+        select id, course_id, sku, part_description, quantity_on_hand, unit_cost, reorder_url, image_urls, attachments, created_at, updated_at
         from parts_inventory
         where course_id = $1
         order by sku asc
@@ -33,22 +34,28 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 router.post('/', requireAuth, async (req, res) => {
-  const { courseId, sku, partDescription, quantityOnHand, unitCost, reorderUrl, images = [] } = req.body;
+  const { courseId, sku, partDescription, quantityOnHand, unitCost, reorderUrl, images = [], attachments = [] } = req.body;
 
   try {
+    const validationError = validatePartsInventoryInput({ courseId, sku, partDescription, quantityOnHand, unitCost, reorderUrl });
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
     const role = await getRoleForCourse(req.employee, courseId);
     if (!canWrite(role)) {
       return res.status(403).json({ error: 'Write access denied for this course' });
     }
 
     const imageUrls = await persistImageCollection(images, { entityType: 'inventory', maxCount: 6 });
+    const attachmentItems = await persistAttachmentCollection(attachments, { entityType: 'inventory-attachments', maxCount: 12 });
     const result = await query(
       `
-        insert into parts_inventory (course_id, sku, part_description, quantity_on_hand, unit_cost, reorder_url, image_urls)
-        values ($1, $2, $3, $4, $5, $6, $7)
-        returning id, course_id, sku, part_description, quantity_on_hand, unit_cost, reorder_url, image_urls, created_at
+        insert into parts_inventory (course_id, sku, part_description, quantity_on_hand, unit_cost, reorder_url, image_urls, attachments)
+        values ($1, $2, $3, $4, $5, $6, $7, $8)
+        returning id, course_id, sku, part_description, quantity_on_hand, unit_cost, reorder_url, image_urls, attachments, created_at, updated_at
       `,
-      [courseId, sku, partDescription, quantityOnHand || 0, unitCost || 0, reorderUrl || null, JSON.stringify(imageUrls)]
+      [courseId, sku, partDescription, quantityOnHand || 0, unitCost || 0, reorderUrl || null, JSON.stringify(imageUrls), JSON.stringify(attachmentItems)]
     );
 
     res.status(201).json(result.rows[0]);
@@ -59,10 +66,15 @@ router.post('/', requireAuth, async (req, res) => {
 
 router.patch('/:partId', requireAuth, async (req, res) => {
   const { partId } = req.params;
-  const { courseId, sku, partDescription, quantityOnHand, unitCost, reorderUrl, images = [] } = req.body;
+  const { courseId, sku, partDescription, quantityOnHand, unitCost, reorderUrl, images = [], attachments = [], expectedUpdatedAt } = req.body;
 
   try {
-    const existing = await query('select id, course_id from parts_inventory where id = $1', [partId]);
+    const validationError = validatePartsInventoryInput({ courseId, sku, partDescription, quantityOnHand, unitCost, reorderUrl });
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
+    const existing = await query('select id, course_id, updated_at from parts_inventory where id = $1', [partId]);
     const part = existing.rows[0];
     if (!part) {
       return res.status(404).json({ error: 'Part not found' });
@@ -74,7 +86,12 @@ router.patch('/:partId', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Write access denied for this course' });
     }
 
+    if (expectedUpdatedAt && new Date(part.updated_at).toISOString() !== new Date(expectedUpdatedAt).toISOString()) {
+      return res.status(409).json({ error: 'Inventory item was updated by someone else. Review the latest server version before retrying.', conflict: 'stale_update', currentUpdatedAt: part.updated_at });
+    }
+
     const imageUrls = await persistImageCollection(images, { entityType: 'inventory', maxCount: 6 });
+    const attachmentItems = await persistAttachmentCollection(attachments, { entityType: 'inventory-attachments', maxCount: 12 });
     const result = await query(
       `
         update parts_inventory
@@ -84,11 +101,13 @@ router.patch('/:partId', requireAuth, async (req, res) => {
             quantity_on_hand = $5,
             unit_cost = $6,
             reorder_url = $7,
-            image_urls = $8
+            image_urls = $8,
+            attachments = $9,
+            updated_at = now()
         where id = $1
-        returning id, course_id, sku, part_description, quantity_on_hand, unit_cost, reorder_url, image_urls, created_at
+        returning id, course_id, sku, part_description, quantity_on_hand, unit_cost, reorder_url, image_urls, attachments, created_at, updated_at
       `,
-      [partId, courseId, sku, partDescription, quantityOnHand || 0, unitCost || 0, reorderUrl || null, JSON.stringify(imageUrls)]
+      [partId, courseId, sku, partDescription, quantityOnHand || 0, unitCost || 0, reorderUrl || null, JSON.stringify(imageUrls), JSON.stringify(attachmentItems)]
     );
 
     res.json(result.rows[0]);
@@ -99,9 +118,10 @@ router.patch('/:partId', requireAuth, async (req, res) => {
 
 router.delete('/:partId', requireAuth, async (req, res) => {
   const { partId } = req.params;
+  const { expectedUpdatedAt } = req.body || {};
 
   try {
-    const existing = await query('select id, course_id from parts_inventory where id = $1', [partId]);
+    const existing = await query('select id, course_id, updated_at from parts_inventory where id = $1', [partId]);
     const part = existing.rows[0];
     if (!part) {
       return res.status(404).json({ error: 'Part not found' });
@@ -110,6 +130,10 @@ router.delete('/:partId', requireAuth, async (req, res) => {
     const role = await getRoleForCourse(req.employee, part.course_id);
     if (!canWrite(role)) {
       return res.status(403).json({ error: 'Write access denied for this course' });
+    }
+
+    if (expectedUpdatedAt && new Date(part.updated_at).toISOString() !== new Date(expectedUpdatedAt).toISOString()) {
+      return res.status(409).json({ error: 'Inventory item was updated by someone else. Review the latest server version before deleting.', conflict: 'stale_delete', currentUpdatedAt: part.updated_at });
     }
 
     await query('delete from parts_inventory where id = $1', [partId]);

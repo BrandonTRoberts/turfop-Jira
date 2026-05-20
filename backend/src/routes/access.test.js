@@ -331,6 +331,8 @@ test('work order update rejects invalid terminal workflow transition', async () 
 });
 
 test('read_write can update and reassign equipment between accessible courses', async () => {
+  const targetCourseId = '55555555-5555-4555-8555-555555555555';
+
   setDbTestOverrides({
     queryImpl: async (text, params) => {
       if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
@@ -349,11 +351,74 @@ test('read_write can update and reassign equipment between accessible courses', 
   const response = await request(app)
     .patch('/equipment/eq-1')
     .set('Authorization', authHeader())
-    .send({ courseId: 'course-2', name: 'Updated mower', make: 'Toro', model: '5510', assignedArea: 'Fairways 10-18', vin: 'VIN', serialNumber: 'SER', description: 'Desc', hours: '100', detail: 'Note', status: 'Scheduled' });
+    .send({ courseId: targetCourseId, name: 'Updated mower', make: 'Toro', model: '5510', assignedArea: 'Fairways 10-18', vin: 'VIN', serialNumber: 'SER', description: 'Desc', hours: '100', detail: 'Note', status: 'Scheduled' });
 
   assert.equal(response.status, 200);
-  assert.equal(response.body.course_id, 'course-2');
+  assert.equal(response.body.course_id, targetCourseId);
   assert.equal(response.body.assigned_area, 'Fairways 10-18');
+});
+
+test('read_write cannot move inventory into an inaccessible course', async () => {
+  const accessibleCourseId = '11111111-1111-4111-8111-111111111111';
+  const inaccessibleCourseId = '22222222-2222-4222-8222-222222222222';
+
+  setDbTestOverrides({
+    queryImpl: async (text, params) => {
+      if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
+      if (text.includes('from parts_inventory') && text.includes('where id = $1')) return { rows: [{ id: 'part-1', course_id: accessibleCourseId, updated_at: '2026-05-19T12:00:00.000Z' }] };
+      if (text.includes('select role') && text.includes('from course_memberships')) {
+        if (params[1] === accessibleCourseId) return { rows: [{ role: 'read_write' }] };
+        return { rows: [] };
+      }
+      throw new Error(`Unexpected query: ${text}`);
+    }
+  });
+
+  const app = createApp();
+  const response = await request(app)
+    .patch('/parts-inventory/part-1')
+    .set('Authorization', authHeader())
+    .send({
+      courseId: inaccessibleCourseId,
+      sku: 'BEDKNIFE-22',
+      partDescription: '22 inch bedknife',
+      quantityOnHand: 12,
+      unitCost: 45
+    });
+
+  assert.equal(response.status, 403);
+  assert.equal(response.body.error, 'Write access denied for this course');
+});
+
+test('stale inventory update returns 409 conflict', async () => {
+  const courseId = '11111111-1111-4111-8111-111111111111';
+  const serverUpdatedAt = '2026-05-19T15:00:00.000Z';
+
+  setDbTestOverrides({
+    queryImpl: async (text) => {
+      if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
+      if (text.includes('from parts_inventory') && text.includes('where id = $1')) return { rows: [{ id: 'part-1', course_id: courseId, updated_at: serverUpdatedAt }] };
+      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_write' }] };
+      throw new Error(`Unexpected query: ${text}`);
+    }
+  });
+
+  const app = createApp();
+  const response = await request(app)
+    .patch('/parts-inventory/part-1')
+    .set('Authorization', authHeader())
+    .send({
+      courseId,
+      sku: 'FILTER-100',
+      partDescription: 'Hydraulic filter',
+      quantityOnHand: 8,
+      unitCost: 31,
+      expectedUpdatedAt: '2026-05-19T14:00:00.000Z'
+    });
+
+  assert.equal(response.status, 409);
+  assert.equal(response.body.conflict, 'stale_update');
+  assert.equal(response.body.currentUpdatedAt, serverUpdatedAt);
 });
 
 test('admin can fetch employee profile details', async () => {
