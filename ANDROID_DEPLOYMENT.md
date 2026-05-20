@@ -1,13 +1,13 @@
-# Android Deployment
+# Android / Google Play Deployment
 
-This project already includes a Capacitor Android app under [android](/home/btr/Desktop/golf-ops-app/android).
+This project includes a Capacitor Android app under [android](/home/btr/Desktop/Turfop.com/android).
 
 ## Prerequisites
 
 - Node 22+
 - Android Studio with Android SDK installed
 - Java 21 available and `JAVA_HOME` set
-- A release keystore for Play Store or direct APK distribution
+- A release keystore for Google Play App Bundles
 
 Example:
 
@@ -25,7 +25,27 @@ VITE_API_BASE_URL=https://api.turfop.com
 VITE_ENABLE_DEMO_MODE=false
 ```
 
-That already matches [.env.production](/home/btr/Desktop/golf-ops-app/.env.production).
+That already matches the local `.env.production` file.
+Use the production Android scripts below so the bundled WebView points at `https://api.turfop.com`.
+
+## App Identity
+
+Current Android package id:
+
+```text
+com.turfops.app
+```
+
+Confirm this package id before the first Play Console upload. Google Play treats the package id as permanent after the first release.
+
+Current Play version fields are in [android/app/build.gradle](/home/btr/Desktop/Turfop.com/android/app/build.gradle):
+
+```gradle
+versionCode 1
+versionName "1.0"
+```
+
+Increment `versionCode` for every uploaded release.
 
 ## Release Signing
 
@@ -36,7 +56,7 @@ cd android
 keytool -genkeypair -v -keystore release-keystore.jks -alias release -keyalg RSA -keysize 2048 -validity 10000
 ```
 
-2. Create `android/keystore.properties` from [android/keystore.properties.example](/home/btr/Desktop/golf-ops-app/android/keystore.properties.example):
+2. Create `android/keystore.properties` from [android/keystore.properties.example](/home/btr/Desktop/Turfop.com/android/keystore.properties.example):
 
 ```properties
 storeFile=release-keystore.jks
@@ -49,10 +69,22 @@ keyPassword=your-key-password
 
 ## Build Commands
 
-Sync native assets:
+Regenerate Android launcher and splash assets from `resources/icon.png` and `resources/splash.png`:
+
+```bash
+npm run android:assets
+```
+
+Sync native assets for local/dev testing:
 
 ```bash
 npm run android:sync
+```
+
+Sync native assets with production API settings:
+
+```bash
+npm run android:sync:production
 ```
 
 Build a debug APK:
@@ -61,17 +93,19 @@ Build a debug APK:
 npm run android:debug
 ```
 
-Build a signed release APK:
+Build a production signed release APK:
 
 ```bash
-npm run android:release
+npm run android:release:production
 ```
 
-Build a signed release AAB for Play Store:
+Build a production release AAB for Google Play:
 
 ```bash
-npm run android:bundle
+npm run android:playstore
 ```
+
+`android:playstore` verifies release signing, regenerates Android assets, builds the web app with production API settings, syncs Capacitor, and runs Gradle `bundleRelease`.
 
 ## Output Paths
 
@@ -79,8 +113,26 @@ npm run android:bundle
 - Release APK: `android/app/build/outputs/apk/release/`
 - Release AAB: `android/app/build/outputs/bundle/release/`
 
+## Play Console Checklist
+
+- App name: `TurfOp`
+- Package id confirmed before first upload
+- Release AAB built from `npm run android:playstore`
+- Release keystore created and stored privately
+- Privacy policy URL ready
+- Data safety answers ready for login/account data, work orders, photos/files, inventory, push notifications, and diagnostics
+- App access instructions ready for Play review, including a test employee login
+- Screenshots captured for phone layouts
+- Backend production URL live: `https://api.turfop.com`
+
 ## Current Status
 
 - Capacitor Android sync passes
 - Web production build passes
-- Local Gradle build is blocked until `JAVA_HOME` is configured on the build machine
+- Local Java/Gradle tooling is available on this machine
+- Unsigned release bundle generation has been verified locally
+- Release keystore exists locally at `android/release-keystore.jks`
+- Release signing properties exist locally at `android/keystore.properties`
+- Both signing files are gitignored and set to owner-only permissions
+- `npm run android:playstore` builds successfully
+- Signed release AAB: `android/app/build/outputs/bundle/release/app-release.aab`

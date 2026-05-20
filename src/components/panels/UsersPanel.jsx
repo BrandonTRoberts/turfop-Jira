@@ -300,6 +300,7 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
           {filtered.length === 0 ? (
             <div className="p-10 text-center text-muted-foreground">No users found inside this course.</div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -342,6 +343,7 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

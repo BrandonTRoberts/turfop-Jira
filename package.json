@@ -16,13 +16,20 @@
     "cap:sync": "npm run build && npx cap sync",
     "cap:sync:ios": "npm run build && npx cap sync ios",
     "cap:sync:android": "npm run build && npx cap sync android",
+    "cap:sync:android:production": "npm run build:production && npx cap sync android",
     "cap:open:ios": "npx cap open ios",
     "cap:open:android": "npx cap open android",
     "tailwind:init": "tailwindcss init -p",
+    "android:assets": "npx @capacitor/assets generate --android",
+    "android:check-signing": "node scripts/check-android-signing.cjs",
     "android:sync": "npm run cap:sync:android",
+    "android:sync:production": "npm run cap:sync:android:production",
     "android:debug": "npm run cap:sync:android && cd android && ./gradlew assembleDebug",
     "android:release": "npm run cap:sync:android && cd android && ./gradlew assembleRelease",
-    "android:bundle": "npm run cap:sync:android && cd android && ./gradlew bundleRelease"
+    "android:release:production": "npm run android:check-signing && npm run android:assets && npm run cap:sync:android:production && cd android && ./gradlew assembleRelease",
+    "android:bundle": "npm run cap:sync:android && cd android && ./gradlew bundleRelease",
+    "android:bundle:production": "npm run cap:sync:android:production && cd android && ./gradlew bundleRelease",
+    "android:playstore": "npm run android:check-signing && npm run android:assets && npm run android:bundle:production"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",

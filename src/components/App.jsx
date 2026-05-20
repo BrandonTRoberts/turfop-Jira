@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BarChart3, Clock, Database, LayoutGrid, Loader2, LogOut, Package, ShieldCheck, Users, Wrench } from "lucide-react";
+import { BarChart3, Clock, Database, LayoutGrid, Loader2, LogOut, Menu, Package, PanelLeftClose, PanelLeftOpen, ShieldCheck, Users, Wrench, X } from "lucide-react";
 import { getUploadUrl, readFilesAsDataUrls } from "@/lib/files";
 
 function canWriteCourse(course) {
@@ -80,6 +80,8 @@ export default function App() {
   const [workOrders, setWorkOrders] = useState([]);
   const [timeEntries, setTimeEntries] = useState([]);
   const [timeSummary, setTimeSummary] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.localStorage.getItem("turfop-sidebar-collapsed") === "true");
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [booting, setBooting] = useState(Boolean(getStoredToken()));
   const [loadingCourses, setLoadingCourses] = useState(false);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
@@ -169,6 +171,10 @@ export default function App() {
   useEffect(() => {
     hydrateFromToken();
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("turfop-sidebar-collapsed", String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   useEffect(() => {
     if (canUseAccountAdmin(session?.employee)) {
@@ -374,6 +380,11 @@ export default function App() {
   const employee = session.employee;
   const writable = canWriteCourse(selectedCourse);
 
+  function selectView(viewId) {
+    setCurrentView(viewId);
+    setMobileNavOpen(false);
+  }
+
   const renderView = () => {
     if (currentView === "admin" && isAccountAdmin) {
       return (
@@ -404,7 +415,7 @@ export default function App() {
         return (
           <div className="space-y-6">
             <div>
-              <h1 className="text-4xl font-light">TurfOp Operations</h1>
+              <h1 className="text-3xl font-light sm:text-4xl">TurfOp Operations</h1>
               <p className="mt-3 text-muted-foreground">
                 Signed in as {employee.full_name || employee.email}. Active course scope is {selectedCourse.name}.
               </p>
@@ -541,19 +552,29 @@ export default function App() {
     }
   };
 
-  return (
-    <div className="flex h-screen overflow-hidden bg-background text-foreground">
-      <aside className="flex w-72 flex-col border-r border-border bg-card">
-        <div className="border-b border-border p-6">
-          <div className="flex items-center gap-4">
+  const sidebar = (isMobile = false) => {
+    const collapsed = isMobile ? false : sidebarCollapsed;
+
+    return (
+      <aside className={`flex h-full shrink-0 flex-col border-r border-border bg-card transition-[width] duration-200 ${collapsed ? "w-20" : "w-72"} ${isMobile ? "w-80 max-w-[88vw]" : ""}`}>
+        <div className={`border-b border-border ${collapsed ? "p-3" : "p-4 sm:p-6"}`}>
+          {isMobile ? (
+            <div className="mb-4 flex items-center justify-between">
+              <span className="text-sm font-medium text-muted-foreground">Navigation</span>
+              <Button type="button" variant="ghost" size="icon" onClick={() => setMobileNavOpen(false)} aria-label="Close navigation">
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+          ) : null}
+          <div className={`flex items-center gap-4 ${collapsed ? "justify-center" : ""}`}>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500 text-2xl font-bold text-black">T</div>
-            <div>
+            {!collapsed ? <div>
               <p className="text-3xl font-semibold tracking-tighter">TurfOp</p>
               <p className="text-sm text-muted-foreground">Operations Platform</p>
-            </div>
+            </div> : null}
           </div>
 
-          <div className="mt-5 rounded-xl border border-border bg-muted/40 p-3">
+          {!collapsed ? <div className="mt-5 rounded-xl border border-border bg-muted/40 p-3">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate font-semibold">{employee.full_name || employee.email}</p>
@@ -567,9 +588,9 @@ export default function App() {
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
-          </div>
+          </div> : null}
 
-          <div className="mt-4 space-y-2">
+          {!collapsed ? <div className="mt-4 space-y-2">
             <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
               Course Scope
               {selectedCourse ? <Badge variant="outline">{selectedCourse.role}</Badge> : null}
@@ -587,7 +608,7 @@ export default function App() {
               </SelectContent>
             </Select>
             {courseError ? <p className="text-xs text-red-400">{courseError}</p> : null}
-          </div>
+          </div> : null}
         </div>
 
         <nav className="flex-1 space-y-1 p-3">
@@ -595,24 +616,72 @@ export default function App() {
             <Button
               key={item.id}
               variant={currentView === item.id ? "default" : "ghost"}
-              className="w-full justify-start"
-              onClick={() => setCurrentView(item.id)}
+              className={`w-full ${collapsed ? "justify-center px-0" : "justify-start"}`}
+              onClick={() => selectView(item.id)}
+              title={collapsed ? item.label : undefined}
             >
-              <item.icon className="mr-3 h-5 w-5" />
-              {item.label}
+              <item.icon className={`h-5 w-5 ${collapsed ? "" : "mr-3"}`} />
+              {!collapsed ? item.label : null}
             </Button>
           ))}
         </nav>
 
         <div className="border-t border-border p-3">
-          <div className="flex items-center justify-between gap-3 rounded-lg bg-muted/40 p-2 text-sm">
-            <span className="text-muted-foreground">Appearance</span>
+          {!isMobile ? (
+            <Button
+              type="button"
+              variant="outline"
+              className={`mb-2 w-full ${collapsed ? "justify-center px-0" : "justify-start"}`}
+              onClick={() => setSidebarCollapsed((current) => !current)}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {collapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="mr-3 h-5 w-5" />}
+              {!collapsed ? "Collapse sidebar" : null}
+            </Button>
+          ) : null}
+          <div className={`flex items-center gap-3 rounded-lg bg-muted/40 p-2 text-sm ${collapsed ? "justify-center" : "justify-between"}`}>
+            {!collapsed ? <span className="text-muted-foreground">Appearance</span> : null}
             <ThemeToggle />
           </div>
         </div>
       </aside>
+    );
+  };
 
-      <main className="flex-1 overflow-auto p-8">
+  return (
+    <div className="min-h-screen bg-background text-foreground lg:flex lg:h-screen lg:overflow-hidden">
+      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/95 p-3 backdrop-blur lg:hidden">
+        <Button type="button" variant="outline" size="icon" onClick={() => setMobileNavOpen(true)} aria-label="Open navigation">
+          <Menu className="h-5 w-5" />
+        </Button>
+        <div className="min-w-0 px-3 text-center">
+          <p className="truncate text-sm font-semibold">TurfOp</p>
+          <p className="truncate text-xs text-muted-foreground">{selectedCourse?.name || "Operations"}</p>
+        </div>
+        <Button type="button" variant="ghost" size="icon" onClick={handleLogout} aria-label="Sign out">
+          <LogOut className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {mobileNavOpen ? (
+        <div className="fixed inset-0 z-50 flex lg:hidden">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/60"
+            onClick={() => setMobileNavOpen(false)}
+            aria-label="Close navigation overlay"
+          />
+          <div className="relative h-full">
+            {sidebar(true)}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="hidden lg:block">
+        {sidebar(false)}
+      </div>
+
+      <main className="min-w-0 flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
         {renderView()}
       </main>
     </div>

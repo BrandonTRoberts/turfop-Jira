@@ -333,6 +333,7 @@ export default function EquipmentPanel({ course, equipment, loading, error, canW
           ) : equipment.length === 0 ? (
             <div className="p-10 text-center text-muted-foreground">No equipment has been added for this course.</div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -362,6 +363,7 @@ export default function EquipmentPanel({ course, equipment, loading, error, canW
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

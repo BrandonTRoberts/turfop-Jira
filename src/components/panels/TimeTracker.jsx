@@ -42,7 +42,7 @@ export default function TimeTracker({ course, entries, summary, activeEntry, loa
     <div className="space-y-6">
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
-          <h2 className="text-3xl font-semibold">Time Tracking</h2>
+          <h2 className="text-2xl font-semibold sm:text-3xl">Time Tracking</h2>
           <p className="mt-2 text-sm text-muted-foreground">Clock activity for {course.name} is stored by course and employee.</p>
         </div>
         <Badge variant={activeEntry ? "default" : "secondary"} className="w-fit">
@@ -61,7 +61,7 @@ export default function TimeTracker({ course, entries, summary, activeEntry, loa
           {activeEntry ? (
             <div>
               <p className="text-sm text-muted-foreground">Clocked in</p>
-              <p className="text-3xl font-semibold">{format(new Date(activeEntry.clock_in_at), "MMM d, h:mm a")}</p>
+            <p className="text-2xl font-semibold sm:text-3xl">{format(new Date(activeEntry.clock_in_at), "MMM d, h:mm a")}</p>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">No active shift for this course.</p>
@@ -95,6 +95,7 @@ export default function TimeTracker({ course, entries, summary, activeEntry, loa
           ) : entries.length === 0 ? (
             <div className="p-10 text-center text-muted-foreground">No time entries yet.</div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -117,6 +118,7 @@ export default function TimeTracker({ course, entries, summary, activeEntry, loa
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

@@ -207,24 +207,24 @@ export default function IssueBoard({ course, workOrders, users = [], equipment =
     <div className="space-y-5">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="mb-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <span>Projects</span>
             <span>/</span>
             <span>{course.company_name}</span>
             <span>/</span>
             <span className="text-foreground">{course.name}</span>
           </div>
-          <h2 className="text-3xl font-semibold">Board</h2>
+          <h2 className="text-2xl font-semibold sm:text-3xl">Board</h2>
         </div>
-        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input className="w-full pl-8 md:w-72" placeholder="Search tickets" value={query} onChange={(event) => setQuery(event.target.value)} />
+            <Input className="w-full pl-8 sm:w-72" placeholder="Search tickets" value={query} onChange={(event) => setQuery(event.target.value)} />
           </div>
           {canWrite ? (
-            <Button onClick={() => setCreateOpen(true)}>
+            <Button className="w-full sm:w-auto" onClick={() => setCreateOpen(true)}>
               <Plus className="h-4 w-4" />
-              Create
+              New Work Order
             </Button>
           ) : null}
         </div>
@@ -242,7 +242,7 @@ export default function IssueBoard({ course, workOrders, users = [], equipment =
           {statuses.map((status) => (
             <section
               key={status}
-              className="min-h-[560px] rounded-md bg-card"
+              className="min-h-0 rounded-md bg-card xl:min-h-[560px]"
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
                 event.preventDefault();
@@ -272,7 +272,7 @@ export default function IssueBoard({ course, workOrders, users = [], equipment =
                       <Badge variant="outline" className="rounded-md">Task</Badge>
                       <span className="font-mono text-xs text-blue-400">{ticketKey(ticket)}</span>
                     </div>
-                    <p className="min-h-10 text-sm font-medium leading-5 text-foreground">{ticket.title}</p>
+                    <p className="text-sm font-medium leading-5 text-foreground sm:min-h-10">{ticket.title}</p>
                     <div className="mt-3 flex items-center justify-between gap-2">
                       <Badge variant={statusBadgeVariant(ticket.status)}>{ticket.status}</Badge>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -295,7 +295,7 @@ export default function IssueBoard({ course, workOrders, users = [], equipment =
       )}
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="border-border bg-background text-foreground sm:max-w-xl">
+        <DialogContent className="max-h-[92vh] overflow-y-auto border-border bg-background text-foreground sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Create issue</DialogTitle>
             <DialogDescription>New work order issue in {course.name}.</DialogDescription>
@@ -384,10 +384,10 @@ export default function IssueBoard({ course, workOrders, users = [], equipment =
       </Dialog>
 
       <Dialog open={Boolean(selectedTicket)} onOpenChange={(open) => !open && setSelectedTicket(null)}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto border-border bg-background p-0 text-foreground sm:max-w-5xl">
+        <DialogContent className="max-h-[92vh] w-[calc(100vw-1.5rem)] overflow-y-auto border-border bg-background p-0 text-foreground sm:max-w-5xl">
           {selectedTicket ? (
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px]">
-              <div className="space-y-6 p-6">
+              <div className="space-y-6 p-4 sm:p-6">
                 <DialogHeader>
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <span className="font-mono text-blue-400">{ticketKey(selectedTicket)}</span>
@@ -398,7 +398,7 @@ export default function IssueBoard({ course, workOrders, users = [], equipment =
                 </DialogHeader>
 
                 <Input
-                  className="h-auto border-transparent bg-transparent px-0 text-2xl font-semibold leading-tight shadow-none focus-visible:ring-0"
+                  className="h-auto border-transparent bg-transparent px-0 text-xl font-semibold leading-tight shadow-none focus-visible:ring-0 sm:text-2xl"
                   value={detailDraft.title}
                   onChange={(event) => setDetailDraft({ ...detailDraft, title: event.target.value })}
                   disabled={!canWrite}
@@ -494,7 +494,7 @@ export default function IssueBoard({ course, workOrders, users = [], equipment =
                   {(selectedTicket.part_usages || []).length > 0 ? (
                     <div className="space-y-2">
                       {selectedTicket.part_usages.map((usage) => (
-                        <div key={usage.id} className="flex items-center justify-between rounded-md border border-border bg-card p-3 text-sm">
+                      <div key={usage.id} className="flex flex-col gap-2 rounded-md border border-border bg-card p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                           <span>{usage.sku} - {usage.part_description}</span>
                           <Badge variant="outline">{Number(usage.quantity_used).toLocaleString()}</Badge>
                         </div>
@@ -522,8 +522,8 @@ export default function IssueBoard({ course, workOrders, users = [], equipment =
                 ) : null}
 
                 {canWrite ? (
-                  <div className="flex items-center gap-2">
-                    <Button onClick={() => saveSelectedTicket()} disabled={saving}>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Button onClick={() => saveSelectedTicket()} disabled={saving}>
                       {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                       Save changes
                     </Button>
@@ -551,7 +551,7 @@ export default function IssueBoard({ course, workOrders, users = [], equipment =
                 </section>
               </div>
 
-              <aside className="border-t border-border bg-card p-6 lg:border-l lg:border-t-0">
+              <aside className="border-t border-border bg-card p-4 sm:p-6 lg:border-l lg:border-t-0">
                 <div className="space-y-5">
                   <div>
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</p>

@@ -117,7 +117,7 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
               <ArrowLeft className="h-4 w-4" />
               Inventory
             </Button>
-            <h2 className="text-3xl font-semibold">{selectedItem.part_description}</h2>
+            <h2 className="break-words text-2xl font-semibold sm:text-3xl">{selectedItem.part_description}</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               Edit SKU, stock, cost, reorder details, photos, and files for {course.name}.
             </p>
@@ -236,7 +236,7 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
     <div className="space-y-6">
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
-          <h2 className="text-3xl font-semibold">Inventory</h2>
+          <h2 className="text-2xl font-semibold sm:text-3xl">Inventory</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Parts inventory for {course.name}. SKU uniqueness is enforced inside this course only.
           </p>
@@ -329,6 +329,38 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
           ) : filtered.length === 0 ? (
             <div className="p-10 text-center text-muted-foreground">No inventory items found for this course.</div>
           ) : (
+            <>
+            <div className="divide-y divide-border md:hidden">
+              {filtered.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="w-full p-4 text-left"
+                  onClick={() => setSelectedId(item.id)}
+                >
+                  <div className="flex items-start gap-3">
+                    {item.image_urls?.[0] ? <img src={getUploadUrl(item.image_urls[0])} alt="" className="h-12 w-12 shrink-0 rounded object-cover" /> : null}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{item.part_description}</p>
+                          <p className="mt-1 font-mono text-xs text-muted-foreground">{item.sku}</p>
+                        </div>
+                        <Badge variant={Number(item.quantity_on_hand) <= 0 ? "destructive" : "outline"}>
+                          {Number(item.quantity_on_hand).toLocaleString()}
+                        </Badge>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        <span>${Number(item.unit_cost || 0).toFixed(2)} each</span>
+                        <span>{item.attachments?.length || 0} files</span>
+                        <span>{item.updated_at ? new Date(item.updated_at).toLocaleDateString() : "New"}</span>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -362,6 +394,8 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
                 ))}
               </TableBody>
             </Table>
+            </div>
+            </>
           )}
         </CardContent>
       </Card>
