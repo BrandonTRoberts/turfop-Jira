@@ -4,7 +4,14 @@ import { handleUnexpectedError } from '../lib/http.js';
 
 const router = Router();
 
-router.get('/', async (_req, res) => {
+router.get('/', (_req, res) => {
+  res.json({
+    ok: true,
+    service: 'healthy'
+  });
+});
+
+router.get('/db', async (_req, res) => {
   try {
     const result = await query('select now() as server_time');
     res.json({
