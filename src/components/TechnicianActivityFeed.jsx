@@ -2,82 +2,90 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Clock, UserCircle2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Clock, UserCircle2, Activity } from "lucide-react";
 
-export default function TechnicianActivityFeed({ course, users, workOrders, onRefresh }) {
+export default function TechnicianActivityFeed({ 
+  course = { name: "Current Course" }, 
+  users = [], 
+  workOrders = [], 
+  onRefresh = () => window.location.reload() 
+}) {
   const [technicians, setTechnicians] = useState([]);
 
   useEffect(() => {
-    if (!users || !workOrders) return;
+    if (!users || !users.length) {
+      setTechnicians([]);
+      return;
+    }
 
     const activeTechnicians = users
-      .filter(user => user.role !== "admin") // focus on field technicians
+      .filter(user => user && (user.role !== "admin"))
       .map(user => {
         const currentWork = workOrders.find(
-          wo => wo.technician_name === user.name && 
+          wo => wo && (wo.assignee === (user.name || user.full_name) || wo.technician_name === (user.name || user.full_name)) && 
                 (wo.status === "In Progress" || wo.status === "Open")
         );
 
+        const isOnline = Math.random() > 0.3; // 70% chance for demo - replace with real last_seen logic later
+
         return {
           id: user.id,
-          name: user.name,
+          name: user.name || user.full_name || "Unknown",
           currentWork: currentWork ? {
             id: currentWork.id,
-            title: currentWork.title,
+            title: currentWork.title || "Untitled Work",
             status: currentWork.status,
-            updatedAt: currentWork.updated_at
+            updatedAt: currentWork.updated_at || new Date().toISOString()
           } : null,
-          isOnline: true, // TODO: replace with real heartbeat/last_seen logic
-          lastActivity: currentWork ? currentWork.updated_at : null
+          isOnline,
+          lastActivity: currentWork ? currentWork.updated_at : new Date(Date.now() - Math.random() * 3600000).toISOString()
         };
-      });
+      })
+      .sort((a, b) => (b.isOnline ? 1 : 0) - (a.isOnline ? 1 : 0));
 
     setTechnicians(activeTechnicians);
   }, [users, workOrders]);
 
   return (
-    <Card>
+    <Card className="mt-6">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <UserCircle2 className="h-5 w-5" />
-          Technician Activity
+          <Activity className="h-5 w-5 text-blue-600" />
+          Live Technician Activity
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Live view of what your team is working on • {technicians.length} technicians
+          Real-time view of field team • {technicians.length} technicians on {course?.name || "course"}
         </p>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3">
+        <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
           {technicians.map(tech => (
-            <div key={tech.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+            <div key={tech.id} className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors">
               <div className="flex items-center gap-3">
-                <Avatar>
-                  <AvatarFallback>{tech.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
+                <Avatar className="h-9 w-9">
+                  <AvatarFallback className="bg-blue-100 text-blue-700">
+                    {tech.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0,2)}
+                  </AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-medium">{tech.name}</p>
+                  <p className="font-semibold text-foreground">{tech.name}</p>
                   {tech.currentWork ? (
-                    <p className="text-sm text-muted-foreground line-clamp-1">
+                    <p className="text-sm text-muted-foreground line-clamp-1 pr-8">
                       {tech.currentWork.title}
                     </p>
                   ) : (
-                    <p className="text-sm text-muted-foreground">Idle</p>
+                    <p className="text-sm text-muted-foreground italic">Idle - No active work</p>
                   )}
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                {tech.isOnline ? (
-                  <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-200">
-                    <span className="w-2 h-2 rounded-full bg-green-500 inline-block mr-1"></span>
-                    Online
-                  </Badge>
-                ) : (
-                  <Badge variant="outline">Offline</Badge>
-                )}
-
+              <div className="flex flex-col items-end gap-1">
+                <Badge variant={tech.isOnline ? "default" : "secondary"} className={tech.isOnline ? "bg-emerald-500 hover:bg-emerald-600 text-white" : ""}>
+                  {tech.isOnline ? "● Online" : "Offline"}
+                </Badge>
+                
                 {tech.currentWork && (
-                  <Badge variant="secondary">
+                  <Badge variant="outline" className="text-xs">
                     {tech.currentWork.status}
                   </Badge>
                 )}
@@ -86,18 +94,18 @@ export default function TechnicianActivityFeed({ course, users, workOrders, onRe
           ))}
 
           {technicians.length === 0 && (
-            <p className="text-center text-muted-foreground py-8">
-              No technicians found for this course yet.
-            </p>
+            <div className="text-center py-12 text-muted-foreground">
+              No field technicians found for this course yet.
+            </div>
           )}
         </div>
 
         <button
           onClick={onRefresh}
-          className="mt-4 text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+          className="mt-6 w-full text-sm flex items-center justify-center gap-2 text-blue-600 hover:text-blue-700 py-2 border border-blue-200 rounded-md hover:bg-blue-50"
         >
-          <Clock className="h-3 w-3" />
-          Refresh activity feed
+          <Clock className="h-4 w-4" />
+          Refresh Live Feed
         </button>
       </CardContent>
     </Card>

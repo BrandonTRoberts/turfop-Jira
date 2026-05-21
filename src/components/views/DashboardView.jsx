@@ -1,6 +1,7 @@
-import { Activity, AlertTriangle, Clock, Database, Loader2, PackageSearch, TimerReset, Wrench } from 'lucide-react';
+import { Activity, AlertTriangle, Clock, Database, Loader2, PackageSearch, TimerReset, Wrench, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import TechnicianActivityFeed from '../TechnicianActivityFeed';
 
 function numberValue(value, fallback = 0) {
   const numeric = Number(value);
@@ -41,7 +42,15 @@ function MetricCard({ title, value, helper, icon: Icon, tone = 'default' }) {
   );
 }
 
-export default function DashboardView({ employee, selectedCourse, overview, loading, error }) {
+export default function DashboardView({ 
+  employee, 
+  selectedCourse, 
+  overview, 
+  loading, 
+  error,
+  users = [],
+  workOrders = []
+}) {
   const summary = overview?.summary || {};
   const workOrdersByCourse = overview?.rollups?.workOrdersByCourse || [];
 
@@ -148,17 +157,16 @@ export default function DashboardView({ employee, selectedCourse, overview, load
               )}
             </CardContent>
           </Card>
+
+          {/* Technician Activity Feed - Added for buyer requirement */}
+          <TechnicianActivityFeed 
+            course={selectedCourse}
+            users={users}
+            workOrders={workOrders}
+            onRefresh={() => window.location.reload()} 
+          />
         </>
       )}
     </div>
   );
 }
-import TechnicianActivityFeed from "../TechnicianActivityFeed";
-
-      {/* Technician Activity Feed - Added for buyer requirement */}
-      <TechnicianActivityFeed 
-        course={selectedCourse}
-        users={[]} 
-        workOrders={[]}
-        onRefresh={() => window.location.reload()} 
-      />

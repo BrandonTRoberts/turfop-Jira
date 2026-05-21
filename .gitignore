@@ -28,3 +28,8 @@ android/*.jks
 android/*.keystore
 android/app/*.jks
 android/app/*.keystore
+.swp
+.swo
+.swn
+.swm
+.swl
