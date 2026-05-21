@@ -29,6 +29,11 @@ android/*.keystore
 android/app/*.jks
 android/app/*.keystore
 
+# wrangler files (Cloudflare Workers)
+.wrangler
+.dev.vars*
+!.dev.vars.example
+
 # Vim swap files
 .*.swp
 .*.swo

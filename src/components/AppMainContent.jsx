@@ -52,6 +52,7 @@ export default function AppMainContent({
   updateEquipment,
   createInventoryItem,
   updateInventoryItem,
+  deleteInventoryItem,
 }) {
   if (currentView === "admin" && isAccountAdmin) {
     return (
@@ -61,7 +62,7 @@ export default function AppMainContent({
         courses={courses}
         loading={loadingCompanies || loadingCourses}
         error={companiesError || courseError}
-        onCreateCompany={async (payload) => {
+        onCreateCompany={async (_payload) => {
           // This would need the createCompany function passed down too
           console.warn("Admin company creation needs full handler");
           return null;
@@ -206,6 +207,7 @@ export default function AppMainContent({
           canWrite={writable}
           onCreate={createInventoryItem}
           onUpdate={updateInventoryItem}
+          onDelete={deleteInventoryItem}
         />
       );
 

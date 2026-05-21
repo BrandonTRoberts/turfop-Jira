@@ -212,6 +212,11 @@ export default function App() {
     return updated;
   }
 
+  async function deleteInventoryItem(partId, payload) {
+    await api.deleteInventoryItem(partId, payload);
+    setInventory((current) => current.filter((item) => item.id !== partId));
+  }
+
   async function loadEmployeeDetails(employeeId) {
     return api.employeeDetails(employeeId, selectedCourse.course_id);
   }
@@ -387,7 +392,7 @@ export default function App() {
       case "equipment":
         return <EquipmentPanel course={selectedCourse} equipment={equipment} loading={loadingEquipment} error={equipmentError} canWrite={writable} onCreate={createEquipment} onUpdate={updateEquipment} />;
       case "inventory":
-        return <InventoryPanel course={selectedCourse} inventory={inventory} loading={loadingInventory} error={inventoryError} canWrite={writable} onCreate={createInventoryItem} onUpdate={updateInventoryItem} />;
+        return <InventoryPanel course={selectedCourse} inventory={inventory} loading={loadingInventory} error={inventoryError} canWrite={writable} onCreate={createInventoryItem} onUpdate={updateInventoryItem} onDelete={deleteInventoryItem} />;
       default:
         return null;
     }

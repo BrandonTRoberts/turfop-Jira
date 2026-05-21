@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import turfopLogo from './assets/turfop-logo-web.png';
 import { api } from './services/api';
 import './public-site.css';
@@ -291,6 +291,16 @@ function LandingPage() {
     </>
   );
 };
+
+const comparisonRows = [
+  ["Jira-like board", "Yes", "Yes", "Yes"],
+  ["Live technician feed", "Yes", "Yes", "Yes"],
+  ["Auto-updating inventory", "Yes", "Yes", "Yes"],
+  ["Offline-first mobile", "Yes", "Yes", "Yes"],
+  ["Course customization", "Yes", "Yes", "Yes"],
+  ["Full audit trail", "Yes", "Yes", "Yes"],
+  ["API and custom modules", "No", "No", "Yes"],
+];
 
 function PricingPage() {
   return (
