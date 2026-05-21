@@ -389,17 +389,76 @@ function ContactPage() {
 };
 
 function SignInPage() {
-  // (existing sign in logic remains unchanged)
-  // ... (keeping the original sign in page for now as it works)
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!email || !password) {
+      setError("Please enter both email and password");
+      return;
+    }
+    setError("");
+    setLoading(true);
+
+    try {
+      await api.login({ email, password });
+      // Login successful - reload to trigger main app routing and session
+      window.location.reload();
+    } catch (err) {
+      setError(err.message || "Login failed. Please check your credentials.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="mk-signin-page">
       <div className="mk-signin-card">
         <h2>Sign in to TurfOp</h2>
         <p>Use your employee account to access your courses and operations data.</p>
-        {/* Sign in form remains as-is */}
-        <form>
-          {/* form fields */}
+        <form className="mk-signin-form" onSubmit={handleSubmit}>
+          <label>
+            Email
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@company.com"
+              required
+            />
+          </label>
+          <label>
+            Password
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </label>
+          {error && (
+            <div className="mk-inline-banner mk-inline-banner-error">
+              {error}
+            </div>
+          )}
+          <button
+            type="submit"
+            className="mk-btn mk-btn-primary"
+            disabled={loading}
+            style={{ minHeight: "48px", width: "100%", fontWeight: "600" }}
+          >
+            {loading ? "Signing in..." : "Sign in"}
+          </button>
         </form>
+        <p style={{ marginTop: "24px", textAlign: "center", fontSize: "0.9rem", color: "#64748b" }}>
+          Need access?{" "}
+          <a href="/invite" style={{ color: "#15803d", textDecoration: "none" }}>
+            Request an invite
+          </a>
+        </p>
       </div>
     </div>
   );
