@@ -153,3 +153,12 @@ export default function DashboardView({ employee, selectedCourse, overview, load
     </div>
   );
 }
+import TechnicianActivityFeed from "../TechnicianActivityFeed";
+
+      {/* Technician Activity Feed - Added for buyer requirement */}
+      <TechnicianActivityFeed 
+        course={selectedCourse}
+        users={[]} 
+        workOrders={[]}
+        onRefresh={() => window.location.reload()} 
+      />
