@@ -56,7 +56,7 @@ export default function EquipmentPanel({ course, equipment, loading, error, canW
     if (!selectedItem) return;
     setEditForm(toEditForm(selectedItem));
     setEditError("");
-  }, [selectedItem?.id]);
+  }, [selectedItem]);
 
   async function handleSubmit(event) {
     event.preventDefault();

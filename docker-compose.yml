@@ -1,0 +1,39 @@
+version: '3.9'
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/turfop
+      - JWT_SECRET=supersecretjwtkeyforlocaldevelopmentonlychangeinproduction
+      - CORS_ALLOWED_ORIGINS=http://localhost:5173
+    depends_on:
+      - db
+
+  frontend:
+    build: .
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:4000
+      - VITE_ENABLE_DEMO_MODE=true
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:16
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=turfop
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

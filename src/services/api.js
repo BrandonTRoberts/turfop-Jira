@@ -86,6 +86,11 @@ export const api = {
     return request("/companies");
   },
 
+  async dashboardOverview(courseId) {
+    const queryString = courseId ? `?courseId=${encodeURIComponent(courseId)}` : "";
+    return request(`/dashboard/overview${queryString}`);
+  },
+
   async createCompany(payload) {
     return request("/companies", { method: "POST", body: payload });
   },

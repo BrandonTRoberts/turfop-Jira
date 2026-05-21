@@ -1,6 +1,6 @@
-const marketingRoutes = new Set(['/', '/pricing', '/security', '/book-demo', '/privacy', '/terms', '/signin', '/invite']);
+import { isMarketingRoute } from './routes';
 
-if (marketingRoutes.has(window.location.pathname)) {
+if (isMarketingRoute(window.location.pathname)) {
   import('./public-main.jsx');
 } else {
   import('./main.jsx');

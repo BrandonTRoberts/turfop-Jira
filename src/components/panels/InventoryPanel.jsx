@@ -48,7 +48,7 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
     if (!selectedItem) return;
     setEditForm(toEditForm(selectedItem));
     setEditError("");
-  }, [selectedItem?.id]);
+  }, [selectedItem]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
