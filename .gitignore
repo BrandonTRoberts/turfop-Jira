@@ -28,8 +28,20 @@ android/*.jks
 android/*.keystore
 android/app/*.jks
 android/app/*.keystore
+
+# Vim swap files
+.*.swp
+.*.swo
+.*.swn
+.*.swm
+.*.swl
 .swp
 .swo
 .swn
 .swm
 .swl
+**/.swp
+**/.swo
+**/.swn
+**/.swm
+**/.swl
