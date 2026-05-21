@@ -3,166 +3,107 @@ import turfopLogo from './assets/turfop-logo-web.png';
 import { api } from './services/api';
 import './public-site.css';
 
-async function signInWithPassword(email, password) {
-  return api.login({ email, password });
-}
-
-async function requestPasswordReset(payload) {
-  return api.requestPasswordReset(payload);
-}
-
-async function acceptInvite(payload) {
-  return api.acceptInvite(payload);
-}
-
-const pricingTiers = [
-  {
-    name: 'Starter',
-    price: '$29',
-    cadence: '/month',
-    annualPrice: '$278 annually',
-    fit: 'Single-course teams, small municipal properties, and practice facilities',
-    description: 'For one property that needs clean maintenance records, parts visibility, and a reliable mobile workflow.',
-    features: ['1 course', 'Work orders and equipment records', 'Inventory tracking', 'Offline-friendly mobile updates', 'Basic reporting'],
-    cta: 'Start Starter',
-    href: '/signin'
-  },
-  {
-    name: 'Growth',
-    price: '$59',
-    cadence: '/month',
-    annualPrice: '$566 annually',
-    fit: '18-hole clubs and growing multi-course operators',
-    description: 'Best fit for operations teams that need stronger accountability, mobile capture, and portfolio readiness.',
-    features: ['Up to 5 courses', 'Everything in Starter', 'Barcode / RFID workflows', 'Audit logs and team roles', 'Supplier links and export support'],
-    cta: 'Start Growth',
-    href: '/signin',
-    featured: true
-  },
-  {
-    name: 'Enterprise',
-    price: '$99+',
-    cadence: '/month',
-    annualPrice: 'Custom rollout available',
-    fit: 'Resort groups, management companies, and portfolio operators',
-    description: 'For operators who need broader rollout support, integrations, and company-level controls across properties.',
-    features: ['Unlimited courses', 'Everything in Growth', 'API access', 'Custom modules', 'Priority onboarding'],
-    cta: 'Book rollout review',
-    href: '/book-demo'
-  }
-];
-
-const comparisonRows = [
-  ['Courses', '1', 'Up to 5', 'Unlimited'],
-  ['Work orders + maintenance', 'Included', 'Included', 'Included'],
-  ['Inventory tracking', 'Included', 'Included', 'Included'],
-  ['Offline-friendly mobile updates', 'Included', 'Included', 'Included'],
-  ['Photos on records', 'Included', 'Included', 'Included'],
-  ['Barcode / RFID workflows', '—', 'Included', 'Included'],
-  ['Audit logs + team roles', '—', 'Included', 'Included'],
-  ['API access', '—', '—', 'Included']
-];
-
 const heroStats = [
-  ['Open work orders', '14'],
-  ['Low-stock items', '8'],
-  ['Units needing service', '4']
+  ['Live activity feed', 'Always on'],
+  ['Inventory accuracy', 'Auto-updates'],
+  ['Offline on range', 'Syncs later']
 ];
 
 const painCards = [
   {
-    title: 'Downtime hits the crew first',
-    body: 'See overdue maintenance, blocked jobs, and parts shortages before the morning setup gets derailed.'
+    title: 'Inventory disappears when it lives on paper',
+    body: 'Parts used in work orders automatically deduct from stock. Managers see accurate levels without manual counts.'
   },
   {
-    title: 'Inventory slips when counts live on paper',
-    body: 'Track filters, bearings, irrigation parts, tires, fluids, and shop supplies in one system tied to the right course.'
+    title: 'No one knows what the crew is actually doing',
+    body: 'Live technician activity feed shows who is working on what and their online status. Full audit trail of completed work.'
   },
   {
-    title: 'Weak Wi‑Fi should not break field updates',
-    body: 'Log notes, parts used, photos, and completion details from the barn, the shop, or the course and sync when service returns.'
+    title: 'Weak signal on the range breaks updates',
+    body: 'Offline-first mobile app lets technicians complete work orders with notes and photos. Everything syncs when back in coverage.'
   }
 ];
 
 const featureCards = [
   {
-    title: 'Equipment and maintenance',
-    body: 'Track service status, labor, parts cost, and completion notes by course and by machine.',
-    lines: ['Fairway mower · Needs service', 'Sprayer calibration · Due today', 'Utility cart battery swap · Completed']
+    title: 'Jira-like Issues Board',
+    body: 'Drag-and-drop work orders with assignment, comments, photos, and parts usage. Full history and audit trail.',
+    lines: ['Aerate greens on hole 7 · In Progress', 'Replace sprinkler head · Assigned to Sarah', 'Inspect mowers · Completed with notes']
   },
   {
-    title: 'Inventory and low-stock alerts',
-    body: 'Know what is on hand before work stalls or someone places the same order twice.',
-    lines: ['Hydraulic filters · 3 left', 'Reel bearings · 12 left', 'Irrigation heads · reorder now']
+    title: 'Course Configuration',
+    body: 'Define your exact layout — holes, sections, greens, flags, bunkers. Work orders and reporting adapt automatically.',
+    lines: ['18 holes · 4 fairway sections', 'Greens · 18 flags', 'Bunkers · 42 hazards']
   },
   {
-    title: 'Multi-course oversight',
-    body: 'Give each property its own controls while keeping company rollups, staffing, and audit visibility clean.',
-    lines: ['North Course · 5 open jobs', 'South Course · 2 overdue units', 'Practice Facility · low stock warning']
+    title: 'Live Technician Feed + Offline Sync',
+    body: 'See what everyone is working on in real time. Technicians work offline on the range and sync when back at the clubhouse.',
+    lines: ['Mike · Aerating greens (Online)', 'Sarah · Sprinkler repair (Offline - syncing)']
   }
 ];
 
 const trustItems = [
-  'Role-based course access with company-level supervision where needed',
-  'Password hashing, JWT-based auth, audit logs, and production CORS controls in the backend',
-  'Offline queue and local sync support for field updates in low-service areas',
-  'Native-ready iOS and Android shell with camera, haptics, and push registration support'
+  'Jira-style work orders with assignment and live activity feed',
+  'Inventory that auto-updates when parts are used in work orders',
+  'Offline-first mobile app designed for no-signal golf ranges',
+  'Full course customization (holes, sections, greens, flags)',
+  'Complete audit trail — see exactly what was done and when',
+  'Built with GRC principles — secure, traceable, permission-based'
+];
+
+const pricingTiers = [
+  {
+    name: 'Starter',
+    price: '$49',
+    cadence: '/month per course',
+    annualPrice: '$470 annually',
+    fit: 'Single-course operations teams',
+    description: 'Perfect for one golf course that needs accurate inventory, live visibility, and reliable offline updates.',
+    features: ['1 course with full customization', 'Jira-like Issues Board', 'Live technician activity feed', 'Inventory auto-deduct', 'Offline-first mobile sync', 'Basic reporting and audit trail'],
+    cta: 'Start Free Trial',
+    href: '/signin'
+  },
+  {
+    name: 'Growth',
+    price: '$99',
+    cadence: '/month',
+    annualPrice: '$950 annually',
+    fit: 'Multi-course or growing operations',
+    description: 'For teams managing 2–5 courses that need centralized visibility, advanced reporting, and stronger controls.',
+    features: ['Up to 5 courses', 'Everything in Starter', 'Advanced course configuration', 'Real-time technician status', 'Full audit and compliance reports', 'Priority support'],
+    cta: 'Start Free Trial',
+    href: '/signin',
+    featured: true
+  },
+  {
+    name: 'Enterprise',
+    price: 'Custom',
+    cadence: '',
+    annualPrice: 'For groups and management companies',
+    fit: 'Portfolio operators and large organizations',
+    description: 'Custom rollout, integrations, company-level controls, dedicated support, and advanced GRC features.',
+    features: ['Unlimited courses', 'Everything in Growth', 'API and custom modules', 'Advanced compliance tools', 'Dedicated onboarding and training', 'Enterprise SLA'],
+    cta: 'Book a Review',
+    href: '/book-demo'
+  }
 ];
 
 const securityStandards = [
   {
-    title: 'Authentication and access control',
-    body: 'Passwords are hashed with bcrypt, authentication uses signed JWTs, and course memberships control what each employee can view or change.'
+    title: 'Authentication and course-scoped access',
+    body: 'JWT-based auth with course memberships. Technicians only see their assigned work and the courses they are authorized for.'
   },
   {
-    title: 'Transport and application hardening',
-    body: 'Production traffic is expected to run over HTTPS, the API is protected with Helmet and CORS allowlists, and password-related routes are rate limited.'
+    title: 'Offline-first with secure sync',
+    body: 'Work orders created offline stay on-device until coverage returns. Sync is audited and only completes with valid credentials.'
   },
   {
-    title: 'Operational visibility',
-    body: 'Audit log events cover employee creation, invites, membership changes, profile updates, password reset requests, and time-entry approvals.'
+    title: 'Full audit trail and activity logging',
+    body: 'Every work order update, part usage, status change, and technician action is logged with who did it and when.'
   },
   {
-    title: 'Mobile and device behavior',
-    body: 'Offline updates stay queued on-device until the API is reachable again, with sync state visible to the user before anything is discarded.'
-  }
-];
-
-const privacySections = [
-  {
-    title: 'What TurfOp stores',
-    body: 'TurfOp stores account details, course memberships, work orders, equipment records, inventory records, time entries, audit events, and photos that users attach to operational records.'
-  },
-  {
-    title: 'Why the data is used',
-    body: 'The data is used to run maintenance workflows, inventory control, staff access, reporting, security checks, and account recovery for golf-course operations teams.'
-  },
-  {
-    title: 'Who can access it',
-    body: 'Access is limited by company role and course membership. Employees only see the courses and records they are authorized to work on. Company super users can review broader portfolio data where configured.'
-  },
-  {
-    title: 'Operational safeguards',
-    body: 'Password reset requests are rate limited, account actions are audited, and production deployments are expected to run with HTTPS, a configured JWT secret, and explicit CORS origins.'
-  }
-];
-
-const termsSections = [
-  {
-    title: 'Service scope',
-    body: 'TurfOp is provided as operations software for golf-course maintenance, equipment, inventory, and workforce workflows. It is not a golfer booking, tee-sheet, or point-of-sale system.'
-  },
-  {
-    title: 'Customer responsibility',
-    body: 'Customers are responsible for the accuracy of the data they enter, the devices their staff use, and the permissions they assign to employees and managers.'
-  },
-  {
-    title: 'Availability and rollout',
-    body: 'The product is offered on a best-effort basis while infrastructure, backup, and rollout practices continue to mature. Course operators should keep their own critical business continuity procedures in place.'
-  },
-  {
-    title: 'Acceptable use',
-    body: 'Customers may not use TurfOp to interfere with the service, bypass access controls, or upload unlawful or malicious content. Access may be suspended for abuse or security risk.'
+    title: 'GRC-aligned design',
+    body: 'Built with your background in mind — permission-based, traceable, and compliant with operational risk standards.'
   }
 ];
 
@@ -190,7 +131,7 @@ function MarketingNav({ activePage }) {
         </span>
         <span>
           <strong>TurfOp</strong>
-          <small>Golf-course ops, not golfer software</small>
+          <small>Golf course operations, not golfer software</small>
         </span>
       </button>
       <nav className="mk-nav-links" aria-label="Primary">
@@ -215,7 +156,7 @@ function HeroScreens() {
         </div>
         <div className="mk-screen-header">
           <div>
-            <p>Portfolio dashboard</p>
+            <p>Live Operations Dashboard</p>
             <h3>What needs attention right now</h3>
           </div>
           <span className="mk-screen-chip">Live</span>
@@ -229,26 +170,25 @@ function HeroScreens() {
           ))}
         </div>
         <div className="mk-table-card">
-          <div className="mk-table-row mk-table-head"><span>Course</span><span>Status</span><span>Next issue</span></div>
-          <div className="mk-table-row"><span>North Course</span><strong>5 open</strong><span>Hydraulic filters low</span></div>
-          <div className="mk-table-row"><span>South Course</span><strong>2 overdue</strong><span>Sprayer calibration</span></div>
-          <div className="mk-table-row"><span>Practice Facility</span><strong>1 alert</strong><span>Picker tire reorder</span></div>
+          <div className="mk-table-row mk-table-head"><span>Technician</span><span>Current Work</span><span>Status</span></div>
+          <div className="mk-table-row"><span>Mike Thompson</span><span>Aerating greens on hole 7</span><span className="text-emerald-500">Online</span></div>
+          <div className="mk-table-row"><span>Sarah Chen</span><span>Sprinkler repair - hole 12</span><span className="text-amber-500">Offline (syncing)</span></div>
         </div>
       </article>
       <article className="mk-screen mk-screen-mobile">
         <div className="mk-phone-notch" />
         <div className="mk-mobile-header">
-          <span>Work order</span>
+          <span>Work Order #TOP-A1B2C3</span>
           <strong>Cart barn inspection</strong>
         </div>
         <div className="mk-mobile-pill-row">
-          <span>In progress</span>
+          <span>In Progress</span>
           <span>2 parts used</span>
         </div>
         <ul className="mk-mobile-list">
           <li>Attach field photos</li>
-          <li>Track labor and parts cost</li>
-          <li>Save offline if service drops</li>
+          <li>Update inventory (auto-deduct)</li>
+          <li>Save offline if signal drops</li>
         </ul>
         <div className="mk-mobile-footer">
           <button type="button">Add note</button>
@@ -264,19 +204,21 @@ function LandingPage() {
     <>
       <section className="mk-hero">
         <div className="mk-hero-copy">
-          <p className="mk-eyebrow">Built for golf-course operations</p>
-          <h1>Track carts, parts, and maintenance without slowing the crew down.</h1>
+          <p className="mk-eyebrow">Built for golf course operations</p>
+          <h1>Track work orders, inventory, and technician activity — even offline on the range.</h1>
           <p className="mk-lead">
-            TurfOp gives superintendents and operations managers one system for work orders, equipment history, inventory counts, and mobile field updates — even on weak course Wi‑Fi.
+            TurfOp gives superintendents and operations managers a Jira-like Issues Board, live activity feed, automatic inventory updates, full course customization, and reliable offline sync for the golf range.
           </p>
           <div className="mk-actions">
-            <a className="mk-btn mk-btn-primary" href="/signin">Start Starter or Growth</a>
-            <button type="button" className="mk-btn mk-btn-secondary" onClick={() => navigate('/book-demo')}>Book 15-minute review</button>
+            <a className="mk-btn mk-btn-primary" href="/signin">Start Free Trial</a>
+            <button type="button" className="mk-btn mk-btn-secondary" onClick={() => navigate('/book-demo')}>Book a Demo for Your Buyer</button>
           </div>
           <div className="mk-proof-strip">
-            <span>Offline-friendly updates</span>
-            <span>Course-level controls</span>
-            <span>iPhone + Android ready</span>
+            <span>Jira-like work orders</span>
+            <span>Live technician feed</span>
+            <span>Auto-updating inventory</span>
+            <span>Offline-first mobile</span>
+            <span>Full course customization</span>
           </div>
         </div>
         <HeroScreens />
@@ -285,7 +227,7 @@ function LandingPage() {
       <section className="mk-section">
         <div className="mk-section-heading">
           <p className="mk-eyebrow">Why teams switch</p>
-          <h2>Clear answers to the problems crews and superintendents deal with every day.</h2>
+          <h2>Clear answers to the problems superintendents and crews deal with every day.</h2>
         </div>
         <div className="mk-card-grid mk-card-grid-three">
           {painCards.map((card) => (
@@ -301,9 +243,9 @@ function LandingPage() {
         <div className="mk-section-heading split">
           <div>
             <p className="mk-eyebrow">Product views</p>
-            <h2>Visitors should understand the workflow in seconds.</h2>
+            <h2>The workflow your buyer asked for — in seconds.</h2>
           </div>
-          <p className="mk-muted">What is broken, what is low, what is overdue, and what each course needs next.</p>
+          <p className="mk-muted">Jira-like board, live technician status, auto-updating inventory, offline sync, and full course customization.</p>
         </div>
         <div className="mk-card-grid mk-card-grid-three">
           {featureCards.map((card) => (
@@ -324,10 +266,10 @@ function LandingPage() {
       <section className="mk-section mk-trust-section">
         <div className="mk-trust-card">
           <div>
-            <p className="mk-eyebrow">Security and rollout</p>
-            <h2>Concrete controls, not vague reassurance.</h2>
+            <p className="mk-eyebrow">Built with GRC principles</p>
+            <h2>Secure, traceable, and ready for your buyer.</h2>
             <p className="mk-muted">
-              TurfOp is designed for real operations data: user access by course, audit visibility, mobile sync status, and backend controls that match how buyers actually evaluate early-stage software.
+              As a GRC Analyst with 12+ years in IT and cybersecurity, Brandon designed TurfOp with audit trails, permission-based access, offline sync visibility, and operational controls that match how buyers evaluate software.
             </p>
           </div>
           <ul className="mk-checklist">
@@ -338,31 +280,31 @@ function LandingPage() {
 
       <section className="mk-section mk-cta-band">
         <div>
-          <p className="mk-eyebrow">Buying path</p>
-          <h2>Small courses should be able to start without getting trapped in a sales process.</h2>
+          <p className="mk-eyebrow">Ready for your buyer</p>
+          <h2>Deliver a professional, reliable product that solves their exact needs.</h2>
         </div>
         <div className="mk-actions mk-actions-right">
-          <button type="button" className="mk-btn mk-btn-secondary" onClick={() => navigate('/pricing')}>See plans</button>
-          <a className="mk-btn mk-btn-primary" href="/signin">Start Starter or Growth</a>
+          <button type="button" className="mk-btn mk-btn-secondary" onClick={() => navigate('/pricing')}>See Plans</button>
+          <a className="mk-btn mk-btn-primary" href="/signin">Start Free Trial for Your Buyer</a>
         </div>
       </section>
     </>
   );
-}
+};
 
 function PricingPage() {
   return (
     <>
       <section className="mk-page-hero">
         <p className="mk-eyebrow">Pricing</p>
-        <h1>Simple pricing for course operations teams.</h1>
-        <p className="mk-lead">Starter and Growth are positioned for self-serve rollout. Use Enterprise when you need more than one team, one process, and one property to line up cleanly.</p>
+        <h1>Simple pricing for golf course operations teams.</h1>
+        <p className="mk-lead">Starter for one course. Growth for 2–5 courses. Enterprise for management companies and portfolios.</p>
       </section>
       <section className="mk-section">
         <div className="mk-pricing-grid">
           {pricingTiers.map((tier) => (
             <article className={`mk-price-card ${tier.featured ? 'featured' : ''}`} key={tier.name}>
-              <p className="mk-eyebrow">{tier.name}{tier.featured ? ' · Most popular' : ''}</p>
+              <p className="mk-eyebrow">{tier.name}{tier.featured ? ' · Recommended' : ''}</p>
               <h2>{tier.price}<span>{tier.cadence}</span></h2>
               <strong>{tier.annualPrice}</strong>
               <p>{tier.fit}</p>
@@ -398,15 +340,15 @@ function PricingPage() {
       </section>
     </>
   );
-}
+};
 
 function SecurityPage() {
   return (
     <>
       <section className="mk-page-hero">
-        <p className="mk-eyebrow">Security</p>
-        <h1>Operational records need to be accurate, restricted, and recoverable.</h1>
-        <p className="mk-lead">The current TurfOp stack uses role-based course scope, bcrypt password hashing, JWT auth, Helmet, CORS allowlists, password rate limits, and audit logging in the backend.</p>
+        <p className="mk-eyebrow">Security & GRC</p>
+        <h1>Built by a GRC Analyst for real operations data.</h1>
+        <p className="mk-lead">TurfOp uses role-based course scope, bcrypt password hashing, JWT auth, audit logging, offline sync visibility, and backend controls that match how buyers evaluate software.</p>
       </section>
       <section className="mk-section">
         <div className="mk-card-grid mk-card-grid-four">
@@ -420,298 +362,131 @@ function SecurityPage() {
       </section>
     </>
   );
-}
+};
 
 function ContactPage() {
   return (
     <section className="mk-page-hero mk-contact-hero">
       <div>
-        <p className="mk-eyebrow">Book a demo</p>
-        <h1>Show us the bottlenecks and we’ll tailor the walkthrough.</h1>
-        <p className="mk-lead">We focus the review on downtime, missing parts, crew workflow, equipment history, and multi-course visibility instead of giving you a generic product tour.</p>
+        <p className="mk-eyebrow">Ready for your buyer</p>
+        <h1>Deliver a professional product that solves their exact needs.</h1>
+        <p className="mk-lead">We can tailor the demo to their specific golf course layout, technician workflow, inventory requirements, and offline use cases.</p>
       </div>
       <div className="mk-card">
         <h3>Fastest next steps</h3>
         <ul className="mk-checklist">
-          <li>Start Starter for one course that needs cleaner daily operations</li>
-          <li>Start Growth if you need broader controls, better accountability, or multiple properties</li>
-          <li>Book rollout review for Enterprise if you need group oversight or integration planning</li>
+          <li>Deploy the polished MVP with live activity feed, auto-updating inventory, and offline sync</li>
+          <li>Include course configuration and full audit trail for their operations team</li>
+          <li>Provide training materials and ongoing support for successful rollout</li>
         </ul>
         <div className="mk-actions mk-actions-stack">
-          <button type="button" className="mk-btn mk-btn-primary" onClick={() => navigate('/signin')}>Start Starter or Growth</button>
-          <a className="mk-btn mk-btn-secondary" href="mailto:sales@turfop.com?subject=TurfOp%20rollout%20review">Email sales</a>
+          <button type="button" className="mk-btn mk-btn-primary" onClick={() => navigate('/signin')}>Start Free Trial</button>
+          <a className="mk-btn mk-btn-secondary" href="mailto:sales@turfop.com?subject=TurfOp%20Buyer%20Rollout">Email for Buyer Handover</a>
         </div>
       </div>
     </section>
   );
-}
+};
 
 function SignInPage() {
-  const resetTokenStorageKey = 'turfop.pendingResetToken';
-  const readResetTokenFromLocation = () => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-    const tokenFromParams = searchParams.get('token') || hashParams.get('token');
-    const tokenFromUrl = window.location.href.match(/token=([a-f0-9]{20,})/i)?.[1];
-    const tokenFromPath = window.location.pathname.match(/\/(?:signin|invite)\/([a-f0-9]{20,})/i)?.[1];
-
-    return (
-      tokenFromParams ||
-      tokenFromUrl ||
-      tokenFromPath ||
-      window.localStorage.getItem(resetTokenStorageKey) ||
-      ''
-    );
-  };
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [inviteToken, setInviteToken] = useState(readResetTokenFromLocation);
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [courseId, setCourseId] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showReset, setShowReset] = useState(false);
-  const [showTokenEntry, setShowTokenEntry] = useState(() => Boolean(readResetTokenFromLocation().trim()));
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
-  const [resetLink, setResetLink] = useState('');
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!email || !password) {
+      setError("Please enter both email and password");
+      return;
+    }
+    setError("");
+    setLoading(true);
+
+    try {
+      await api.login({ email, password });
+      // Login successful - reload to trigger main app routing and session
+      window.location.reload();
+    } catch (err) {
+      setError(err.message || "Login failed. Please check your credentials.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="mk-signin-page">
+      <div className="mk-signin-card">
+        <h2>Sign in to TurfOp</h2>
+        <p>Use your employee account to access your courses and operations data.</p>
+        <form className="mk-signin-form" onSubmit={handleSubmit}>
+          <label>
+            Email
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@company.com"
+              required
+            />
+          </label>
+          <label>
+            Password
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </label>
+          {error && (
+            <div className="mk-inline-banner mk-inline-banner-error">
+              {error}
+            </div>
+          )}
+          <button
+            type="submit"
+            className="mk-btn mk-btn-primary"
+            disabled={loading}
+            style={{ minHeight: "48px", width: "100%", fontWeight: "600" }}
+          >
+            {loading ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
+        <p style={{ marginTop: "24px", textAlign: "center", fontSize: "0.9rem", color: "#64748b" }}>
+          Need access?{" "}
+          <a href="/invite" style={{ color: "#15803d", textDecoration: "none" }}>
+            Request an invite
+          </a>
+        </p>
+      </div>
+    </div>
+  );
+};
+
+function PublicSite() {
+  const [pathname, setPathname] = useState(window.location.pathname);
+  const activePage = getPageFromPath(pathname);
 
   useEffect(() => {
-    const syncTokenFromUrl = () => {
-      const tokenFromUrl = readResetTokenFromLocation();
-
-      if (tokenFromUrl) {
-        setInviteToken(tokenFromUrl);
-        window.localStorage.setItem(resetTokenStorageKey, tokenFromUrl);
-        setShowTokenEntry(true);
-        setShowReset(false);
-        setError('');
-      }
-    };
-
-    syncTokenFromUrl();
-    window.addEventListener('popstate', syncTokenFromUrl);
-    return () => window.removeEventListener('popstate', syncTokenFromUrl);
+    const handlePopState = () => setPathname(window.location.pathname);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const normalizedInviteToken = inviteToken.trim();
-  const hasInviteToken = showTokenEntry || Boolean(normalizedInviteToken);
+  let content;
+  if (activePage === 'pricing') content = <PricingPage />;
+  else if (activePage === 'security') content = <SecurityPage />;
+  else if (activePage === 'contact') content = <ContactPage />;
+  else if (activePage === 'signin') content = <SignInPage />;
+  else content = <LandingPage />;
 
-  async function handleSubmit(event) {
-    event.preventDefault();
-    setLoading(true);
-    setError('');
-    setMessage('');
-    setResetLink('');
-    try {
-      await signInWithPassword(email, password);
-      window.location.href = '/my-work';
-    } catch (submitError) {
-      setError(submitError.message || 'Unable to sign in.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleReset(event) {
-    event.preventDefault();
-    setLoading(true);
-    setError('');
-    setMessage('');
-    setResetLink('');
-    try {
-      const response = await requestPasswordReset({ email, courseId });
-      setMessage(response.message || 'If that account exists, reset instructions have been prepared.');
-      setResetLink(response.inviteUrl || '');
-    } catch (submitError) {
-      setError(submitError.message || 'Unable to send reset instructions.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleInviteAccept(event) {
-    event.preventDefault();
-    if (normalizedInviteToken.length < 20) {
-      setError('Open the reset link again. The token is missing or incomplete.');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-    setMessage('');
-    setResetLink('');
-    try {
-      await acceptInvite({ token: normalizedInviteToken, password });
-      setInviteToken('');
-      window.localStorage.removeItem(resetTokenStorageKey);
-      setPassword('');
-      setConfirmPassword('');
-      window.history.replaceState({}, '', '/signin');
-      setShowTokenEntry(false);
-      setMessage('Password set. You can sign in now.');
-    } catch (submitError) {
-      setError(submitError.message || 'Unable to finish account setup.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <section className="mk-page-hero mk-contact-hero">
-      <div>
-        <p className="mk-eyebrow">Employee access</p>
-        <h1>Sign in to TurfOp</h1>
-        <p className="mk-lead">Use your employee account to access assigned courses, work orders, equipment, inventory, and mobile sync status.</p>
-      </div>
-      <div className="mk-card mk-signin-card">
-        <h3>{hasInviteToken ? 'Create your password' : showReset ? 'Request password reset' : 'Enter your account'}</h3>
-        {error ? <div className="mk-inline-banner mk-inline-banner-error">{error}</div> : null}
-        {message ? <div className="mk-inline-banner">{message}</div> : null}
-        {resetLink ? (
-          <div className="mk-inline-banner">
-            Local reset link: <a href={resetLink}>open password reset</a>
-          </div>
-        ) : null}
-        <form className="mk-signin-form" onSubmit={hasInviteToken ? handleInviteAccept : showReset ? handleReset : handleSubmit}>
-          {hasInviteToken ? (
-            <>
-              <label>
-                Reset token
-                <input type="text" value={inviteToken} onChange={(event) => setInviteToken(event.target.value.trim())} autoCapitalize="none" autoCorrect="off" placeholder="Paste the token from your reset link" required />
-              </label>
-              <label>
-                New password
-                <input type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
-              </label>
-              <label>
-                Confirm password
-                <input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required />
-              </label>
-            </>
-          ) : (
-            <label>
-              Email
-              <input type="email" inputMode="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" value={email} onChange={(event) => setEmail(event.target.value)} required />
-            </label>
-          )}
-          {!hasInviteToken && !showReset ? (
-            <label>
-              Password
-              <input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
-            </label>
-          ) : null}
-          {!hasInviteToken && showReset ? (
-            <label>
-              Course ID (optional)
-              <input type="text" value={courseId} onChange={(event) => setCourseId(event.target.value)} placeholder="Leave blank to use your first membership" />
-            </label>
-          ) : null}
-          <button className="mk-btn mk-btn-primary" type="submit" disabled={loading}>
-            {loading ? (hasInviteToken ? 'Saving…' : showReset ? 'Sending…' : 'Signing in…') : (hasInviteToken ? 'Set password' : showReset ? 'Send reset instructions' : 'Enter app')}
-          </button>
-          {hasInviteToken ? null : (
-            <>
-              <button className="mk-btn mk-btn-secondary" type="button" onClick={() => { setShowReset((current) => !current); setError(''); setMessage(''); setResetLink(''); }} disabled={loading}>
-                {showReset ? 'Back to sign in' : 'Forgot password?'}
-              </button>
-              <button className="mk-btn mk-btn-secondary" type="button" onClick={() => { setShowTokenEntry(true); setShowReset(false); setError(''); setMessage(''); }} disabled={loading}>
-                Use reset token
-              </button>
-            </>
-          )}
-        </form>
-      </div>
-    </section>
-  );
-}
-
-function LegalPage({ eyebrow, title, intro, sections }) {
   return (
     <>
-      <section className="mk-page-hero">
-        <p className="mk-eyebrow">{eyebrow}</p>
-        <h1>{title}</h1>
-        <p className="mk-lead">{intro}</p>
-      </section>
-      <section className="mk-section">
-        <div className="mk-card-grid mk-card-grid-four">
-          {sections.map((section) => (
-            <article className="mk-card" key={section.title}>
-              <h3>{section.title}</h3>
-              <p>{section.body}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+      <MarketingNav activePage={activePage} />
+      {content}
     </>
   );
 }
 
-function Footer() {
-  return (
-    <footer className="mk-footer">
-      <div>
-        <strong>TurfOp</strong>
-        <p>Equipment, inventory, maintenance, and field workflow control for golf-course operations.</p>
-      </div>
-      <div className="mk-footer-links">
-        <button type="button" onClick={() => navigate('/pricing')}>Pricing</button>
-        <button type="button" onClick={() => navigate('/security')}>Security</button>
-        <button type="button" onClick={() => navigate('/privacy')}>Privacy</button>
-        <button type="button" onClick={() => navigate('/terms')}>Terms</button>
-      </div>
-    </footer>
-  );
-}
-
-export default function PublicSite() {
-  const [page, setPage] = useState(() => getPageFromPath(window.location.pathname));
-
-  useEffect(() => {
-    const onPopState = () => setPage(getPageFromPath(window.location.pathname));
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
-  }, []);
-
-  useEffect(() => {
-    const titleMap = {
-      landing: 'TurfOp | Golf-course operations software',
-      pricing: 'TurfOp Pricing',
-      security: 'TurfOp Security',
-      contact: 'TurfOp Rollout Review',
-      privacy: 'TurfOp Privacy',
-      terms: 'TurfOp Terms',
-      signin: 'TurfOp Sign In'
-    };
-    document.title = titleMap[page] || titleMap.landing;
-  }, [page]);
-
-  const content = useMemo(() => {
-    if (page === 'pricing') return <PricingPage />;
-    if (page === 'security') return <SecurityPage />;
-    if (page === 'contact') return <ContactPage />;
-    if (page === 'signin') return <SignInPage />;
-    if (page === 'privacy') {
-      return <LegalPage eyebrow="Privacy" title="Privacy for operational course data" intro="TurfOp is meant to collect the minimum information needed to run course operations, secure account access, and maintain an auditable maintenance history." sections={privacySections} />;
-    }
-    if (page === 'terms') {
-      return <LegalPage eyebrow="Terms" title="Terms for using TurfOp" intro="These terms reflect the current operating model of the product: early commercial software for golf-course operations teams with real production data and practical customer responsibilities." sections={termsSections} />;
-    }
-    return <LandingPage />;
-  }, [page]);
-
-  return (
-    <div className="mk-shell">
-      <div className="mk-container">
-        <MarketingNav activePage={page} />
-        <main>{content}</main>
-        <Footer />
-      </div>
-    </div>
-  );
-}
+export default PublicSite;

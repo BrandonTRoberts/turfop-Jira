@@ -1,52 +1,114 @@
-# TurfOp - A Modern Project Management Tool
+# TurfOp
 
-TurfOp is a powerful, Jira-style project management application built with a modern frontend stack. It provides a comprehensive suite of tools for tracking issues, managing sprints, and visualizing project progress, all with a polished and responsive user interface.
+TurfOp is an operations platform for golf-course and turf-maintenance teams. It combines work orders, equipment tracking, parts inventory, employee/course access, and time tracking in one web/mobile-ready app.
 
-## Features
+## Current Stack
 
-- **Multiple Views:** Seamlessly switch between a high-level Dashboard, a drag-and-drop Kanban Board, and a detailed List view.
-- **Issue Tracking:** Create, update, and manage issues with statuses, priorities, assignees, due dates, and labels.
-- **Sprints & Epics:** Organize work into sprints and group related issues into epics for better long-term planning.
-- **Advanced Filtering:** Quickly find what you're looking for with powerful filters for status, assignee, priority, and due date.
-- **Dark Mode:** A beautifully implemented dark mode for comfortable use in any lighting condition.
-- **Persistence:** All your issues, sprints, and epics are saved to local storage, so your data is preserved between sessions.
-- **Activity History:** Track all changes and comments on an issue with a detailed activity log.
+- Frontend: React 18, Vite, Tailwind CSS, shadcn-style UI components
+- Backend: Node.js, Express, PostgreSQL
+- Auth: JWT/cookie-backed employee sessions with course-scoped permissions
+- Deployment: Cloudflare frontend assets via Wrangler, separate Node API at `api.turfop.com`
+- Mobile: Capacitor Android/iOS targets
 
-## Tech Stack
+## Main Product Areas
 
-- **Frontend:** React + Vite
-- **UI:** Tailwind CSS with shadcn/ui components
-- **Charting:** Recharts
-- **Drag & Drop:** dnd-kit
+- Marketing/public site routes: `/`, `/pricing`, `/security`, `/book-demo`, `/privacy`, `/terms`, `/signin`, `/invite`
+- Authenticated app routes and shell: dashboard, work orders, team, time, equipment, inventory, admin
+- Multi-company / multi-course access control
+- Backend dashboard rollups for operations metrics
+- Work order activity, comments, attachments, equipment and parts linkage
+- Inventory quantity/cost tracking
+- Employee directory, invitations, profile images, and role management
+- Clock-in/clock-out and payroll summaries
 
-## Running Locally
-
-To run the application locally, follow these steps:
-
-1.  **Clone the repository:**
-    ```bash
-    git clone <your-repo-url>
-    cd turfop
-    ```
-2.  **Install dependencies:**
-    ```bash
-    npm install
-    ```
-3.  **Run the development server:**
-    ```bash
-    npm run dev
-    ```
-
-The application will be available at `http://localhost:5173`.
-
-## Git Remote Setup
-
-To push this project to your own GitHub or GitLab repository, run:
+## Local Frontend Setup
 
 ```bash
-git remote add origin <your-repo-url>
-git branch -M main
-git push -u origin main
+cd /home/btr/Desktop/Turfop.com
+npm install
+npm run dev
 ```
 
-Replace `<your-repo-url>` with the actual remote URL.
+The frontend dev server runs at `http://localhost:5173`.
+
+Useful frontend environment variables:
+
+```bash
+VITE_API_BASE_URL=http://localhost:4000
+VITE_ENABLE_DEMO_MODE=true
+```
+
+For production builds, use:
+
+```bash
+npm run build:production
+```
+
+## Local Backend Setup
+
+```bash
+cd /home/btr/Desktop/Turfop.com/backend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+Required backend environment variables include:
+
+- `DATABASE_URL`
+- `JWT_SECRET` with at least 32 characters
+- `APP_BASE_URL`
+- `CORS_ALLOWED_ORIGINS`
+- SMTP variables if invitation/reset email delivery is enabled
+
+## Validation Commands
+
+From the repo root:
+
+```bash
+npm run lint
+npm run test
+npm run build
+npm run validate
+```
+
+From `backend/`:
+
+```bash
+npm test
+```
+
+`npm run validate` runs frontend lint, frontend tests, and the production frontend build.
+
+## Frontend Architecture Notes
+
+- `src/entry.jsx` chooses public marketing vs authenticated app based on `src/routes.js`.
+- `src/components/App.jsx` owns the authenticated app shell, session state, selected course state, and course-scoped data loading.
+- `src/components/views/DashboardView.jsx` renders backend dashboard metrics from `/dashboard/overview`.
+- `src/components/boards/issueWorkflow.js` keeps current backend work-order status values stable while allowing friendlier column labels in the UI.
+- `src/services/api.js` is the single frontend API client.
+
+## Deployment Notes
+
+Frontend SPA deployment is configured in `wrangler.jsonc`:
+
+```jsonc
+"assets": {
+  "directory": "./dist",
+  "not_found_handling": "single-page-application"
+}
+```
+
+The production frontend should call:
+
+```bash
+VITE_API_BASE_URL=https://api.turfop.com
+```
+
+## Current Recommended Next Steps
+
+1. Continue breaking `App.jsx` and `IssueBoard.jsx` into smaller hooks/components.
+2. Add deeper frontend tests around login, role-gated controls, and work-order form behavior.
+3. Add a migration/seed runner for local database setup.
+4. Finish or remove the untracked Docker Compose setup.
+5. Decide whether web production auth should rely on httpOnly cookies instead of localStorage tokens.

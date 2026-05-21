@@ -6,6 +6,13 @@ import { cloudflare } from "@cloudflare/vite-plugin";
 
 export default defineConfig({
   plugins: [react(), cloudflare()],
+  test: {
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.jsx',
+    globals: true,
+    include: ['src/**/*.{test,spec}.{js,jsx}'],
+    exclude: ['backend/**', 'node_modules/**', 'dist/**', 'android/**', 'ios/**'],
+  },
   build: {
     rollupOptions: {
       output: {

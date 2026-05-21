@@ -1,27 +1,26 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import IssueBoard from "./boards/IssueBoard";
+import AppSidebar from "./AppSidebar";
 import AdminPanel from "./panels/AdminPanel";
 import EquipmentPanel from "./panels/EquipmentPanel";
 import InventoryPanel from "./panels/InventoryPanel";
 import TimeTracker from "./panels/TimeTracker";
 import UsersPanel from "./panels/UsersPanel";
-import ThemeToggle from "./common/ThemeToggle";
-import { api, clearStoredToken, getStoredToken } from "@/services/api";
+import DashboardView from "./views/DashboardView";
+import { api } from "@/services/api";
+import { canUseAccountAdmin, useCourseData } from "@/hooks/useCourseData";
+import { mapDirectoryRows, useDashboardData } from "@/hooks/useDashboardData";
+import { useSessionBootstrap } from "@/hooks/useSessionBootstrap";
+import { useTimeEntries } from "@/hooks/useTimeEntries";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BarChart3, Clock, Database, LayoutGrid, Loader2, LogOut, Menu, Package, PanelLeftClose, PanelLeftOpen, ShieldCheck, Users, Wrench, X } from "lucide-react";
-import { getUploadUrl, readFilesAsDataUrls } from "@/lib/files";
+import { BarChart3, Clock, LayoutGrid, Loader2, LogOut, Menu, Package, ShieldCheck, Users, Wrench } from "lucide-react";
+import { readFilesAsDataUrls } from "@/lib/files";
 
 function canWriteCourse(course) {
   return course?.role === "admin" || course?.role === "read_write";
-}
-
-function canUseAccountAdmin(employee) {
-  return employee?.company_role === "platform_admin" || employee?.company_role === "company_super_user";
 }
 
 function LoginScreen({ onLogin }) {
@@ -69,40 +68,85 @@ function LoginScreen({ onLogin }) {
 }
 
 export default function App() {
-  const [currentView, setCurrentView] = useState("dashboard");
-  const [session, setSession] = useState(null);
-  const [courses, setCourses] = useState([]);
-  const [companies, setCompanies] = useState([]);
-  const [selectedCourseId, setSelectedCourseId] = useState("");
-  const [equipment, setEquipment] = useState([]);
-  const [inventory, setInventory] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [workOrders, setWorkOrders] = useState([]);
-  const [timeEntries, setTimeEntries] = useState([]);
-  const [timeSummary, setTimeSummary] = useState(null);
+  const [currentView, setCurrentView] = useState("issues");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.localStorage.getItem("turfop-sidebar-collapsed") === "true");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [booting, setBooting] = useState(Boolean(getStoredToken()));
-  const [loadingCourses, setLoadingCourses] = useState(false);
-  const [loadingCompanies, setLoadingCompanies] = useState(false);
-  const [loadingEquipment, setLoadingEquipment] = useState(false);
-  const [loadingInventory, setLoadingInventory] = useState(false);
-  const [courseError, setCourseError] = useState("");
-  const [companiesError, setCompaniesError] = useState("");
-  const [equipmentError, setEquipmentError] = useState("");
-  const [inventoryError, setInventoryError] = useState("");
-  const [usersError, setUsersError] = useState("");
-  const [workOrdersError, setWorkOrdersError] = useState("");
-  const [loadingWorkOrders, setLoadingWorkOrders] = useState(false);
-  const [loadingTime, setLoadingTime] = useState(false);
-  const [timeError, setTimeError] = useState("");
 
-  const selectedCourse = useMemo(
-    () => courses.find((course) => course.course_id === selectedCourseId) || courses[0] || null,
-    [courses, selectedCourseId]
-  );
+  const rememberSidebarState = useCallback((collapsed) => {
+    window.localStorage.setItem("turfop-sidebar-collapsed", String(collapsed));
+    return collapsed;
+  }, []);
 
+  const {
+    courses,
+    companies,
+    selectedCourse,
+    setSelectedCourseId,
+    loadingCourses,
+    loadingCompanies,
+    courseError,
+    companiesError,
+    setCompanies,
+    loadCourses,
+    loadCompanies,
+    resetCourseData,
+  } = useCourseData({
+    currentView,
+    onAdminViewRevoked: useCallback(() => setCurrentView("dashboard"), []),
+  });
+
+  const {
+    equipment,
+    inventory,
+    users,
+    workOrders,
+    dashboardOverview,
+    loadingEquipment,
+    loadingInventory,
+    loadingWorkOrders,
+    loadingDashboard,
+    equipmentError,
+    inventoryError,
+    usersError,
+    workOrdersError,
+    dashboardError,
+    setEquipment,
+    setInventory,
+    setUsers,
+    setWorkOrders,
+    resetDashboardData,
+  } = useDashboardData(selectedCourse);
+
+  const {
+    timeEntries,
+    timeSummary,
+    loadingTime,
+    timeError,
+    reloadTimeEntries,
+    resetTimeEntries,
+  } = useTimeEntries(selectedCourse);
+
+  const { session, setSession, booting, handleLogin, handleLogout } = useSessionBootstrap({
+    loadCourses,
+    resetCourseData,
+    resetDashboardData,
+    resetTimeEntries,
+  });
+
+  const employeeRole = session?.employee?.company_role;
   const isAccountAdmin = canUseAccountAdmin(session?.employee);
+
+  useEffect(() => {
+    if (isAccountAdmin) {
+      loadCompanies(employeeRole);
+    } else {
+      setCompanies([]);
+      if (currentView === "admin") {
+        setCurrentView("dashboard");
+      }
+    }
+  }, [currentView, employeeRole, isAccountAdmin, loadCompanies, setCompanies]);
+
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: BarChart3 },
     { id: "issues", label: "Issues Board", icon: LayoutGrid },
@@ -112,157 +156,6 @@ export default function App() {
     { id: "inventory", label: "Inventory", icon: Package },
     ...(isAccountAdmin ? [{ id: "admin", label: "Admin", icon: ShieldCheck }] : []),
   ];
-
-  async function loadCourses() {
-    setLoadingCourses(true);
-    setCourseError("");
-
-    try {
-      const nextCourses = await api.courses();
-      setCourses(nextCourses);
-      setSelectedCourseId((current) => {
-        if (nextCourses.some((course) => course.course_id === current)) return current;
-        return nextCourses[0]?.course_id || "";
-      });
-    } catch (error) {
-      setCourseError(error.message);
-    } finally {
-      setLoadingCourses(false);
-    }
-  }
-
-  async function loadCompanies() {
-    if (!canUseAccountAdmin(session?.employee)) {
-      setCompanies([]);
-      return;
-    }
-
-    setLoadingCompanies(true);
-    setCompaniesError("");
-
-    try {
-      const nextCompanies = await api.companies();
-      setCompanies(nextCompanies);
-    } catch (error) {
-      setCompaniesError(error.message);
-    } finally {
-      setLoadingCompanies(false);
-    }
-  }
-
-  async function hydrateFromToken() {
-    if (!getStoredToken()) {
-      setBooting(false);
-      return;
-    }
-
-    try {
-      const nextSession = await api.me();
-      setSession(nextSession);
-      await loadCourses();
-    } catch {
-      clearStoredToken();
-      setSession(null);
-    } finally {
-      setBooting(false);
-    }
-  }
-
-  useEffect(() => {
-    hydrateFromToken();
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem("turfop-sidebar-collapsed", String(sidebarCollapsed));
-  }, [sidebarCollapsed]);
-
-  useEffect(() => {
-    if (canUseAccountAdmin(session?.employee)) {
-      loadCompanies();
-    } else {
-      setCompanies([]);
-      if (currentView === "admin") {
-        setCurrentView("dashboard");
-      }
-    }
-  }, [session?.employee?.id, session?.employee?.company_role]);
-
-  useEffect(() => {
-    if (!selectedCourse?.course_id) return;
-
-    setLoadingEquipment(true);
-    setEquipmentError("");
-    api.equipment(selectedCourse.course_id)
-      .then(setEquipment)
-      .catch((error) => setEquipmentError(error.message))
-      .finally(() => setLoadingEquipment(false));
-
-    setLoadingInventory(true);
-    setInventoryError("");
-    api.inventory(selectedCourse.course_id)
-      .then(setInventory)
-      .catch((error) => setInventoryError(error.message))
-      .finally(() => setLoadingInventory(false));
-
-    setUsersError("");
-    api.courseDirectory(selectedCourse.course_id)
-      .then((rows) => {
-        setUsers(rows.map((row) => ({
-          id: row.id,
-          name: row.full_name || row.email || "Unnamed user",
-          email: row.email,
-          courseId: row.course_id,
-          role: row.role || "read_only",
-          status: row.must_change_password ? "Invited" : "Active",
-          profileImageUrl: row.profile_image_url,
-          hourlyRate: row.hourly_rate,
-        })));
-      })
-      .catch((error) => {
-        setUsers([]);
-        setUsersError(error.message);
-      });
-
-    setLoadingWorkOrders(true);
-    setWorkOrdersError("");
-    api.workOrders(selectedCourse.course_id)
-      .then(setWorkOrders)
-      .catch((error) => setWorkOrdersError(error.message))
-      .finally(() => setLoadingWorkOrders(false));
-
-    setLoadingTime(true);
-    setTimeError("");
-    const timeScope = selectedCourse.role === "admin" ? "course" : "mine";
-    Promise.all([
-      api.timeEntries(selectedCourse.course_id, timeScope),
-      selectedCourse.role === "admin" ? api.timeSummary(selectedCourse.course_id).catch(() => null) : Promise.resolve(null),
-    ])
-      .then(([timePayload, summaryPayload]) => {
-        setTimeEntries(timePayload.items || []);
-        setTimeSummary(summaryPayload);
-      })
-      .catch((error) => setTimeError(error.message))
-      .finally(() => setLoadingTime(false));
-  }, [selectedCourse?.course_id]);
-
-  async function handleLogin(nextSession) {
-    setSession(nextSession);
-    await loadCourses();
-  }
-
-  async function handleLogout() {
-    await api.logout();
-    setSession(null);
-    setCourses([]);
-    setCompanies([]);
-    setSelectedCourseId("");
-    setEquipment([]);
-    setInventory([]);
-    setUsers([]);
-    setWorkOrders([]);
-    setTimeEntries([]);
-    setTimeSummary(null);
-  }
 
   async function createCompany(payload) {
     const created = await api.createCompany(payload);
@@ -353,17 +246,6 @@ export default function App() {
     };
   }
 
-  async function reloadTimeEntries() {
-    if (!selectedCourse) return;
-    const timeScope = selectedCourse.role === "admin" ? "course" : "mine";
-    const [timePayload, summaryPayload] = await Promise.all([
-      api.timeEntries(selectedCourse.course_id, timeScope),
-      selectedCourse.role === "admin" ? api.timeSummary(selectedCourse.course_id).catch(() => null) : Promise.resolve(null),
-    ]);
-    setTimeEntries(timePayload.items || []);
-    setTimeSummary(summaryPayload);
-  }
-
   if (booting) {
     return (
       <div className="flex min-h-screen items-center justify-center gap-2 bg-background text-muted-foreground">
@@ -413,45 +295,13 @@ export default function App() {
     switch (currentView) {
       case "dashboard":
         return (
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-3xl font-light sm:text-4xl">TurfOp Operations</h1>
-              <p className="mt-3 text-muted-foreground">
-                Signed in as {employee.full_name || employee.email}. Active course scope is {selectedCourse.name}.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <Card className="border border-blue-500/70 ring-blue-500/40">
-                <CardContent className="p-5">
-                  <p className="text-sm text-muted-foreground">Accessible courses</p>
-                  <p className="mt-2 text-4xl font-semibold">{courses.length}</p>
-                </CardContent>
-              </Card>
-              <Card className="border border-blue-500/70 ring-blue-500/40">
-                <CardContent className="p-5">
-                  <p className="text-sm text-muted-foreground">Equipment in scope</p>
-                  <p className="mt-2 text-4xl font-semibold">{equipment.length}</p>
-                </CardContent>
-              </Card>
-              <Card className="border border-blue-500/70 ring-blue-500/40">
-                <CardContent className="p-5">
-                  <p className="text-sm text-muted-foreground">Users in scope</p>
-                  <p className="mt-2 text-4xl font-semibold">{users.length}</p>
-                </CardContent>
-              </Card>
-            </div>
-            <Card className="border border-blue-500/70 ring-blue-500/40">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Database className="h-4 w-4" />
-                  Data boundary
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">
-                This view only requests records for the selected course id. Company-level access is resolved by the API from your account and course memberships.
-              </CardContent>
-            </Card>
-          </div>
+          <DashboardView
+            employee={employee}
+            selectedCourse={selectedCourse}
+            overview={dashboardOverview}
+            loading={loadingDashboard}
+            error={dashboardError}
+          />
         );
       case "issues":
         return (
@@ -505,16 +355,7 @@ export default function App() {
                   profileImage: invite.profileImage,
                 });
                 const rows = await api.courseDirectory(selectedCourse.course_id);
-                setUsers(rows.map((row) => ({
-                  id: row.id,
-                  name: row.full_name || row.email || "Unnamed user",
-                  email: row.email,
-                  courseId: row.course_id,
-                  role: row.role || "read_only",
-                  status: row.must_change_password ? "Invited" : "Active",
-                  profileImageUrl: row.profile_image_url,
-                  hourlyRate: row.hourly_rate,
-                })));
+                setUsers(mapDirectoryRows(rows));
               }}
               onRoleChange={async (employeeId, role) => {
                 await api.upsertMembership({ employeeId, courseId: selectedCourse.course_id, role });
@@ -552,101 +393,26 @@ export default function App() {
     }
   };
 
-  const sidebar = (isMobile = false) => {
-    const collapsed = isMobile ? false : sidebarCollapsed;
-
+  function renderSidebar(isMobile = false) {
     return (
-      <aside className={`flex h-full shrink-0 flex-col border-r border-border bg-card transition-[width] duration-200 ${collapsed ? "w-20" : "w-72"} ${isMobile ? "w-80 max-w-[88vw]" : ""}`}>
-        <div className={`border-b border-border ${collapsed ? "p-3" : "p-4 sm:p-6"}`}>
-          {isMobile ? (
-            <div className="mb-4 flex items-center justify-between">
-              <span className="text-sm font-medium text-muted-foreground">Navigation</span>
-              <Button type="button" variant="ghost" size="icon" onClick={() => setMobileNavOpen(false)} aria-label="Close navigation">
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-          ) : null}
-          <div className={`flex items-center gap-4 ${collapsed ? "justify-center" : ""}`}>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500 text-2xl font-bold text-black">T</div>
-            {!collapsed ? <div>
-              <p className="text-3xl font-semibold tracking-tighter">TurfOp</p>
-              <p className="text-sm text-muted-foreground">Operations Platform</p>
-            </div> : null}
-          </div>
-
-          {!collapsed ? <div className="mt-5 rounded-xl border border-border bg-muted/40 p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate font-semibold">{employee.full_name || employee.email}</p>
-                <p className="truncate text-xs text-muted-foreground">{employee.email}</p>
-              </div>
-              <label className="h-8 w-8 shrink-0 cursor-pointer overflow-hidden rounded-full border border-border bg-muted" title="Upload profile picture">
-                {employee.profile_image_url ? <img src={getUploadUrl(employee.profile_image_url)} alt="" className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center text-xs">{(employee.full_name || employee.email || "?")[0]}</span>}
-                <input className="hidden" type="file" accept="image/*" onChange={(event) => updateMyProfileImage(event.target.files)} />
-              </label>
-              <Button type="button" variant="ghost" size="icon" onClick={handleLogout} title="Sign out">
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-          </div> : null}
-
-          {!collapsed ? <div className="mt-4 space-y-2">
-            <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
-              Course Scope
-              {selectedCourse ? <Badge variant="outline">{selectedCourse.role}</Badge> : null}
-            </div>
-            <Select value={selectedCourse?.course_id || ""} onValueChange={setSelectedCourseId} disabled={courses.length === 0}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select course" />
-              </SelectTrigger>
-              <SelectContent>
-                {courses.map((course) => (
-                  <SelectItem key={course.course_id} value={course.course_id}>
-                    {course.company_name ? `${course.company_name} / ${course.name}` : course.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {courseError ? <p className="text-xs text-red-400">{courseError}</p> : null}
-          </div> : null}
-        </div>
-
-        <nav className="flex-1 space-y-1 p-3">
-          {menuItems.map((item) => (
-            <Button
-              key={item.id}
-              variant={currentView === item.id ? "default" : "ghost"}
-              className={`w-full ${collapsed ? "justify-center px-0" : "justify-start"}`}
-              onClick={() => selectView(item.id)}
-              title={collapsed ? item.label : undefined}
-            >
-              <item.icon className={`h-5 w-5 ${collapsed ? "" : "mr-3"}`} />
-              {!collapsed ? item.label : null}
-            </Button>
-          ))}
-        </nav>
-
-        <div className="border-t border-border p-3">
-          {!isMobile ? (
-            <Button
-              type="button"
-              variant="outline"
-              className={`mb-2 w-full ${collapsed ? "justify-center px-0" : "justify-start"}`}
-              onClick={() => setSidebarCollapsed((current) => !current)}
-              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {collapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="mr-3 h-5 w-5" />}
-              {!collapsed ? "Collapse sidebar" : null}
-            </Button>
-          ) : null}
-          <div className={`flex items-center gap-3 rounded-lg bg-muted/40 p-2 text-sm ${collapsed ? "justify-center" : "justify-between"}`}>
-            {!collapsed ? <span className="text-muted-foreground">Appearance</span> : null}
-            <ThemeToggle />
-          </div>
-        </div>
-      </aside>
+      <AppSidebar
+        employee={employee}
+        selectedCourse={selectedCourse}
+        courses={courses}
+        courseError={courseError}
+        currentView={currentView}
+        menuItems={menuItems}
+        collapsed={sidebarCollapsed}
+        isMobile={isMobile}
+        onCloseMobileNav={() => setMobileNavOpen(false)}
+        onCourseChange={setSelectedCourseId}
+        onLogout={handleLogout}
+        onProfileImageChange={updateMyProfileImage}
+        onSelectView={selectView}
+        onToggleCollapsed={() => setSidebarCollapsed((current) => rememberSidebarState(!current))}
+      />
     );
-  };
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground lg:flex lg:h-screen lg:overflow-hidden">
@@ -672,13 +438,13 @@ export default function App() {
             aria-label="Close navigation overlay"
           />
           <div className="relative h-full">
-            {sidebar(true)}
+            {renderSidebar(true)}
           </div>
         </div>
       ) : null}
 
       <div className="hidden lg:block">
-        {sidebar(false)}
+        {renderSidebar(false)}
       </div>
 
       <main className="min-w-0 flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
@@ -687,3 +453,5 @@ export default function App() {
     </div>
   );
 }
+
+
