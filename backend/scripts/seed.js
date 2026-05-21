@@ -23,11 +23,11 @@ async function seedDatabase() {
     `);
     const companyId = companyRes.rows[0].id;
 
-    // Create sample employees
+    // Create sample employees (Brandon is platform_admin for live testing)
     const employeeRes = await client.query(`
       INSERT INTO employees (company_id, email, full_name, password_hash, company_role, hourly_rate)
       VALUES 
-        ($1, 'super@turfop.com', 'Brandon Roberts', '$2b$10$bKRyh5jTl29vGCL8ZXoeruP0yzXkzVcbo.FAvl8WegnN8jjtYcuES', 'company_super_user', 65.00),
+        ($1, 'brandontroberts@proton.me', 'Brandon Roberts', '$2b$10$MwUZ1X0zQejbXi3jmg5Kt.x64P21e1drbxJcm9VzXi4hEJheDFoXC', 'platform_admin', 65.00),
         ($1, 'superintendent@turfop.com', 'Mike Thompson', '$2b$10$bKRyh5jTl29vGCL8ZXoeruP0yzXkzVcbo.FAvl8WegnN8jjtYcuES', null, 48.50),
         ($1, 'tech1@turfop.com', 'Sarah Chen', '$2b$10$bKRyh5jTl29vGCL8ZXoeruP0yzXkzVcbo.FAvl8WegnN8jjtYcuES', null, 32.00)
       RETURNING id, email;
