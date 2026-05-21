@@ -29,7 +29,7 @@ function toEditForm(item) {
   };
 }
 
-export default function InventoryPanel({ course, inventory, loading, error, canWrite, onCreate, onUpdate }) {
+export default function InventoryPanel({ course, inventory, loading, error, canWrite, onCreate, onUpdate, onDelete }) {
   const [search, setSearch] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [selectedId, setSelectedId] = useState("");
@@ -402,3 +402,21 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
     </div>
   );
 }
+
+                  <TableCell>
+                    {canWrite && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (window.confirm(`Delete inventory item ${item.sku}?`)) {
+                            onDelete(item.id);
+                          }
+                        }}
+                        className="text-red-500 hover:text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </TableCell>
