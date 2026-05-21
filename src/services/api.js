@@ -123,6 +123,10 @@ export const api = {
     return request(`/parts-inventory/${encodeURIComponent(partId)}`, { method: "PATCH", body: payload });
   },
 
+  async deleteInventoryItem(partId, payload = {}) {
+    return request(`/parts-inventory/${encodeURIComponent(partId)}`, { method: "DELETE", body: payload });
+  },
+
   async courseDirectory(courseId) {
     return request(`/employees/directory?courseId=${encodeURIComponent(courseId)}`);
   },

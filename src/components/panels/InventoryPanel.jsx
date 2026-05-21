@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, ImagePlus, Loader2, PackagePlus, Save } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ImagePlus, Loader2, PackagePlus, Save, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -370,6 +370,7 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
                   <TableHead>Unit Cost</TableHead>
                   <TableHead>Updated</TableHead>
                   <TableHead>Files</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -390,6 +391,23 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
                     <TableCell>${Number(item.unit_cost || 0).toFixed(2)}</TableCell>
                     <TableCell>{item.updated_at ? new Date(item.updated_at).toLocaleDateString() : "New"}</TableCell>
                     <TableCell>{item.attachments?.length || 0} files</TableCell>
+                    <TableCell>
+                      {canWrite && typeof onDelete === "function" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (window.confirm(`Delete inventory item ${item.sku}?`)) {
+                              onDelete(item.id, { expectedUpdatedAt: item.updated_at });
+                            }
+                          }}
+                          className="text-red-500 hover:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -401,22 +419,4 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
       </Card>
     </div>
   );
-}
-
-                  <TableCell>
-                    {canWrite && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          if (window.confirm(`Delete inventory item ${item.sku}?`)) {
-                            onDelete(item.id);
-                          }
-                        }}
-                        className="text-red-500 hover:text-red-600"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </TableCell>
+};

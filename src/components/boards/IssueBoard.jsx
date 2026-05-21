@@ -19,6 +19,8 @@ const emptyTicket = {
   dueAt: "",
   partInventoryId: "none",
   quantityUsed: "",
+  partUsages: [],
+  completedWorkNotes: "",
   comment: "",
   images: [],
   attachments: [],
@@ -53,11 +55,15 @@ function buildUpdatePayload(ticket, draft) {
     technicianEmployeeId: ticket.technician_employee_id,
     technicianName: ticket.technician_name,
     laborHours: ticket.labor_hours,
-    completedWorkNotes: ticket.completed_work_notes,
+    completedWorkNotes: draft.completedWorkNotes ?? ticket.completed_work_notes,
     completedAt: draft.status === "Completed" ? (ticket.completed_at || new Date().toISOString()) : ticket.completed_at,
-    partUsages: draft.partInventoryId && draft.partInventoryId !== "none" && Number(draft.quantityUsed || 0) > 0
-      ? [{ partInventoryId: draft.partInventoryId, quantityUsed: Number(draft.quantityUsed) }]
-      : ticket.part_usages?.map((usage) => ({ partInventoryId: usage.part_inventory_id, quantityUsed: Number(usage.quantity_used || 0) })) || [],
+    partUsages: Array.isArray(draft.partUsages)
+      ? draft.partUsages
+        .filter((usage) => usage.partInventoryId && usage.partInventoryId !== "none" && Number(usage.quantityUsed || 0) > 0)
+        .map((usage) => ({ partInventoryId: usage.partInventoryId, quantityUsed: Number(usage.quantityUsed) }))
+      : draft.partInventoryId && draft.partInventoryId !== "none" && Number(draft.quantityUsed || 0) > 0
+        ? [{ partInventoryId: draft.partInventoryId, quantityUsed: Number(draft.quantityUsed) }]
+        : ticket.part_usages?.map((usage) => ({ partInventoryId: usage.part_inventory_id, quantityUsed: Number(usage.quantity_used || 0) })) || [],
     images: draft.images?.length ? [...(ticket.image_urls || []), ...draft.images] : ticket.image_urls || [],
     attachments: draft.attachments?.length ? [...(ticket.attachments || []), ...draft.attachments] : ticket.attachments || [],
     expectedUpdatedAt: ticket.updated_at,
@@ -148,6 +154,11 @@ export default function IssueBoard({ course, workOrders, users = [], equipment =
       dueAt: selectedTicket.due_at ? selectedTicket.due_at.slice(0, 10) : "",
       partInventoryId: "none",
       quantityUsed: "",
+      partUsages: selectedTicket.part_usages?.map((usage) => ({
+        partInventoryId: usage.part_inventory_id,
+        quantityUsed: String(usage.quantity_used || ""),
+      })) || [],
+      completedWorkNotes: selectedTicket.completed_work_notes || "",
       comment: "",
       images: [],
       attachments: [],
@@ -220,6 +231,11 @@ export default function IssueBoard({ course, workOrders, users = [], equipment =
   }
 
   async function updateSelectedStatus(status) {
+    if (status === "Completed" && !detailDraft.completedWorkNotes?.trim()) {
+      setDetailError("Work completed description is required before marking a work order completed.");
+      return;
+    }
+
     const nextDraft = { ...detailDraft, status };
     setDetailDraft(nextDraft);
     await saveSelectedTicket(nextDraft);

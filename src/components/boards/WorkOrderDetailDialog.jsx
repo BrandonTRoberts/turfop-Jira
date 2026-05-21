@@ -20,41 +20,37 @@ export default function WorkOrderDetailDialog({
   users,
   equipment,
   inventory,
-  course,
-  addComment,
+  _course,
+  _addComment,
   saveSelectedTicket,
   updateSelectedStatus,
   setDetailError,
 }) {
-  // Ensure partUsages is an array
-  if (!Array.isArray(detailDraft.partUsages)) {
-    setDetailDraft({ ...detailDraft, partUsages: [] });
-    return null;
-  }
+  const partUsages = Array.isArray(detailDraft.partUsages) ? detailDraft.partUsages : [];
 
   const addPartUsage = () => {
     setDetailDraft({
       ...detailDraft,
       partUsages: [
-        ...detailDraft.partUsages,
-        { partInventoryId: "", quantityUsed: "" }
+        ...partUsages,
+        { partInventoryId: "none", quantityUsed: "" }
       ]
     });
   };
 
   const updatePartUsage = (index, field, value) => {
-    const updatedUsages = [...detailDraft.partUsages];
+    const updatedUsages = [...partUsages];
     updatedUsages[index] = { ...updatedUsages[index], [field]: value };
     setDetailDraft({ ...detailDraft, partUsages: updatedUsages });
   };
 
   const removePartUsage = (index) => {
-    const updatedUsages = detailDraft.partUsages.filter((_, i) => i !== index);
+    const updatedUsages = partUsages.filter((_, i) => i !== index);
     setDetailDraft({ ...detailDraft, partUsages: updatedUsages });
   };
 
   const handleSave = () => {
-    const validPartUsages = detailDraft.partUsages.filter(
+    const validPartUsages = partUsages.filter(
       (usage) => usage.partInventoryId && usage.partInventoryId !== "none" && Number(usage.quantityUsed || 0) > 0
     );
     saveSelectedTicket({ ...detailDraft, partUsages: validPartUsages });
@@ -193,11 +189,11 @@ export default function WorkOrderDetailDialog({
                   Parts Used (Auto-Deducts from Inventory)
                 </h4>
                 <div className="space-y-3 border border-border rounded-md p-4 bg-card">
-                  {detailDraft.partUsages.map((usage, index) => (
+                  {partUsages.map((usage, index) => (
                     <div key={index} className="flex gap-3 items-end">
                       <div className="flex-1">
                         <Select 
-                          value={usage.partInventoryId || ""} 
+                          value={usage.partInventoryId || "none"}
                           onValueChange={(val) => updatePartUsage(index, "partInventoryId", val)}
                           disabled={!canWrite}
                         >
@@ -205,7 +201,7 @@ export default function WorkOrderDetailDialog({
                             <SelectValue placeholder="Select part" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">No part used</SelectItem>
+                            <SelectItem value="none">No part used</SelectItem>
                             {inventory.map((item) => (
                               <SelectItem key={item.id} value={item.id}>
                                 {item.sku} - {item.part_description} (Stock: {item.quantity_on_hand})
@@ -269,9 +265,9 @@ export default function WorkOrderDetailDialog({
 
               {/* Save */}
               {canWrite && (
-                <Button onClick={handleSave} disabled={saving || !detailDraft.completedWorkNotes?.trim()} className="w-full">
+                <Button onClick={handleSave} disabled={saving || (detailDraft.status === "Completed" && !detailDraft.completedWorkNotes?.trim())} className="w-full">
                   {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save & Mark as Completed
+                  Save Changes
                 </Button>
               )}
 
@@ -380,4 +376,3 @@ export default function WorkOrderDetailDialog({
     </Dialog>
   );
 };
-EOF
