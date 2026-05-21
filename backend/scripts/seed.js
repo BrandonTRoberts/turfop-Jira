@@ -27,9 +27,9 @@ async function seedDatabase() {
     const employeeRes = await client.query(`
       INSERT INTO employees (company_id, email, full_name, password_hash, company_role, hourly_rate)
       VALUES 
-        ($1, 'super@turfop.com', 'Brandon Roberts', '$2a$10$samplehash', 'company_super_user', 65.00),
-        ($1, 'superintendent@turfop.com', 'Mike Thompson', '$2a$10$samplehash', null, 48.50),
-        ($1, 'tech1@turfop.com', 'Sarah Chen', '$2a$10$samplehash', null, 32.00)
+        ($1, 'super@turfop.com', 'Brandon Roberts', '$2b$10$bKRyh5jTl29vGCL8ZXoeruP0yzXkzVcbo.FAvl8WegnN8jjtYcuES', 'company_super_user', 65.00),
+        ($1, 'superintendent@turfop.com', 'Mike Thompson', '$2b$10$bKRyh5jTl29vGCL8ZXoeruP0yzXkzVcbo.FAvl8WegnN8jjtYcuES', null, 48.50),
+        ($1, 'tech1@turfop.com', 'Sarah Chen', '$2b$10$bKRyh5jTl29vGCL8ZXoeruP0yzXkzVcbo.FAvl8WegnN8jjtYcuES', null, 32.00)
       RETURNING id, email;
     `, [companyId]);
 
