@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import turfopLogo from './assets/turfop-logo-web.png';
+import { APP_ROUTES } from './routes';
 import { api } from './services/api';
 import './public-site.css';
 
@@ -415,8 +416,8 @@ function SignInPage() {
 
     try {
       await api.login({ email, password });
-      // Login successful - reload to trigger main app routing and session
-      window.location.reload();
+      // Move off the public /signin route so entry.jsx loads the authenticated app bundle.
+      window.location.assign(APP_ROUTES.dashboard);
     } catch (err) {
       setError(err.message || "Login failed. Please check your credentials.");
     } finally {
