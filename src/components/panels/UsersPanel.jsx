@@ -27,7 +27,7 @@ function toEditForm(user) {
   };
 }
 
-export default function UsersPanel({ business, users, canAdmin, onInvite, onRoleChange, onLoadDetails, onUpdate }) {
+export default function UsersPanel({ business, users, canAdmin, onInvite, onRoleChange, onLoadDetails, onUpdate, onResendInvite, onSendResetPassword }) {
   const [search, setSearch] = useState("");
   const [invite, setInvite] = useState(emptyInvite);
   const [selectedUser, setSelectedUser] = useState(null);
