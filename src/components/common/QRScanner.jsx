@@ -1,57 +1,90 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
+import { X, Loader2, CameraOff } from 'lucide-react';
 
 export default function QRScanner({ onScan, onClose, title = "Scan QR Code" }) {
-  const scannerRef = useRef(null);
   const [error, setError] = useState(null);
+  const [starting, setStarting] = useState(true);
+  const scannerRef = useRef(null);
 
   useEffect(() => {
-    // We create the scanner instance
-    const scanner = new Html5QrcodeScanner(
-      "qr-reader",
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      /* verbose= */ false
-    );
+    let html5QrCode;
 
-    scanner.render(
-      (decodedText) => {
-        // Stop scanning after a successful read
-        scanner.clear();
-        onScan(decodedText);
-      },
-      (err) => {
-        // We can just log errors to console or ignore them (happens a lot while searching for a QR)
-        // console.warn(err);
+    async function startScanner() {
+      try {
+        html5QrCode = new Html5Qrcode("qr-reader");
+        scannerRef.current = html5QrCode;
+        
+        await html5QrCode.start(
+          { facingMode: "environment" }, // Prefer back camera
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+          },
+          (decodedText) => {
+            // Stop scanning and call onScan
+            if (html5QrCode.isScanning) {
+              html5QrCode.stop().then(() => {
+                onScan(decodedText);
+              }).catch(console.error);
+            }
+          },
+          (errorMessage) => {
+            // normal background errors while searching for QR
+          }
+        );
+        setStarting(false);
+      } catch (err) {
+        console.error("Camera start error:", err);
+        setStarting(false);
+        setError("Could not access camera. Please ensure you have granted camera permissions to this site.");
       }
-    );
+    }
 
-    scannerRef.current = scanner;
+    startScanner();
 
     // Cleanup on unmount
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch(e => console.error("Failed to clear scanner", e));
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().catch(console.error);
       }
     };
   }, [onScan]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-card border shadow-lg rounded-xl overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+      <div className="w-full max-w-sm bg-card border shadow-lg rounded-xl overflow-hidden flex flex-col">
         <div className="flex items-center justify-between border-b px-4 py-3">
           <h3 className="font-semibold">{title}</h3>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <div className="p-4 flex flex-col items-center">
-          <p className="text-sm text-muted-foreground mb-4 text-center">
-            Position the QR code inside the camera frame.
-          </p>
-          <div id="qr-reader" className="w-full max-w-[300px] overflow-hidden rounded-md border" />
-          {error && <p className="mt-4 text-sm text-red-500">{error}</p>}
+        <div className="p-4 flex flex-col items-center justify-center min-h-[300px] relative bg-muted/30">
+          {starting && !error && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground z-10">
+              <Loader2 className="h-8 w-8 animate-spin mb-2" />
+              <p className="text-sm">Requesting camera access...</p>
+            </div>
+          )}
+          
+          {error ? (
+            <div className="text-center text-red-500 flex flex-col items-center p-4">
+              <CameraOff className="h-8 w-8 mb-2 opacity-80" />
+              <p className="text-sm font-medium">{error}</p>
+              <Button variant="outline" size="sm" className="mt-4" onClick={onClose}>Close Scanner</Button>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground mb-4 text-center">
+                Position the QR code inside the frame.
+              </p>
+              {/* The container html5-qrcode attaches to */}
+              <div id="qr-reader" className="w-full max-w-[300px] overflow-hidden rounded-lg shadow-sm border border-border" />
+            </>
+          )}
         </div>
       </div>
     </div>
