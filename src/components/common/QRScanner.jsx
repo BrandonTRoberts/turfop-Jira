@@ -21,7 +21,7 @@ export default function QRScanner({ onScan, onClose, title = "Scan QR Code" }) {
           { facingMode: "environment" }, // Prefer back camera
           {
             fps: 10,
-            qrbox: { width: 250, height: 250 },
+            qrbox: { width: 300, height: 150 }, // Wider box for 1D barcodes
             aspectRatio: 1.0,
           },
           (decodedText) => {
