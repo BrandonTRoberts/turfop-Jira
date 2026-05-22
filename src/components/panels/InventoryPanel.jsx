@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, ImagePlus, Loader2, PackagePlus, Save, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ImagePlus, Loader2, PackagePlus, Save, Trash2, QrCode } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getUploadUrl, readFilesAsDataUrls } from "@/lib/files";
+import QRScanner from "@/components/common/QRScanner";
 
 const emptyForm = {
   sku: "",
@@ -38,6 +39,7 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
   const [savingEdit, setSavingEdit] = useState(false);
   const [formError, setFormError] = useState("");
   const [editError, setEditError] = useState("");
+  const [showScanner, setShowScanner] = useState(false);
 
   const selectedItem = useMemo(
     () => inventory.find((item) => item.id === selectedId) || null,
@@ -57,6 +59,41 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
   }, [inventory, search]);
 
   const lowStockCount = inventory.filter((item) => Number(item.quantity_on_hand) <= 0).length;
+
+  function handleScan(decodedText) {
+    setShowScanner(false);
+    
+    // 1. Try JSON
+    try {
+      const data = JSON.parse(decodedText);
+      setForm(prev => ({
+        ...prev,
+        sku: data.sku || data.serialNumber || data.id || prev.sku,
+        partDescription: data.partDescription || data.description || data.name || prev.partDescription,
+        unitCost: data.unitCost || data.cost || data.price || prev.unitCost,
+        reorderUrl: data.reorderUrl || data.url || prev.reorderUrl,
+      }));
+      return;
+    } catch (e) {
+      // not JSON
+    }
+
+    // 2. Try URL
+    try {
+      const url = new URL(decodedText);
+      setForm(prev => ({ 
+        ...prev, 
+        reorderUrl: decodedText, 
+        sku: url.pathname.split('/').filter(Boolean).pop() || prev.sku 
+      }));
+      return;
+    } catch (e) {
+      // not URL
+    }
+
+    // 3. Plain text fallback
+    setForm(prev => ({ ...prev, sku: decodedText }));
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -256,12 +293,16 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <PackagePlus className="h-4 w-4" />
-              Add inventory item
+              Add part
+              <Button type="button" variant="outline" size="sm" onClick={() => setShowScanner(true)} className="ml-auto">
+                <QrCode className="h-4 w-4 mr-2" />
+                Scan QR
+              </Button>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <form className="grid grid-cols-1 gap-3 lg:grid-cols-7" onSubmit={handleSubmit}>
-              <Input placeholder="SKU" value={form.sku} onChange={(event) => setForm({ ...form, sku: event.target.value })} required />
+              <Input placeholder="SKU / Number" value={form.sku} onChange={(event) => setForm({ ...form, sku: event.target.value })} required />
               <Input className="lg:col-span-2" placeholder="Description" value={form.partDescription} onChange={(event) => setForm({ ...form, partDescription: event.target.value })} required />
               <Input type="number" min="0" step="0.01" placeholder="Qty" value={form.quantityOnHand} onChange={(event) => setForm({ ...form, quantityOnHand: event.target.value })} />
               <Input type="number" min="0" step="0.01" placeholder="Unit cost" value={form.unitCost} onChange={(event) => setForm({ ...form, unitCost: event.target.value })} />
@@ -329,7 +370,7 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
           ) : filtered.length === 0 ? (
             <div className="p-10 text-center text-muted-foreground">No inventory items found for this course.</div>
           ) : (
-            <>
+            <div className="overflow-x-auto">
             <div className="divide-y divide-border md:hidden">
               {filtered.map((item) => (
                 <button
@@ -413,10 +454,18 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
               </TableBody>
             </Table>
             </div>
-            </>
+            </div>
           )}
         </CardContent>
       </Card>
+
+      {showScanner && (
+        <QRScanner 
+          onScan={handleScan} 
+          onClose={() => setShowScanner(false)} 
+          title="Scan Inventory QR"
+        />
+      )}
     </div>
   );
-};
+}

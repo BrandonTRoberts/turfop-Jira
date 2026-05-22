@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, ImagePlus, Loader2, Plus, Save, Wrench } from "lucide-react";
+import { ArrowLeft, ImagePlus, Loader2, Plus, Save, Wrench, QrCode } from "lucide-react";
 import { getUploadUrl, readFilesAsDataUrls } from "@/lib/files";
+import QRScanner from "@/components/common/QRScanner";
 
 const emptyForm = {
   name: "",
@@ -46,6 +47,7 @@ export default function EquipmentPanel({ course, equipment, loading, error, canW
   const [savingEdit, setSavingEdit] = useState(false);
   const [formError, setFormError] = useState("");
   const [editError, setEditError] = useState("");
+  const [showScanner, setShowScanner] = useState(false);
 
   const selectedItem = useMemo(
     () => equipment.find((item) => item.id === selectedId) || null,
@@ -57,6 +59,45 @@ export default function EquipmentPanel({ course, equipment, loading, error, canW
     setEditForm(toEditForm(selectedItem));
     setEditError("");
   }, [selectedItem]);
+
+  function handleScan(decodedText) {
+    setShowScanner(false);
+    
+    // 1. Try parsing as JSON
+    try {
+      const data = JSON.parse(decodedText);
+      setForm(prev => ({
+        ...prev,
+        name: data.name || data.title || prev.name,
+        make: data.make || data.manufacturer || prev.make,
+        model: data.model || prev.model,
+        serialNumber: data.serialNumber || data.serial_number || data.serial || prev.serialNumber,
+        vin: data.vin || prev.vin,
+        assignedArea: data.assignedArea || data.assigned_area || data.area || prev.assignedArea,
+      }));
+      return;
+    } catch (e) {
+      // not JSON, continue
+    }
+
+    // 2. Try parsing as URL
+    try {
+      const url = new URL(decodedText);
+      const pathParts = url.pathname.split('/').filter(Boolean);
+      if (pathParts.length > 0) {
+        const potentialId = pathParts[pathParts.length - 1];
+        setForm(prev => ({ ...prev, serialNumber: potentialId }));
+      } else {
+        setForm(prev => ({ ...prev, serialNumber: decodedText }));
+      }
+      return;
+    } catch (e) {
+      // not a URL, continue
+    }
+
+    // 3. Fallback to setting it as the serial number directly
+    setForm(prev => ({ ...prev, serialNumber: decodedText }));
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -254,6 +295,10 @@ export default function EquipmentPanel({ course, equipment, loading, error, canW
             <CardTitle className="flex items-center gap-2 text-base">
               <Wrench className="h-4 w-4" />
               Add equipment
+              <Button type="button" variant="outline" size="sm" onClick={() => setShowScanner(true)} className="ml-auto">
+                <QrCode className="h-4 w-4 mr-2" />
+                Scan QR
+              </Button>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -367,6 +412,14 @@ export default function EquipmentPanel({ course, equipment, loading, error, canW
           )}
         </CardContent>
       </Card>
+
+      {showScanner && (
+        <QRScanner 
+          onScan={handleScan} 
+          onClose={() => setShowScanner(false)} 
+          title="Scan Equipment QR"
+        />
+      )}
     </div>
   );
 }
