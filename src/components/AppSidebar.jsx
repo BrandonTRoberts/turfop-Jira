@@ -45,26 +45,31 @@ export default function AppSidebar({
         </div>
 
         {!effectiveCollapsed ? (
-          <div className="mt-5 rounded-xl border border-border bg-muted/40 p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate font-semibold">{employee.full_name || employee.email}</p>
-                <p className="truncate text-xs text-muted-foreground">{employee.email}</p>
-              </div>
-              <label className="h-8 w-8 shrink-0 cursor-pointer overflow-hidden rounded-full border border-border bg-muted" title="Upload profile picture">
+          <Button
+            variant="ghost"
+            className="w-full justify-start px-3 py-6 mt-5 rounded-xl border border-border bg-muted/40"
+            onClick={() => onSelectView('profile')}
+          >
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
                 {employee.profile_image_url ? (
-                  <img src={getUploadUrl(employee.profile_image_url)} alt="" className="h-full w-full object-cover" />
+                  <img src={getUploadUrl(employee.profile_image_url)} alt="Profile" className="h-full w-full object-cover" />
                 ) : (
                   <span className="flex h-full w-full items-center justify-center text-xs">{(employee.full_name || employee.email || "?")[0]}</span>
                 )}
-                <input className="hidden" type="file" accept="image/*" onChange={(event) => onProfileImageChange(event.target.files)} />
-              </label>
-              <Button type="button" variant="ghost" size="icon" onClick={onLogout} title="Sign out" aria-label="Sign out">
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        ) : null}
+              </div>
+              <div className="min-w-0 flex-1 text-left">
+                <p className="truncate font-semibold">{employee.full_name || employee.email}</p>
+                <p className="truncate text-xs text-muted-foreground">{employee.email}</p>
+              </div>
+           </div>
+           </Button>
+          <div className="mt-2 text-right">
+             <Button type="button" variant="ghost" size="icon" onClick={onLogout} title="Sign out" aria-label="Sign out">
+               <LogOut className="h-4 w-4" />
+             </Button>
+           </div>
+         ) : null}
 
         {!effectiveCollapsed ? (
           <div className="mt-4 space-y-2">
