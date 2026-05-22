@@ -192,14 +192,16 @@ button {
 }
 
 .mk-hero-copy {
-  flex: 1.05;
+  flex: 0.95;
 }
 
 .mk-screens {
-  flex: 0.95;
+  flex: 1.08;
   min-width: 0;
-  position: relative;
-  min-height: 420px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.5fr);
+  gap: 20px;
+  align-items: stretch;
 }
 
 .mk-eyebrow {
@@ -370,7 +372,7 @@ h1 {
 }
 
 .mk-screen {
-  position: absolute;
+  position: relative;
   border-radius: 26px;
   overflow: hidden;
   border: 1px solid rgba(120, 192, 141, 0.22);
@@ -378,16 +380,14 @@ h1 {
 }
 
 .mk-screen-desktop {
-  inset: 0 84px 0 0;
+  min-height: 400px;
   padding: 18px;
   background: linear-gradient(180deg, #163724 0%, #112919 100%);
   color: #effbf1;
 }
 
 .mk-screen-mobile {
-  right: 0;
-  bottom: 18px;
-  width: 210px;
+  align-self: end;
   padding: 18px 16px 16px;
   background: linear-gradient(180deg, #ffffff 0%, #f1f8f0 100%);
   color: var(--mk-text);
@@ -765,7 +765,7 @@ h1 {
   }
 
   .mk-screens {
-    min-height: 520px;
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 0.42fr);
   }
 }
 
@@ -808,19 +808,16 @@ h1 {
   }
 
   .mk-screens {
-    min-height: 660px;
+    grid-template-columns: 1fr;
   }
 
   .mk-screen-desktop {
-    inset: 0;
+    min-height: 0;
   }
 
   .mk-screen-mobile {
-    position: relative;
-    width: auto;
-    right: auto;
-    bottom: auto;
-    margin: 18px auto 0;
+    align-self: stretch;
+    margin: 0;
   }
 
   .mk-stat-grid,

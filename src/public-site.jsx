@@ -179,7 +179,7 @@ function HeroScreens() {
       <article className="mk-screen mk-screen-mobile">
         <div className="mk-phone-notch" />
         <div className="mk-mobile-header">
-          <span>Work Order #TOP-A1B2C3</span>
+          <span>Work Order #A1B2C3</span>
           <strong>Cart barn inspection</strong>
         </div>
         <div className="mk-mobile-pill-row">
