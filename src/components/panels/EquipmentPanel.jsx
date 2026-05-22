@@ -65,17 +65,21 @@ export default function EquipmentPanel({ course, equipment, loading, error, canW
     
     // 1. Try parsing as JSON
     try {
-      const data = JSON.parse(decodedText);
-      setForm(prev => ({
-        ...prev,
-        name: data.name || data.title || prev.name,
-        make: data.make || data.manufacturer || prev.make,
-        model: data.model || prev.model,
-        serialNumber: data.serialNumber || data.serial_number || data.serial || prev.serialNumber,
-        vin: data.vin || prev.vin,
-        assignedArea: data.assignedArea || data.assigned_area || data.area || prev.assignedArea,
-      }));
-      return;
+      // Clean up string before parsing in case scanner caught stray characters
+      const cleanText = decodedText.trim();
+      if (cleanText.startsWith('{') && cleanText.endsWith('}')) {
+        const data = JSON.parse(cleanText);
+        setForm(prev => ({
+          ...prev,
+          name: data.name || data.title || prev.name,
+          make: data.make || data.manufacturer || prev.make,
+          model: data.model || prev.model,
+          serialNumber: data.serialNumber || data.serial_number || data.serial || prev.serialNumber,
+          vin: data.vin || prev.vin,
+          assignedArea: data.assignedArea || data.assigned_area || data.area || prev.assignedArea,
+        }));
+        return;
+      }
     } catch (e) {
       // not JSON, continue
     }
@@ -302,10 +306,12 @@ export default function EquipmentPanel({ course, equipment, loading, error, canW
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <form className="grid grid-cols-1 gap-3 lg:grid-cols-7" onSubmit={handleSubmit}>
+            <form className="grid grid-cols-1 gap-3 lg:grid-cols-9" onSubmit={handleSubmit}>
               <Input className="lg:col-span-2" placeholder="Name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
               <Input placeholder="Make" value={form.make} onChange={(event) => setForm({ ...form, make: event.target.value })} />
               <Input placeholder="Model" value={form.model} onChange={(event) => setForm({ ...form, model: event.target.value })} />
+              <Input placeholder="Serial #" value={form.serialNumber} onChange={(event) => setForm({ ...form, serialNumber: event.target.value })} />
+              <Input placeholder="VIN" value={form.vin} onChange={(event) => setForm({ ...form, vin: event.target.value })} />
               <Input placeholder="Area" value={form.assignedArea} onChange={(event) => setForm({ ...form, assignedArea: event.target.value })} />
               <Select value={form.status} onValueChange={(status) => setForm({ ...form, status })}>
                 <SelectTrigger>

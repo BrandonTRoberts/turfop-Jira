@@ -65,15 +65,18 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
     
     // 1. Try JSON
     try {
-      const data = JSON.parse(decodedText);
-      setForm(prev => ({
-        ...prev,
-        sku: data.sku || data.serialNumber || data.id || prev.sku,
-        partDescription: data.partDescription || data.description || data.name || prev.partDescription,
-        unitCost: data.unitCost || data.cost || data.price || prev.unitCost,
-        reorderUrl: data.reorderUrl || data.url || prev.reorderUrl,
-      }));
-      return;
+      const cleanText = decodedText.trim();
+      if (cleanText.startsWith('{') && cleanText.endsWith('}')) {
+        const data = JSON.parse(cleanText);
+        setForm(prev => ({
+          ...prev,
+          sku: data.sku || data.serialNumber || data.id || prev.sku,
+          partDescription: data.partDescription || data.description || data.name || prev.partDescription,
+          unitCost: data.unitCost || data.cost || data.price || prev.unitCost,
+          reorderUrl: data.reorderUrl || data.url || prev.reorderUrl,
+        }));
+        return;
+      }
     } catch (e) {
       // not JSON
     }
