@@ -179,6 +179,20 @@ export const api = {
     return request("/employees", { method: "POST", body: payload });
   },
 
+  async resendInvite(employeeId, courseId) {
+    return request(`/employees/${encodeURIComponent(employeeId)}/resend-invite`, {
+      method: "POST",
+      body: { courseId },
+    });
+  },
+
+  async sendResetPassword(employeeId, courseId) {
+    return request(`/employees/${encodeURIComponent(employeeId)}/send-reset-password`, {
+      method: "POST",
+      body: { courseId },
+    });
+  },
+
   async upsertMembership(payload) {
     return request("/employees/memberships", { method: "POST", body: payload });
   },
