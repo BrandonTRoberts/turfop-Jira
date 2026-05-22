@@ -39,7 +39,7 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
   const [savingEdit, setSavingEdit] = useState(false);
   const [formError, setFormError] = useState("");
   const [editError, setEditError] = useState("");
-  const [showScanner, setShowScanner] = useState(false);
+  const [scannerMode, setScannerMode] = useState(null); // null, 'add', 'search'
 
   const selectedItem = useMemo(
     () => inventory.find((item) => item.id === selectedId) || null,
@@ -61,8 +61,28 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
   const lowStockCount = inventory.filter((item) => Number(item.quantity_on_hand) <= 0).length;
 
   function handleScan(decodedText) {
-    setShowScanner(false);
+    const currentMode = scannerMode;
+    setScannerMode(null);
     
+    // If scanning for search, just dump the text/sku directly into the search bar
+    if (currentMode === 'search') {
+      try {
+        const data = JSON.parse(decodedText);
+        setSearch(data.sku || data.serialNumber || data.id || decodedText);
+        return;
+      } catch (e) {
+        try {
+          const url = new URL(decodedText);
+          setSearch(url.pathname.split('/').filter(Boolean).pop() || decodedText);
+          return;
+        } catch (e2) {
+          setSearch(decodedText);
+          return;
+        }
+      }
+    }
+
+    // Otherwise, it's 'add' mode
     // 1. Try JSON
     try {
       const cleanText = decodedText.trim();
@@ -297,7 +317,7 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
             <CardTitle className="flex items-center gap-2 text-base">
               <PackagePlus className="h-4 w-4" />
               Add part
-              <Button type="button" variant="outline" size="sm" onClick={() => setShowScanner(true)} className="ml-auto">
+              <Button type="button" variant="outline" size="sm" onClick={() => setScannerMode('add')} className="ml-auto">
                 <QrCode className="h-4 w-4 mr-2" />
                 Scan QR
               </Button>
@@ -357,8 +377,18 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
         </Card>
       ) : null}
 
-      <div className="flex gap-3">
-        <Input placeholder="Search inventory..." value={search} onChange={(event) => setSearch(event.target.value)} />
+      <div className="flex gap-3 relative">
+        <Input placeholder="Search inventory..." value={search} onChange={(event) => setSearch(event.target.value)} className="pr-10" />
+        <Button 
+          type="button" 
+          variant="ghost" 
+          size="icon" 
+          className="absolute right-1 top-1 h-7 w-7 text-muted-foreground hover:text-foreground"
+          onClick={() => setScannerMode('search')}
+          title="Scan barcode/QR to search"
+        >
+          <QrCode className="h-4 w-4" />
+        </Button>
       </div>
 
       <Card>
@@ -462,11 +492,11 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
         </CardContent>
       </Card>
 
-      {showScanner && (
+      {scannerMode && (
         <QRScanner 
           onScan={handleScan} 
-          onClose={() => setShowScanner(false)} 
-          title="Scan Inventory QR"
+          onClose={() => setScannerMode(null)} 
+          title={scannerMode === 'search' ? "Scan to Search" : "Scan Inventory QR"}
         />
       )}
     </div>
