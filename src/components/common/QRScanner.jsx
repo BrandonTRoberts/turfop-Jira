@@ -15,6 +15,7 @@ export default function QRScanner({ onScan, onClose, title = "Scan QR Code" }) {
       try {
         html5QrCode = new Html5Qrcode("qr-reader");
         scannerRef.current = html5QrCode;
+        let hasScanned = false;
         
         await html5QrCode.start(
           { facingMode: "environment" }, // Prefer back camera
@@ -24,12 +25,9 @@ export default function QRScanner({ onScan, onClose, title = "Scan QR Code" }) {
             aspectRatio: 1.0,
           },
           (decodedText) => {
-            // Stop scanning and call onScan
-            if (html5QrCode.isScanning) {
-              html5QrCode.stop().then(() => {
-                onScan(decodedText);
-              }).catch(console.error);
-            }
+            if (hasScanned) return;
+            hasScanned = true;
+            onScan(decodedText);
           },
           (errorMessage) => {
             // normal background errors while searching for QR
