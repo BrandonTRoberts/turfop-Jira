@@ -179,8 +179,6 @@ router.post('/', requireAuth, async (req, res) => {
         [req.employee.id, 'employee.invite', courseId, employee.id, { email: employee.email }]
       );
 
-      await client.query('commit');
-
       const delivery = await deliverMagicLinkEmail({
         to: employee.email,
         fullName: employee.full_name,
@@ -188,6 +186,8 @@ router.post('/', requireAuth, async (req, res) => {
         courseId,
         purpose: 'invite'
       });
+
+      await client.query('commit');
 
       const { password_hash, ...safeEmployee } = employee;
 

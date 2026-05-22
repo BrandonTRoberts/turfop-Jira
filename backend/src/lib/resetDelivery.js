@@ -67,9 +67,27 @@ function buildEmailBody({ recipientName, actionLabel, actionUrl }) {
   };
 }
 
+let deliveryOverride = null;
+
+export function setEmailDeliveryTestOverride(override) {
+  if (!env.isTest) {
+    throw new Error('Email delivery overrides are only available in test mode');
+  }
+
+  deliveryOverride = override;
+}
+
+export function resetEmailDeliveryTestOverride() {
+  deliveryOverride = null;
+}
+
 export async function deliverMagicLinkEmail({ to, fullName, token, courseId, purpose }) {
   const actionUrl = buildMagicLinkUrl(token, courseId);
   const recipientName = fullName?.trim() || 'there';
+
+  if (deliveryOverride) {
+    return deliveryOverride({ to, fullName, token, courseId, purpose, actionUrl });
+  }
 
   if (!isEmailDeliveryReady()) {
     return {

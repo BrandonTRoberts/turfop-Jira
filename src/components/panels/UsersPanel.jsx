@@ -36,6 +36,7 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
   const [saving, setSaving] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [error, setError] = useState("");
+  const [inviteSuccess, setInviteSuccess] = useState("");
   const [editError, setEditError] = useState("");
   const [resendInviteError, setResendInviteError] = useState("");
   const [resendInviteSuccess, setResendInviteSuccess] = useState("");
@@ -54,10 +55,12 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
     event.preventDefault();
     setSaving(true);
     setError("");
+    setInviteSuccess("");
 
     try {
       await onInvite(invite);
       setInvite(emptyInvite);
+      setInviteSuccess("Invite sent. The user has been added and emailed a password setup link.");
     } catch (inviteError) {
       setError(inviteError.message);
     } finally {
@@ -321,9 +324,9 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
           </CardHeader>
           <CardContent>
             <form className="grid grid-cols-1 gap-3 lg:grid-cols-7" onSubmit={handleInvite}>
-              <Input className="lg:col-span-2" placeholder="Full name" value={invite.fullName} onChange={(event) => setInvite({ ...invite, fullName: event.target.value })} required />
-              <Input className="lg:col-span-2" type="email" placeholder="Email" value={invite.email} onChange={(event) => setInvite({ ...invite, email: event.target.value })} required />
-              <Select value={invite.role} onValueChange={(role) => setInvite({ ...invite, role })}>
+              <Input className="lg:col-span-2" placeholder="Full name" value={invite.fullName} onChange={(event) => setInvite({ ...invite, fullName: event.target.value })} required disabled={saving} />
+              <Input className="lg:col-span-2" type="email" placeholder="Email" value={invite.email} onChange={(event) => setInvite({ ...invite, email: event.target.value })} required disabled={saving} />
+              <Select value={invite.role} onValueChange={(role) => setInvite({ ...invite, role })} disabled={saving}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Admin</SelectItem>
@@ -332,12 +335,13 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
                 </SelectContent>
               </Select>
               <Button type="submit" disabled={saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}Invite</Button>
-              <label className="flex h-8 cursor-pointer items-center justify-center rounded-lg border border-input px-2.5 text-sm text-foreground hover:bg-muted">
+              <label className={`flex h-8 items-center justify-center rounded-lg border border-input px-2.5 text-sm text-foreground ${saving ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-muted"}`}>
                 Photo
                 <input
                   className="hidden"
                   type="file"
                   accept="image/*"
+                  disabled={saving}
                   onChange={async (event) => {
                     try {
                       const [profileImage] = await readFilesAsDataUrls(event.target.files, { maxFiles: 1 });
@@ -350,6 +354,7 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
               </label>
             </form>
             {invite.profileImage ? <p className="mt-2 text-xs text-muted-foreground">Profile photo selected.</p> : null}
+            {inviteSuccess ? <p className="mt-3 text-sm text-emerald-400">{inviteSuccess}</p> : null}
             {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
           </CardContent>
         </Card>
