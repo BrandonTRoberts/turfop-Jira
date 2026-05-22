@@ -47,8 +47,9 @@ button {
 }
 
 .mk-container {
-  width: min(1180px, calc(100% - 32px));
+  width: min(1180px, calc(100% - 48px));
   margin: 0 auto;
+  overflow-x: clip;
 }
 
 .mk-nav,
@@ -88,6 +89,7 @@ button {
 .mk-nav {
   align-items: center;
   margin-bottom: 28px;
+  padding: 4px 0;
 }
 
 .mk-brand {
@@ -136,9 +138,11 @@ button {
 }
 
 .mk-nav-links {
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .mk-nav-links button,
@@ -215,20 +219,71 @@ p {
 }
 
 h1 {
-  font-size: clamp(2.25rem, 5vw, 4.6rem);
-  line-height: 0.98;
+  font-size: clamp(2.35rem, 4.4vw, 4.35rem);
+  line-height: 1.02;
+  letter-spacing: -0.055em;
   margin: 10px 0 0;
-  max-width: 12ch;
+  max-width: 14ch;
 }
 
 .mk-page-hero h1,
 .mk-contact-hero h1 {
-  max-width: 14ch;
+  max-width: 18ch;
+}
+
+.mk-signin-page {
+  display: grid;
+  grid-template-columns: minmax(320px, 520px) minmax(280px, 1fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.mk-signin-card,
+.mk-signin-proof {
+  background: var(--mk-panel);
+  border: 1px solid rgba(20, 54, 33, 0.08);
+  box-shadow: var(--mk-shadow);
+  border-radius: 28px;
+  padding: 28px;
 }
 
 .mk-signin-card {
-  max-width: 520px;
+  max-width: none;
   width: 100%;
+}
+
+.mk-signin-proof {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background:
+    radial-gradient(circle at top right, rgba(120, 192, 141, 0.25), transparent 36%),
+    linear-gradient(180deg, #173923 0%, #102418 100%);
+  color: #f2fff4;
+}
+
+.mk-signin-proof .mk-eyebrow,
+.mk-signin-proof .mk-checklist {
+  color: rgba(242, 255, 244, 0.78);
+}
+
+.mk-signin-proof h3 {
+  font-size: clamp(1.5rem, 3vw, 2.4rem);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+.mk-signin-help {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.mk-signin-help a {
+  color: #15803d;
+  text-decoration: none;
+  font-weight: 800;
 }
 
 .mk-signin-form {
@@ -606,6 +661,28 @@ h1 {
   gap: 10px;
 }
 
+.mk-price-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mk-price-card-top .mk-eyebrow {
+  margin: 0;
+}
+
+.mk-recommended-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(31, 106, 65, 0.12);
+  color: var(--mk-brand);
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 7px 10px;
+}
+
 .mk-price-card.featured {
   background: linear-gradient(180deg, #ffffff 0%, #eef7ef 100%);
   border-color: rgba(31, 106, 65, 0.18);
@@ -624,6 +701,12 @@ h1 {
 
 .mk-price-card .mk-btn {
   margin-top: auto;
+  border: 1px solid rgba(31, 106, 65, 0.14);
+}
+
+.mk-compare-row span:not(:first-child) {
+  font-weight: 800;
+  color: var(--mk-brand);
 }
 
 .mk-compare-table {
@@ -676,7 +759,8 @@ h1 {
   }
 
   .mk-pricing-grid,
-  .mk-card-grid-three {
+  .mk-card-grid-three,
+  .mk-signin-page {
     grid-template-columns: 1fr;
   }
 
@@ -687,7 +771,7 @@ h1 {
 
 @media (max-width: 760px) {
   .mk-container {
-    width: min(100%, calc(100% - 20px));
+    width: min(100%, calc(100% - 24px));
   }
 
   .mk-shell {
@@ -712,7 +796,9 @@ h1 {
   .mk-price-card,
   .mk-trust-card,
   .mk-cta-band,
-  .mk-compare-card {
+  .mk-compare-card,
+  .mk-signin-card,
+  .mk-signin-proof {
     padding: 20px;
   }
 
