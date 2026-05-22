@@ -41,6 +41,8 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
   const [resendInviteSuccess, setResendInviteSuccess] = useState("");
   const [resetPasswordError, setResetPasswordError] = useState("");
   const [resetPasswordSuccess, setResetPasswordSuccess] = useState("");
+  const [sendingResend, setSendingResend] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
 
   const filtered = users.filter((user) =>
     [user.name, user.email, user.role, user.status].some((value) =>
@@ -97,11 +99,14 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
     if (!selectedUser || !canAdmin) return;
     setResendInviteError("");
     setResendInviteSuccess("");
+    setSendingResend(true);
     try {
       await onResendInvite(selectedUser.id);
       setResendInviteSuccess("Invite sent successfully!");
     } catch (err) {
       setResendInviteError(err.message || "Failed to resend invite.");
+    } finally {
+      setSendingResend(false);
     }
   }
 
@@ -109,11 +114,14 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
     if (!selectedUser || !canAdmin) return;
     setResetPasswordError("");
     setResetPasswordSuccess("");
+    setSendingReset(true);
     try {
       await onSendResetPassword(selectedUser.id);
       setResetPasswordSuccess("Password reset link sent successfully!");
     } catch (err) {
       setResetPasswordError(err.message || "Failed to send password reset link.");
+    } finally {
+      setSendingReset(false);
     }
   }
 
@@ -268,20 +276,26 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
                   <CardTitle>Admin Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {selectedUser.account_status === 'invited_pending_setup' && (
+                  {selectedUser.status === "Invited" && (
                     <>
-                      <Button onClick={handleResendInvite} className="w-full">
-                        Resend Invite Code
+                      <Button onClick={handleResendInvite} className="w-full" disabled={sendingResend}>
+                        {sendingResend && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Resend Invite
                       </Button>
                       {resendInviteError && <p className="text-sm text-red-400">{resendInviteError}</p>}
                       {resendInviteSuccess && <p className="text-sm text-emerald-400">{resendInviteSuccess}</p>}
                     </>
                   )}
-                  <Button onClick={handleSendResetPassword} className="w-full">
-                    Send Reset Password Link
-                  </Button>
-                  {resetPasswordError && <p className="text-sm text-red-400">{resetPasswordError}</p>}
-                  {resetPasswordSuccess && <p className="text-sm text-emerald-400">{resetPasswordSuccess}</p>}
+                  {selectedUser.status === "Active" && (
+                    <>
+                      <Button onClick={handleSendResetPassword} className="w-full" disabled={sendingReset}>
+                        {sendingReset && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Send Password Reset
+                      </Button>
+                      {resetPasswordError && <p className="text-sm text-red-400">{resetPasswordError}</p>}
+                      {resetPasswordSuccess && <p className="text-sm text-emerald-400">{resetPasswordSuccess}</p>}
+                    </>
+                  )}
                 </CardContent>
               </Card>
             )}
