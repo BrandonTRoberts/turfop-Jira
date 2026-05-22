@@ -302,7 +302,7 @@ export default function App() {
       reloadTimeEntries={reloadTimeEntries}
       loadEmployeeDetails={loadEmployeeDetails}
       updateEmployee={updateEmployee}
-      setEmployee={setEmployee}
+      setEmployee={(updated) => setSession({ ...session, employee: updated })}
       createCompany={createCompany}
       createCourse={createCourse}
       createEquipment={createEquipment}
