@@ -284,6 +284,146 @@ router.post('/:employeeId/invitations', requireAuth, async (req, res) => {
   }
 });
 
+router.post('/:employeeId/resend-invite', requireAuth, async (req, res) => {
+  const { employeeId } = req.params;
+  const { courseId } = req.body;
+
+  try {
+    const validationError = validateCourseRoleInput({ courseId, role: 'read_only' });
+    if (validationError) {
+      return res.status(400).json({ error: 'Valid courseId is required' });
+    }
+
+    if (!ensureInviteDeliveryReady(res)) {
+      return undefined;
+    }
+
+    const currentRole = await getRoleForCourse(req.employee, courseId);
+    if (!isAdmin(currentRole)) {
+      return res.status(403).json({ error: 'Admin access required for this course' });
+    }
+
+    const client = await connect();
+    try {
+      const course = await loadCourse(client, courseId);
+      if (!course) {
+        return res.status(404).json({ error: 'Course not found' });
+      }
+
+      const employee = await ensureEmployeeInCompany(client, course.company_id, employeeId);
+      if (!employee) {
+        return res.status(404).json({ error: 'Employee not found' });
+      }
+
+      const inviteToken = createInviteToken();
+      const tokenHash = hashInviteToken(inviteToken);
+      await client.query(
+        `
+          insert into invite_tokens (employee_id, course_id, token_hash, created_by_employee_id, expires_at)
+          values ($1, $2, $3, $4, now() + ($5 || ' hours')::interval)
+        `,
+        [employeeId, courseId, tokenHash, req.employee.id, String(INVITE_TTL_HOURS)]
+      );
+
+      await logAuditEvent({
+        actorEmployeeId: req.employee.id,
+        action: 'employee.invite.resend',
+        courseId,
+        targetEmployeeId: employeeId,
+        detail: { email: employee.email }
+      });
+
+      const delivery = await deliverMagicLinkEmail({
+        to: employee.email,
+        fullName: employee.full_name,
+        token: inviteToken,
+        courseId,
+        purpose: 'invite'
+      });
+
+      return res.status(201).json({
+        deliveryMode: delivery.mode,
+        ...buildInvitePayload(inviteToken, courseId)
+      });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    return handleUnexpectedError(res, error);
+  }
+});
+
+router.post('/:employeeId/send-reset-password', requireAuth, async (req, res) => {
+  const { employeeId } = req.params;
+  const { courseId } = req.body;
+
+  try {
+    const validationError = validateCourseRoleInput({ courseId, role: 'read_only' });
+    if (validationError) {
+      return res.status(400).json({ error: 'Valid courseId is required' });
+    }
+
+    if (!ensureInviteDeliveryReady(res)) { // Using the same email delivery check
+      return undefined;
+    }
+
+    const currentRole = await getRoleForCourse(req.employee, courseId);
+    if (!isAdmin(currentRole)) {
+      return res.status(403).json({ error: 'Admin access required for this course' });
+    }
+
+    const client = await connect();
+    try {
+      const course = await loadCourse(client, courseId);
+      if (!course) {
+        return res.status(404).json({ error: 'Course not found' });
+      }
+
+      const employee = await ensureEmployeeInCompany(client, course.company_id, employeeId);
+      if (!employee) {
+        return res.status(404).json({ error: 'Employee not found' });
+      }
+
+      const resetToken = createInviteToken(); // Reusing invite token mechanism for reset
+      const tokenHash = hashInviteToken(resetToken);
+
+      await client.query(
+        `
+          insert into invite_tokens (employee_id, course_id, token_hash, created_by_employee_id, expires_at)
+          values ($1, $2, $3, $4, now() + ($5 || ' hours')::interval)
+        `,
+        [employeeId, courseId, tokenHash, req.employee.id, String(INVITE_TTL_HOURS)]
+      );
+
+      await logAuditEvent({
+        actorEmployeeId: req.employee.id,
+        action: 'employee.password.reset.request',
+        courseId,
+        targetEmployeeId: employeeId,
+        detail: { email: employee.email }
+      });
+
+      const delivery = await deliverMagicLinkEmail({
+        to: employee.email,
+        fullName: employee.full_name,
+        token: resetToken,
+        courseId,
+        purpose: 'reset' // Indicate purpose is password reset
+      });
+
+      return res.status(201).json({
+        deliveryMode: delivery.mode,
+        // For security, don't expose the resetToken here in production
+        ...buildInvitePayload(resetToken, courseId) // Reusing for preview in dev
+      });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    return handleUnexpectedError(res, error);
+  }
+});
+
 router.post('/memberships', requireAuth, async (req, res) => {
   const { employeeId, courseId, role } = req.body;
 
