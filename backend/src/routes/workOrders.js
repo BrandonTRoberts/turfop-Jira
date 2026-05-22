@@ -162,7 +162,7 @@ async function applyPartUsage(client, workOrderId, courseId, partUsages = []) {
         select id, sku, part_description, quantity_on_hand, unit_cost
         from parts_inventory
         where id = $1 and course_id = $2
-        limit 1
+        for update
       `,
       [usage.partInventoryId, courseId]
     );
@@ -238,10 +238,12 @@ async function hydrateWorkOrderRow(client, row, canSeeFinancials = true) {
   }, canSeeFinancials);
 }
 
-async function deriveWorkOrderCosts(client, payload) {
+async function deriveWorkOrderCosts(client, payload, isAdminUser) {
   const laborHours = Number(payload.laborHours || 0);
   const technician = await loadTechnician(client, payload.technicianEmployeeId, payload.courseId);
-  const laborRate = Number(technician?.hourly_rate ?? payload.laborRate ?? 0);
+  const laborRate = isAdminUser 
+    ? Number(payload.laborRate ?? technician?.hourly_rate ?? 0)
+    : Number(technician?.hourly_rate ?? 0);
   const laborCost = Number((laborHours * laborRate).toFixed(2));
 
   return {
@@ -308,7 +310,7 @@ router.post('/', requireAuth, async (req, res) => {
       await ensureEquipmentInCourse(client, equipmentId, courseId);
       const imageUrls = await persistImageCollection(images, { entityType: 'work-orders', maxCount: 6 });
       const attachmentItems = await persistAttachmentCollection(attachments, { entityType: 'work-order-attachments', maxCount: 12 });
-      const costs = await deriveWorkOrderCosts(client, { technicianEmployeeId, technicianName, laborHours, laborRate, courseId });
+      const costs = await deriveWorkOrderCosts(client, { technicianEmployeeId, technicianName, laborHours, laborRate, courseId }, canSeeFinancials);
       const result = await client.query(
         `
           insert into work_orders (course_id, title, detail, status, assignee, equipment_id, due_at, technician_employee_id, technician_name, labor_hours, labor_rate, labor_cost, parts_cost, total_cost, completed_work_notes, completed_at, image_urls, attachments)
@@ -400,7 +402,7 @@ router.patch('/:workOrderId', requireAuth, async (req, res) => {
       await ensureEquipmentInCourse(client, equipmentId, courseId);
       const imageUrls = await persistImageCollection(images, { entityType: 'work-orders', maxCount: 6 });
       const attachmentItems = await persistAttachmentCollection(attachments, { entityType: 'work-order-attachments', maxCount: 12 });
-      const costs = await deriveWorkOrderCosts(client, { technicianEmployeeId, technicianName, laborHours, laborRate, courseId });
+      const costs = await deriveWorkOrderCosts(client, { technicianEmployeeId, technicianName, laborHours, laborRate, courseId }, canSeeFinancials);
       const result = await client.query(
         `
           update work_orders

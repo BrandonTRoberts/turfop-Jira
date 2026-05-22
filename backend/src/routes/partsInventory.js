@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query } from '../lib/db.js';
 import { requireAuth } from '../lib/requireAuth.js';
-import { canWrite, getRoleForCourse } from '../lib/permissions.js';
+import { canWrite, getRoleForCourse, isAdmin } from '../lib/permissions.js';
 import { persistAttachmentCollection, persistImageCollection } from '../lib/media.js';
 import { handleUnexpectedError } from '../lib/http.js';
 import { validatePartsInventoryInput } from '../lib/validation.js';
@@ -27,7 +27,18 @@ router.get('/', requireAuth, async (req, res) => {
       [courseId]
     );
 
-    res.json(result.rows);
+    const isAdminUser = isAdmin(role);
+    const rows = result.rows.map(row => {
+      if (!isAdminUser) {
+        return {
+          ...row,
+          unit_cost: null
+        };
+      }
+      return row;
+    });
+
+    res.json(rows);
   } catch (error) {
     return handleUnexpectedError(res, error);
   }

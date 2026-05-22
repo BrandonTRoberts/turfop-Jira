@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query } from '../lib/db.js';
 import { requireAuth } from '../lib/requireAuth.js';
-import { getRoleForCourse } from '../lib/permissions.js';
+import { getRoleForCourse, isAdmin } from '../lib/permissions.js';
 import { handleUnexpectedError } from '../lib/http.js';
 
 const router = Router();
@@ -13,6 +13,9 @@ router.get('/course-summary', requireAuth, async (req, res) => {
     const role = await getRoleForCourse(req.employee, courseId);
     if (!role) {
       return res.status(403).json({ error: 'No access to this course' });
+    }
+    if (!isAdmin(role)) {
+      return res.status(403).json({ error: 'Admin access required for this course' });
     }
 
     const [workOrderTotals, partsTotals] = await Promise.all([
