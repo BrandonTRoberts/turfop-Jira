@@ -1,5 +1,5 @@
 {
-  "appId": "com.turfops.app",
+  "appId": "com.turfop.app",
   "appName": "TurfOp",
   "webDir": "dist",
   "plugins": {
