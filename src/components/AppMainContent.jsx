@@ -5,6 +5,7 @@ import UsersPanel from "./panels/UsersPanel";
 import TimeTracker from "./panels/TimeTracker";
 import EquipmentPanel from "./panels/EquipmentPanel";
 import InventoryPanel from "./panels/InventoryPanel";
+import ProfilePanel from "./panels/ProfilePanel";
 import AdminPanel from "./panels/AdminPanel";
 import { api } from "@/services/api";
 import { mapDirectoryRows } from "@/hooks/useDashboardData";
@@ -136,28 +137,34 @@ export default function AppMainContent({
           <UsersPanel
             business={{ name: selectedCourse.name }}
             users={users}
-            canAdmin={selectedCourse.role === "admin"}
-            onLoadDetails={loadEmployeeDetails}
-            onUpdate={updateEmployee}
-            onInvite={async (invite) => {
-              await api.inviteEmployee({
-                courseId: selectedCourse.course_id,
-                email: invite.email,
-                fullName: invite.fullName,
-                role: invite.role,
-                hourlyRate: invite.hourlyRate ? Number(invite.hourlyRate) : null,
-                profileImage: invite.profileImage,
-              });
-              const rows = await api.courseDirectory(selectedCourse.course_id);
-              setUsers(mapDirectoryRows(rows));
-            }}
-            onRoleChange={async (employeeId, role) => {
-              await api.upsertMembership({ employeeId, courseId: selectedCourse.course_id, role });
-              setUsers((current) =>
-                current.map((user) => (user.id === employeeId ? { ...user, role } : user))
-              );
-            }}
-          />
+              canAdmin={selectedCourse.role === "admin"}
+              onLoadDetails={loadEmployeeDetails}
+              onUpdate={updateEmployee}
+              onInvite={async (invite) => {
+                await api.inviteEmployee({
+                  courseId: selectedCourse.course_id,
+                  email: invite.email,
+                  fullName: invite.fullName,
+                  role: invite.role,
+                  hourlyRate: invite.hourlyRate ? Number(invite.hourlyRate) : null,
+                  profileImage: invite.profileImage,
+                });
+                const rows = await api.courseDirectory(selectedCourse.course_id);
+                setUsers(mapDirectoryRows(rows));
+              }}
+              onRoleChange={async (employeeId, role) => {
+                await api.upsertMembership({ employeeId, courseId: selectedCourse.course_id, role });
+                setUsers((current) =>
+                  current.map((user) => (user.id === employeeId ? { ...user, role } : user))
+                );
+              }}
+              onResendInvite={async (employeeId) => {
+                await api.resendInvite(employeeId, selectedCourse.course_id);
+              }}
+              onSendResetPassword={async (employeeId) => {
+                await api.sendResetPassword(employeeId, selectedCourse.course_id);
+              }}
+            />
         </div>
       );
 
@@ -206,6 +213,20 @@ export default function AppMainContent({
           onCreate={createInventoryItem}
           onUpdate={updateInventoryItem}
           onDelete={deleteInventoryItem}
+        />
+      );
+
+    case "profile":
+      return (
+        <ProfilePanel
+          employee={employee}
+          onUpdateProfile={async (payload) => {
+            const updatedEmployee = await api.updateSelfProfile(payload);
+            updateEmployee(updatedEmployee);
+          }}
+          onChangePassword={async (payload) => {
+            await api.changePassword(payload);
+          }}
         />
       );
 
