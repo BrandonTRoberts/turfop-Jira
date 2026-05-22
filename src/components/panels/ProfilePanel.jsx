@@ -22,6 +22,13 @@ export default function ProfilePanel({ employee, onUpdateProfile }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+
   async function handleImageChange(fileList) {
     if (!fileList || fileList.length === 0) return;
     try {
@@ -56,6 +63,40 @@ export default function ProfilePanel({ employee, onUpdateProfile }) {
       setError(err.message || "Failed to update profile");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handlePasswordSubmit(event) {
+    event.preventDefault();
+    setPasswordSaving(true);
+    setPasswordError("");
+    setPasswordSuccess("");
+
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError("New passwords do not match.");
+      setPasswordSaving(false);
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordError("New password must be at least 8 characters.");
+      setPasswordSaving(false);
+      return;
+    }
+
+    try {
+      await onUpdateProfile({
+        currentPassword,
+        newPassword,
+      });
+      setPasswordSuccess("Password updated successfully!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+    } catch (err) {
+      setPasswordError(err.message || "Failed to update password.");
+    } finally {
+      setPasswordSaving(false);
     }
   }
 
@@ -146,6 +187,37 @@ export default function ProfilePanel({ employee, onUpdateProfile }) {
               <Button type="submit" disabled={saving}>
                 {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Save Changes
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-lg">Change Password</CardTitle>
+            <CardDescription>Update your account password.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="currentPassword">Current Password</Label>
+                <Input id="currentPassword" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">New Password</Label>
+                <Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmNewPassword">Confirm New Password</Label>
+                <Input id="confirmNewPassword" type="password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} required />
+              </div>
+
+              {passwordError ? <p className="text-sm text-red-400">{passwordError}</p> : null}
+              {passwordSuccess ? <p className="text-sm text-emerald-400">{passwordSuccess}</p> : null}
+
+              <Button type="submit" disabled={passwordSaving}>
+                {passwordSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Change Password
               </Button>
             </form>
           </CardContent>

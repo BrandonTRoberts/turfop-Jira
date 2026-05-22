@@ -37,6 +37,10 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
   const [savingEdit, setSavingEdit] = useState(false);
   const [error, setError] = useState("");
   const [editError, setEditError] = useState("");
+  const [resendInviteError, setResendInviteError] = useState("");
+  const [resendInviteSuccess, setResendInviteSuccess] = useState("");
+  const [resetPasswordError, setResetPasswordError] = useState("");
+  const [resetPasswordSuccess, setResetPasswordSuccess] = useState("");
 
   const filtered = users.filter((user) =>
     [user.name, user.email, user.role, user.status].some((value) =>
@@ -86,6 +90,30 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
       setEditError(detailError.message);
     } finally {
       setLoadingDetail(false);
+    }
+  }
+
+  async function handleResendInvite() {
+    if (!selectedUser || !canAdmin) return;
+    setResendInviteError("");
+    setResendInviteSuccess("");
+    try {
+      await onResendInvite(selectedUser.id);
+      setResendInviteSuccess("Invite sent successfully!");
+    } catch (err) {
+      setResendInviteError(err.message || "Failed to resend invite.");
+    }
+  }
+
+  async function handleSendResetPassword() {
+    if (!selectedUser || !canAdmin) return;
+    setResetPasswordError("");
+    setResetPasswordSuccess("");
+    try {
+      await onSendResetPassword(selectedUser.id);
+      setResetPasswordSuccess("Password reset link sent successfully!");
+    } catch (err) {
+      setResetPasswordError(err.message || "Failed to send password reset link.");
     }
   }
 
@@ -233,6 +261,30 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
                 </div>
               </CardContent>
             </Card>
+
+            {canAdmin && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Admin Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {selectedUser.account_status === 'invited_pending_setup' && (
+                    <>
+                      <Button onClick={handleResendInvite} className="w-full">
+                        Resend Invite Code
+                      </Button>
+                      {resendInviteError && <p className="text-sm text-red-400">{resendInviteError}</p>}
+                      {resendInviteSuccess && <p className="text-sm text-emerald-400">{resendInviteSuccess}</p>}
+                    </>
+                  )}
+                  <Button onClick={handleSendResetPassword} className="w-full">
+                    Send Reset Password Link
+                  </Button>
+                  {resetPasswordError && <p className="text-sm text-red-400">{resetPasswordError}</p>}
+                  {resetPasswordSuccess && <p className="text-sm text-emerald-400">{resetPasswordSuccess}</p>}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
