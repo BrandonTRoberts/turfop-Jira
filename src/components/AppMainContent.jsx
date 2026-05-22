@@ -49,8 +49,9 @@ export default function AppMainContent({
   reloadTimeEntries,
   loadEmployeeDetails,
   updateEmployee,
-  createCompany,
+  setEmployee,
   createCourse,
+  createCompany,
   createEquipment,
   updateEquipment,
   createInventoryItem,
@@ -221,8 +222,8 @@ export default function AppMainContent({
         <ProfilePanel
           employee={employee}
           onUpdateProfile={async (payload) => {
-            const updatedEmployee = await api.updateSelfProfile(payload);
-            updateEmployee(updatedEmployee);
+            const updatedEmployee = await api.updateProfile(payload);
+            setEmployee(updatedEmployee);
           }}
           onChangePassword={async (payload) => {
             await api.changePassword(payload);
