@@ -48,6 +48,8 @@ export default function AppMainContent({
   reloadTimeEntries,
   loadEmployeeDetails,
   updateEmployee,
+  createCompany,
+  createCourse,
   createEquipment,
   updateEquipment,
   createInventoryItem,
@@ -62,12 +64,8 @@ export default function AppMainContent({
         courses={courses}
         loading={loadingCompanies || loadingCourses}
         error={companiesError || courseError}
-        onCreateCompany={async (_payload) => {
-          // This would need the createCompany function passed down too
-          console.warn("Admin company creation needs full handler");
-          return null;
-        }}
-        onCreateCourse={() => {}}
+        onCreateCompany={createCompany}
+        onCreateCourse={createCourse}
       />
     );
   }

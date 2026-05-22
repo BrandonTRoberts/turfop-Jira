@@ -1,15 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import IssueBoard from "./boards/IssueBoard";
+import AppMainContent from "./AppMainContent";
 import AppSidebar from "./AppSidebar";
-import AdminPanel from "./panels/AdminPanel";
-import EquipmentPanel from "./panels/EquipmentPanel";
-import InventoryPanel from "./panels/InventoryPanel";
-import TimeTracker from "./panels/TimeTracker";
-import UsersPanel from "./panels/UsersPanel";
-import DashboardView from "./views/DashboardView";
 import { api } from "@/services/api";
 import { canUseAccountAdmin, useCourseData } from "@/hooks/useCourseData";
-import { mapDirectoryRows, useDashboardData } from "@/hooks/useDashboardData";
+import { useDashboardData } from "@/hooks/useDashboardData";
 import { useSessionBootstrap } from "@/hooks/useSessionBootstrap";
 import { useTimeEntries } from "@/hooks/useTimeEntries";
 
@@ -272,131 +266,51 @@ export default function App() {
     setMobileNavOpen(false);
   }
 
-  const renderView = () => {
-    if (currentView === "admin" && isAccountAdmin) {
-      return (
-        <AdminPanel
-          employee={employee}
-          companies={companies}
-          courses={courses}
-          loading={loadingCompanies || loadingCourses}
-          error={companiesError || courseError}
-          onCreateCompany={createCompany}
-          onCreateCourse={createCourse}
-        />
-      );
-    }
-
-    if (!selectedCourse) {
-      return (
-        <Card>
-          <CardContent className="p-10 text-center text-muted-foreground">
-            {loadingCourses ? "Loading courses..." : courseError || "No courses are assigned to this account."}
-          </CardContent>
-        </Card>
-      );
-    }
-
-    switch (currentView) {
-      case "dashboard":
-        return (
-          <DashboardView
-            employee={employee}
-            selectedCourse={selectedCourse}
-            overview={dashboardOverview}
-            loading={loadingDashboard}
-            error={dashboardError}
-          />
-        );
-      case "issues":
-        return (
-          <IssueBoard
-            course={selectedCourse}
-            workOrders={workOrders}
-            users={users}
-            equipment={equipment}
-            inventory={inventory}
-            loading={loadingWorkOrders}
-            error={workOrdersError}
-            canWrite={writable}
-            onCreate={async (payload) => {
-              const created = await api.createWorkOrder(payload);
-              setWorkOrders((current) => [created, ...current]);
-              return created;
-            }}
-            onUpdate={async (workOrderId, payload) => {
-              const updated = await api.updateWorkOrder(workOrderId, payload);
-              setWorkOrders((current) => current.map((ticket) => ticket.id === workOrderId ? updated : ticket));
-              return updated;
-            }}
-            onComment={async (workOrderId, payload) => {
-              const activity = await api.addWorkOrderComment(workOrderId, payload);
-              setWorkOrders((current) => current.map((ticket) => (
-                ticket.id === workOrderId
-                  ? { ...ticket, activity_log: [activity, ...(ticket.activity_log || [])] }
-                  : ticket
-              )));
-              return activity;
-            }}
-          />
-        );
-      case "users":
-        return (
-          <div className="space-y-4">
-            {usersError ? <p className="text-sm text-red-400">{usersError}</p> : null}
-            <UsersPanel
-              business={{ name: selectedCourse.name }}
-              users={users}
-              canAdmin={selectedCourse.role === "admin"}
-              onLoadDetails={loadEmployeeDetails}
-              onUpdate={updateEmployee}
-              onInvite={async (invite) => {
-                await api.inviteEmployee({
-                  courseId: selectedCourse.course_id,
-                  email: invite.email,
-                  fullName: invite.fullName,
-                  role: invite.role,
-                  hourlyRate: invite.hourlyRate ? Number(invite.hourlyRate) : null,
-                  profileImage: invite.profileImage,
-                });
-                const rows = await api.courseDirectory(selectedCourse.course_id);
-                setUsers(mapDirectoryRows(rows));
-              }}
-              onRoleChange={async (employeeId, role) => {
-                await api.upsertMembership({ employeeId, courseId: selectedCourse.course_id, role });
-                setUsers((current) => current.map((user) => user.id === employeeId ? { ...user, role } : user));
-              }}
-            />
-          </div>
-        );
-      case "time":
-        return (
-          <TimeTracker
-            course={selectedCourse}
-            entries={timeEntries}
-            summary={timeSummary}
-            activeEntry={timeEntries.find((entry) => !entry.clock_out_at && entry.employee_id === employee.id) || null}
-            loading={loadingTime}
-            error={timeError}
-            canAdmin={selectedCourse.role === "admin"}
-            onClockIn={async (note) => {
-              await api.clockIn({ courseId: selectedCourse.course_id, note });
-              await reloadTimeEntries();
-            }}
-            onClockOut={async (note) => {
-              await api.clockOut({ courseId: selectedCourse.course_id, note });
-              await reloadTimeEntries();
-            }}
-          />
-        );
-      case "equipment":
-        return <EquipmentPanel course={selectedCourse} equipment={equipment} loading={loadingEquipment} error={equipmentError} canWrite={writable} onCreate={createEquipment} onUpdate={updateEquipment} />;
-      case "inventory":
-        return <InventoryPanel course={selectedCourse} inventory={inventory} loading={loadingInventory} error={inventoryError} canWrite={writable} onCreate={createInventoryItem} onUpdate={updateInventoryItem} onDelete={deleteInventoryItem} />;
-      default:
-        return null;
-    }
-  };
+  const renderView = () => (
+    <AppMainContent
+      currentView={currentView}
+      selectedCourse={selectedCourse}
+      isAccountAdmin={isAccountAdmin}
+      employee={employee}
+      writable={writable}
+      courses={courses}
+      companies={companies}
+      users={users}
+      equipment={equipment}
+      inventory={inventory}
+      workOrders={workOrders}
+      dashboardOverview={dashboardOverview}
+      timeEntries={timeEntries}
+      timeSummary={timeSummary}
+      loadingCourses={loadingCourses}
+      loadingCompanies={loadingCompanies}
+      loadingDashboard={loadingDashboard}
+      loadingWorkOrders={loadingWorkOrders}
+      loadingTime={loadingTime}
+      loadingEquipment={loadingEquipment}
+      loadingInventory={loadingInventory}
+      courseError={courseError}
+      companiesError={companiesError}
+      dashboardError={dashboardError}
+      workOrdersError={workOrdersError}
+      timeError={timeError}
+      equipmentError={equipmentError}
+      inventoryError={inventoryError}
+      usersError={usersError}
+      setWorkOrders={setWorkOrders}
+      setUsers={setUsers}
+      reloadTimeEntries={reloadTimeEntries}
+      loadEmployeeDetails={loadEmployeeDetails}
+      updateEmployee={updateEmployee}
+      createCompany={createCompany}
+      createCourse={createCourse}
+      createEquipment={createEquipment}
+      updateEquipment={updateEquipment}
+      createInventoryItem={createInventoryItem}
+      updateInventoryItem={updateInventoryItem}
+      deleteInventoryItem={deleteInventoryItem}
+    />
+  );
 
   function renderSidebar(isMobile = false) {
     return (
