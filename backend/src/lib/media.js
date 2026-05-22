@@ -196,7 +196,8 @@ export async function persistImageCollection(inputs, { entityType = 'asset', max
   return urls;
 }
 
-export async function persistSingleImage(input, { entityType = 'asset' } = {}) {
+export async function persistSingleImage(input, { entityType = 'asset', existingUrl = null } = {}) {
+  if (input === undefined) return existingUrl;
   if (!input) return null;
   const urls = await persistImageCollection([input], { entityType, maxCount: 1 });
   return urls[0] || null;

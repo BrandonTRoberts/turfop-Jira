@@ -739,3 +739,85 @@ test('stale equipment delete returns 409 conflict', async () => {
   assert.equal(response.body.conflict, 'stale_delete');
   assert.equal(response.body.currentUpdatedAt, serverUpdatedAt);
 });
+
+test('non-admin cannot fetch reports course summary', async () => {
+  setDbTestOverrides({
+    queryImpl: async (text) => {
+      if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
+      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_write' }] };
+      throw new Error(`Unexpected query: ${text}`);
+    }
+  });
+
+  const app = createApp();
+  const response = await request(app)
+    .get('/reports/course-summary?courseId=course-1')
+    .set('Authorization', authHeader());
+
+  assert.equal(response.status, 403);
+  assert.equal(response.body.error, 'Admin access required for this course');
+});
+
+test('non-admin directory responses hide parts inventory unit_cost', async () => {
+  setDbTestOverrides({
+    queryImpl: async (text) => {
+      if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
+      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_write' }] };
+      if (text.includes('from parts_inventory')) {
+        return {
+          rows: [
+            { id: 'part-1', course_id: 'course-1', sku: 'SKU-1', part_description: 'Part Description', quantity_on_hand: 10, unit_cost: '25.50' }
+          ]
+        };
+      }
+      throw new Error(`Unexpected query: ${text}`);
+    }
+  });
+
+  const app = createApp();
+  const response = await request(app)
+    .get('/parts-inventory?courseId=course-1')
+    .set('Authorization', authHeader());
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body[0].unit_cost, null);
+  assert.equal(response.body[0].sku, 'SKU-1');
+});
+
+test('non-admin creating work order ignores custom laborRate', async () => {
+  const queryImpl = async (text) => {
+    if (text.includes('from employees')) return { rows: [makeEmployeeRow()] };
+    if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_write' }] };
+    throw new Error(`Unexpected query: ${text}`);
+  };
+
+  const clientQueryImpl = async (text) => {
+    if (text === 'begin' || text === 'commit' || text === 'rollback') return { rows: [] };
+    if (text.includes('from employees') && text.includes('hourly_rate')) {
+      return { rows: [{ id: 'employee-2', full_name: 'Tech', hourly_rate: '30.00' }] };
+    }
+    if (text.includes('insert into work_orders')) {
+      return { rows: [{ id: 'wo-1', course_id: 'course-1', title: 'Test', detail: 'Detail', status: 'Completed', assignee: 'Crew', technician_employee_id: 'employee-2', technician_name: 'Tech', labor_hours: '2', labor_rate: '30.00', labor_cost: '60.00', parts_cost: '0', total_cost: '60.00' }] };
+    }
+    if (text.includes('insert into work_order_activity')) return { rows: [] };
+    if (text.includes('set parts_cost = $2')) {
+      return { rows: [{ id: 'wo-1', course_id: 'course-1', title: 'Test', detail: 'Detail', status: 'Completed', assignee: 'Crew', technician_employee_id: 'employee-2', technician_name: 'Tech', labor_hours: '2', labor_rate: '30.00', labor_cost: '60.00', parts_cost: '0', total_cost: '60.00' }] };
+    }
+    if (text.includes('from work_order_parts_usage')) return { rows: [] };
+    if (text.includes('from work_order_activity')) return { rows: [] };
+    throw new Error(`Unexpected client query: ${text}`);
+  };
+
+  setDbTestOverrides({
+    queryImpl,
+    connectImpl: async () => makeClient(clientQueryImpl)
+  });
+
+  const app = createApp();
+  const response = await request(app)
+    .post('/work-orders')
+    .set('Authorization', authHeader())
+    .send({ courseId: 'course-1', title: 'Test', detail: 'Detail', status: 'Completed', assignee: 'Crew', technicianEmployeeId: 'employee-2', laborHours: 2, laborRate: 99 });
+
+  assert.equal(response.status, 201);
+});

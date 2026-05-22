@@ -551,7 +551,10 @@ router.patch('/:employeeId', requireAuth, async (req, res) => {
         return res.status(404).json({ error: 'Employee not found' });
       }
 
-      const profileImageUrl = await persistSingleImage(profileImage, { entityType: 'profiles' });
+      const profileImageUrl = await persistSingleImage(profileImage, { 
+        entityType: 'profiles',
+        existingUrl: employee.profile_image_url
+      });
       const result = await client.query(
         `
           update employees
