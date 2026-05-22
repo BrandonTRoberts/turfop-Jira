@@ -16,7 +16,7 @@ function formatMetric(value, options = {}) {
   }).format(numeric);
 }
 
-function MetricCard({ title, value, helper, icon: Icon, tone = 'default' }) {
+function MetricCard({ title, value, helper, icon: Icon, tone = 'default', onClick }) {
   const toneClasses = {
     default: 'border-border',
     warning: 'border-amber-500/60 bg-amber-500/5',
@@ -24,20 +24,24 @@ function MetricCard({ title, value, helper, icon: Icon, tone = 'default' }) {
     success: 'border-emerald-500/60 bg-emerald-500/5',
   };
 
+  const Component = onClick ? 'button' : 'div';
+
   return (
-    <Card className={toneClasses[tone] || toneClasses.default}>
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm text-muted-foreground">{title}</p>
-            <p className="mt-2 text-3xl font-semibold sm:text-4xl">{value}</p>
+    <Card className={`${toneClasses[tone] || toneClasses.default} ${onClick ? 'hover:bg-muted/50 transition-colors text-left' : ''}`}>
+      <Component onClick={onClick} className={`w-full h-full text-left ${onClick ? 'cursor-pointer' : ''}`}>
+        <CardContent className="p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm text-muted-foreground">{title}</p>
+              <p className="mt-2 text-3xl font-semibold sm:text-4xl">{value}</p>
+            </div>
+            <div className="rounded-lg bg-muted p-2 text-muted-foreground">
+              <Icon className="h-5 w-5" />
+            </div>
           </div>
-          <div className="rounded-lg bg-muted p-2 text-muted-foreground">
-            <Icon className="h-5 w-5" />
-          </div>
-        </div>
-        {helper ? <p className="mt-3 text-xs text-muted-foreground">{helper}</p> : null}
-      </CardContent>
+          {helper ? <p className="mt-3 text-xs text-muted-foreground">{helper}</p> : null}
+        </CardContent>
+      </Component>
     </Card>
   );
 }
@@ -84,6 +88,7 @@ export default function DashboardView({
               helper={`${formatMetric(summary.completedThisWeek)} completed this week`}
               icon={Activity}
               tone={numberValue(summary.openWorkOrders) > 0 ? 'warning' : 'success'}
+              onClick={() => onSelectView?.('issues')}
             />
             <MetricCard
               title="Due / blocked work"
@@ -91,12 +96,14 @@ export default function DashboardView({
               helper="Items needing priority review"
               icon={AlertTriangle}
               tone={numberValue(summary.overdueWorkOrders) > 0 ? 'danger' : 'success'}
+              onClick={() => onSelectView?.('issues')}
             />
             <MetricCard
               title="Clocked in now"
               value={formatMetric(summary.clockedInNow)}
               helper={`${formatMetric(summary.totalHoursThisWeek)} hours this week`}
               icon={Clock}
+              onClick={() => onSelectView?.('time')}
             />
             <MetricCard
               title="Low stock items"
@@ -104,6 +111,7 @@ export default function DashboardView({
               helper={`${formatMetric(summary.outOfStockItems)} out of stock`}
               icon={PackageSearch}
               tone={numberValue(summary.lowStockItems) > 0 ? 'warning' : 'success'}
+              onClick={() => onSelectView?.('inventory')}
             />
             <MetricCard
               title="Equipment attention"
@@ -111,18 +119,21 @@ export default function DashboardView({
               helper="Needs service or overdue"
               icon={Wrench}
               tone={numberValue(summary.equipmentNeedingAttention) > 0 ? 'warning' : 'success'}
+              onClick={() => onSelectView?.('equipment')}
             />
             <MetricCard
               title="MTTR hours"
               value={formatMetric(summary.mttrHours)}
               helper="Average completion time"
               icon={TimerReset}
+              onClick={() => onSelectView?.('issues')}
             />
             <MetricCard
               title="Inventory value"
               value={`$${formatMetric(summary.inventoryValue)}`}
               helper={`${formatMetric(summary.totalSkus)} tracked SKUs`}
               icon={Database}
+              onClick={() => onSelectView?.('inventory')}
             />
             <MetricCard
               title="Pending approvals"
@@ -130,6 +141,7 @@ export default function DashboardView({
               helper="Time entries awaiting admin review"
               icon={Clock}
               tone={numberValue(summary.pendingApprovals) > 0 ? 'warning' : 'success'}
+              onClick={() => onSelectView?.('time')}
             />
           </div>
 

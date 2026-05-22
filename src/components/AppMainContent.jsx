@@ -50,6 +50,7 @@ export default function AppMainContent({
   loadEmployeeDetails,
   updateEmployee,
   setEmployee,
+  onSelectView,
   createCourse,
   createCompany,
   createEquipment,
@@ -91,6 +92,9 @@ export default function AppMainContent({
           overview={dashboardOverview}
           loading={loadingDashboard}
           error={dashboardError}
+          users={users}
+          workOrders={workOrders}
+          onSelectView={onSelectView}
         />
       );
 

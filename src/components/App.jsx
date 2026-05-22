@@ -310,6 +310,7 @@ export default function App() {
       createInventoryItem={createInventoryItem}
       updateInventoryItem={updateInventoryItem}
       deleteInventoryItem={deleteInventoryItem}
+      onSelectView={selectView}
     />
   );
 
