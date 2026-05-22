@@ -323,6 +323,26 @@ h1 {
   color: #b91c1c;
 }
 
+.mk-inline-banner-success {
+  background: #ecfdf5;
+  color: #166534;
+}
+
+.mk-link-button {
+  border: 0;
+  background: transparent;
+  color: var(--mk-brand-dark);
+  font: inherit;
+  font-weight: 800;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.mk-link-button:hover {
+  color: var(--mk-brand);
+}
+
 .mk-lead {
   font-size: 1.08rem;
   max-width: 58ch;

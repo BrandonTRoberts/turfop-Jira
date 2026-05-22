@@ -403,18 +403,24 @@ function ContactPage() {
 };
 
 function SignInPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const params = new URLSearchParams(window.location.search);
+  const inviteToken = params.get('token') || '';
+  const courseId = params.get('courseId') || '';
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [mode, setMode] = useState(inviteToken ? 'invite' : 'login');
 
-  async function handleSubmit(e) {
+  async function handleLoginSubmit(e) {
     e.preventDefault();
     if (!email || !password) {
-      setError("Please enter both email and password");
+      setError('Please enter both email and password');
       return;
     }
-    setError("");
+    setError('');
     setLoading(true);
 
     try {
@@ -422,18 +428,149 @@ function SignInPage() {
       // Move off the public /signin route so entry.jsx loads the authenticated app bundle.
       window.location.assign(APP_ROUTES.dashboard);
     } catch (err) {
-      setError(err.message || "Login failed. Please check your credentials.");
+      setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
   }
 
-  return (
-    <div className="mk-signin-page">
-      <div className="mk-signin-card">
+  async function handleInviteSubmit(e) {
+    e.preventDefault();
+    if (!inviteToken) {
+      setError('Invite token is missing. Open the full link from your email.');
+      return;
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    try {
+      await api.acceptInvite({ token: inviteToken, password });
+      setSuccess('Your password is set. You can now sign in to TurfOp.');
+      setPassword('');
+      setConfirmPassword('');
+      window.history.replaceState({}, '', '/signin');
+    } catch (err) {
+      setError(err.message || 'Could not finish account setup. Please request a new invite.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResetSubmit(e) {
+    e.preventDefault();
+    if (!email) {
+      setError('Please enter your email address');
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    try {
+      await api.requestPasswordReset({ email, courseId });
+      setSuccess('Check your email for a password reset link. If the account exists, the reset instructions are on the way.');
+    } catch (err) {
+      setError(err.message || 'Could not request a password reset right now.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function showResetMode() {
+    setMode('reset');
+    setPassword('');
+    setConfirmPassword('');
+    setError('');
+    setSuccess('');
+  }
+
+  function showLoginMode() {
+    setMode('login');
+    setPassword('');
+    setConfirmPassword('');
+    setError('');
+    setSuccess('');
+  }
+
+  let formContent;
+  if (mode === 'invite') {
+    formContent = (
+      <>
+        <h2>Set your TurfOp password</h2>
+        <p>Create a password to finish your account setup. This same flow also works for reset links.</p>
+        <form className="mk-signin-form" onSubmit={handleInviteSubmit}>
+          <label>
+            New password
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              minLength={8}
+              required
+            />
+          </label>
+          <label>
+            Confirm password
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              minLength={8}
+              required
+            />
+          </label>
+          {error && <div className="mk-inline-banner mk-inline-banner-error">{error}</div>}
+          {success && <div className="mk-inline-banner mk-inline-banner-success">{success}</div>}
+          <button type="submit" className="mk-btn mk-btn-primary" disabled={loading} style={{ minHeight: '48px', width: '100%', fontWeight: '600' }}>
+            {loading ? 'Saving password...' : 'Save password'}
+          </button>
+        </form>
+      </>
+    );
+  } else if (mode === 'reset') {
+    formContent = (
+      <>
+        <h2>Reset your password</h2>
+        <p>Enter your account email and we’ll send a secure link to set a new password.</p>
+        <form className="mk-signin-form" onSubmit={handleResetSubmit}>
+          <label>
+            Email
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@company.com"
+              required
+            />
+          </label>
+          {error && <div className="mk-inline-banner mk-inline-banner-error">{error}</div>}
+          {success && <div className="mk-inline-banner mk-inline-banner-success">{success}</div>}
+          <button type="submit" className="mk-btn mk-btn-primary" disabled={loading} style={{ minHeight: '48px', width: '100%', fontWeight: '600' }}>
+            {loading ? 'Sending reset link...' : 'Send reset link'}
+          </button>
+        </form>
+        <p className="mk-signin-help">
+          Remembered it? <button type="button" className="mk-link-button" onClick={showLoginMode}>Back to sign in</button>
+        </p>
+      </>
+    );
+  } else {
+    formContent = (
+      <>
         <h2>Sign in to TurfOp</h2>
         <p>Use your employee account to access your courses and operations data.</p>
-        <form className="mk-signin-form" onSubmit={handleSubmit}>
+        <form className="mk-signin-form" onSubmit={handleLoginSubmit}>
           <label>
             Email
             <input
@@ -453,26 +590,26 @@ function SignInPage() {
               required
             />
           </label>
-          {error && (
-            <div className="mk-inline-banner mk-inline-banner-error">
-              {error}
-            </div>
-          )}
-          <button
-            type="submit"
-            className="mk-btn mk-btn-primary"
-            disabled={loading}
-            style={{ minHeight: "48px", width: "100%", fontWeight: "600" }}
-          >
-            {loading ? "Signing in..." : "Sign in"}
+          {error && <div className="mk-inline-banner mk-inline-banner-error">{error}</div>}
+          {success && <div className="mk-inline-banner mk-inline-banner-success">{success}</div>}
+          <button type="submit" className="mk-btn mk-btn-primary" disabled={loading} style={{ minHeight: '48px', width: '100%', fontWeight: '600' }}>
+            {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
         <p className="mk-signin-help">
-          Need access?{" "}
-          <a href="/invite">
-            Request an invite
-          </a>
+          <button type="button" className="mk-link-button" onClick={showResetMode}>Forgot password?</button>
         </p>
+        <p className="mk-signin-help">
+          Need access? <span>Ask your TurfOp admin to send an invite.</span>
+        </p>
+      </>
+    );
+  }
+
+  return (
+    <div className="mk-signin-page">
+      <div className="mk-signin-card">
+        {formContent}
       </div>
       <aside className="mk-signin-proof" aria-label="TurfOp operations preview">
         <p className="mk-eyebrow">Operations hub</p>

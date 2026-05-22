@@ -137,6 +137,56 @@ test('password reset request returns generic success when email is unknown', asy
   assert.equal(response.body.ok, true);
 });
 
+test('invite acceptance consumes token and clears required password change', async () => {
+  const queries = [];
+  const client = {
+    query: async (text, params = []) => {
+      queries.push({ text, params });
+
+      if (text === 'begin' || text === 'commit' || text === 'rollback') {
+        return { rows: [] };
+      }
+
+      if (text.includes('update invite_tokens') && text.includes('returning it.id')) {
+        return {
+          rows: [
+            {
+              id: 'invite-token-1',
+              employee_id: 'employee-1',
+              course_id: '6689c65a-7736-46af-b7f0-50008020be06',
+              email: 'test@example.com'
+            }
+          ]
+        };
+      }
+
+      if (text.includes('update employees') && text.includes('must_change_password = false')) {
+        return { rows: [] };
+      }
+
+      if (text.includes('insert into audit_logs')) {
+        return { rows: [] };
+      }
+
+      throw new Error(`Unexpected query: ${text}`);
+    },
+    release: () => {}
+  };
+
+  setDbTestOverrides({ connectImpl: async () => client });
+
+  const app = createApp();
+  const response = await request(app)
+    .post('/auth/invitations/accept')
+    .send({ token: 'invite-token-1234567890abcdef', password: 'new-secure-pass' });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.ok, true);
+  assert.ok(queries.some(({ text }) => text.includes('set used_at = now()')));
+  assert.ok(queries.some(({ text }) => text.includes('must_change_password = false')));
+  assert.ok(queries.some(({ text }) => text === 'commit'));
+});
+
 test('password reset request creates reset token for known employee', async () => {
   const calls = [];
   setDbTestOverrides({
