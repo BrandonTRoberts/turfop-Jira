@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Clock, Loader2, Play, Square } from "lucide-react";
+import { Clock, Loader2, Play, Square, Download } from "lucide-react";
+import { downloadCSV } from "@/lib/csv";
 
 export default function TimeTracker({ course, entries, summary, activeEntry, loading, error, canAdmin, onClockIn, onClockOut }) {
   const [note, setNote] = useState("");
@@ -38,6 +39,17 @@ export default function TimeTracker({ course, entries, summary, activeEntry, loa
     }
   }
 
+  function handleExport() {
+    const data = entries.map(entry => ({
+      Employee: entry.employee_name || entry.employee_email || 'N/A',
+      'Clock In': entry.clock_in_at ? format(new Date(entry.clock_in_at), "MMM d, yyyy h:mm a") : '',
+      'Clock Out': entry.clock_out_at ? format(new Date(entry.clock_out_at), "MMM d, yyyy h:mm a") : 'Active',
+      'Hours Worked': Number(entry.worked_hours || 0).toFixed(2),
+      Status: entry.approved_at ? "Approved" : "Open"
+    }));
+    downloadCSV(`TurfOp_Timesheets_${course.name}_${new Date().toISOString().split('T')[0]}.csv`, data);
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
@@ -45,9 +57,17 @@ export default function TimeTracker({ course, entries, summary, activeEntry, loa
           <h2 className="text-2xl font-semibold sm:text-3xl">Time Tracking</h2>
           <p className="mt-2 text-sm text-muted-foreground">Clock activity for {course.name} is stored by course and employee.</p>
         </div>
-        <Badge variant={activeEntry ? "default" : "secondary"} className="w-fit">
-          {activeEntry ? "Clocked in" : "Clocked out"}
-        </Badge>
+        <div className="flex items-center gap-3">
+          {canAdmin && (
+            <Button variant="outline" onClick={handleExport} className="shrink-0" disabled={!entries.length}>
+              <Download className="h-4 w-4 mr-2" />
+              Export Timesheets
+            </Button>
+          )}
+          <Badge variant={activeEntry ? "default" : "secondary"} className="w-fit">
+            {activeEntry ? "Clocked in" : "Clocked out"}
+          </Badge>
+        </div>
       </div>
 
       <Card>
