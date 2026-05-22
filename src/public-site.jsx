@@ -27,9 +27,9 @@ const painCards = [
 
 const featureCards = [
   {
-    title: 'Jira-like Issues Board',
-    body: 'Drag-and-drop work orders with assignment, comments, photos, and parts usage. Full history and audit trail.',
-    lines: ['Aerate greens on hole 7 · In Progress', 'Replace sprinkler head · Assigned to Sarah', 'Inspect mowers · Completed with notes']
+    title: 'Visual Work Order Board',
+    body: 'Drag-and-drop work orders with assignment, comments, photos, parts usage, and a full history of each job.',
+    lines: ['Hole 7 aeration · In Progress · Mike', 'Sprinkler head repair · High priority · Sarah', 'Mower inspection · Completed · Photo attached']
   },
   {
     title: 'Course Configuration',
@@ -39,28 +39,28 @@ const featureCards = [
   {
     title: 'Live Technician Feed + Offline Sync',
     body: 'See what everyone is working on in real time. Technicians work offline on the range and sync when back at the clubhouse.',
-    lines: ['Mike · Aerating greens (Online)', 'Sarah · Sprinkler repair (Offline - syncing)']
+    lines: ['Mike · Aerating greens · Online', 'Sarah · Sprinkler repair · 3 updates queued', 'Last sync · 2 minutes ago']
   }
 ];
 
 const trustItems = [
-  'Jira-style work orders with assignment and live activity feed',
-  'Inventory that auto-updates when parts are used in work orders',
-  'Offline-first mobile app designed for no-signal golf ranges',
-  'Full course customization (holes, sections, greens, flags)',
-  'Complete audit trail — see exactly what was done and when',
-  'Built with GRC principles — secure, traceable, permission-based'
+  'Role-based permissions for managers, technicians, and admins',
+  'Audit log for every work order update, part used, and completion note',
+  'Offline sync visibility for queued updates from low-signal areas',
+  'Course-scoped access so teams only see authorized operations data',
+  'Traceable inventory changes tied directly to completed work orders',
+  'Built by an IT and GRC professional with security in the workflow from day one'
 ];
 
 const pricingTiers = [
   {
     name: 'Starter',
     price: '$49',
-    cadence: '/month per course',
-    annualPrice: '$470 annually',
+    cadence: '/ course / month',
+    annualPrice: '$470/year when billed annually',
     fit: 'Single-course operations teams',
     description: 'Perfect for one golf course that needs accurate inventory, live visibility, and reliable offline updates.',
-    features: ['1 course with full customization', 'Jira-like Issues Board', 'Live technician activity feed', 'Inventory auto-deduct', 'Offline-first mobile sync', 'Basic reporting and audit trail'],
+    features: ['1 course with full customization', 'Visual work order board', 'Live technician activity feed', 'Inventory auto-deduct', 'Offline-first mobile sync', 'Basic reporting and audit trail'],
     cta: 'Start Free Trial',
     href: '/signin'
   },
@@ -68,7 +68,7 @@ const pricingTiers = [
     name: 'Growth',
     price: '$99',
     cadence: '/month',
-    annualPrice: '$950 annually',
+    annualPrice: '$950/year when billed annually',
     fit: 'Multi-course or growing operations',
     description: 'For teams managing 2–5 courses that need centralized visibility, advanced reporting, and stronger controls.',
     features: ['Up to 5 courses', 'Everything in Starter', 'Advanced course configuration', 'Real-time technician status', 'Full audit and compliance reports', 'Priority support'],
@@ -82,16 +82,16 @@ const pricingTiers = [
     cadence: '',
     annualPrice: 'For groups and management companies',
     fit: 'Portfolio operators and large organizations',
-    description: 'Custom rollout, integrations, company-level controls, dedicated support, and advanced GRC features.',
-    features: ['Unlimited courses', 'Everything in Growth', 'API and custom modules', 'Advanced compliance tools', 'Dedicated onboarding and training', 'Enterprise SLA'],
-    cta: 'Book a Review',
+    description: 'Custom rollout, integrations, company-level controls, dedicated support, and advanced security workflows.',
+    features: ['Unlimited courses', 'Everything in Growth', 'API and custom modules', 'Advanced security controls', 'Dedicated onboarding and training', 'Enterprise SLA'],
+    cta: 'Book a Demo',
     href: '/book-demo'
   }
 ];
 
 const securityStandards = [
   {
-    title: 'Authentication and course-scoped access',
+    title: 'Authentication and scoped access',
     body: 'JWT-based auth with course memberships. Technicians only see their assigned work and the courses they are authorized for.'
   },
   {
@@ -104,7 +104,7 @@ const securityStandards = [
   },
   {
     title: 'GRC-aligned design',
-    body: 'Built with your background in mind — permission-based, traceable, and compliant with operational risk standards.'
+    body: 'Built by an IT and GRC professional — permission-based, traceable, and aligned to operational risk review.'
   }
 ];
 
@@ -206,16 +206,16 @@ function LandingPage() {
       <section className="mk-hero">
         <div className="mk-hero-copy">
           <p className="mk-eyebrow">Built for golf course operations</p>
-          <h1>Track work orders, inventory, and technician activity — even offline on the range.</h1>
+          <h1>Manage work orders, inventory, and crews — even offline.</h1>
           <p className="mk-lead">
-            TurfOp gives superintendents and operations managers a Jira-like Issues Board, live activity feed, automatic inventory updates, full course customization, and reliable offline sync for the golf range.
+            TurfOp gives superintendents and operations managers a visual work order board, live activity feed, automatic inventory updates, full course customization, and reliable offline sync for the range.
           </p>
           <div className="mk-actions">
             <a className="mk-btn mk-btn-primary" href="/signin">Start Free Trial</a>
-            <button type="button" className="mk-btn mk-btn-secondary" onClick={() => navigate('/book-demo')}>Book a Demo for Your Buyer</button>
+            <button type="button" className="mk-btn mk-btn-secondary" onClick={() => navigate('/book-demo')}>Book a Demo</button>
           </div>
           <div className="mk-proof-strip">
-            <span>Jira-like work orders</span>
+            <span>Visual work order board</span>
             <span>Live technician feed</span>
             <span>Auto-updating inventory</span>
             <span>Offline-first mobile</span>
@@ -244,9 +244,9 @@ function LandingPage() {
         <div className="mk-section-heading split">
           <div>
             <p className="mk-eyebrow">Product views</p>
-            <h2>The workflow your buyer asked for — in seconds.</h2>
+            <h2>See the workflow your course needs — in seconds.</h2>
           </div>
-          <p className="mk-muted">Jira-like board, live technician status, auto-updating inventory, offline sync, and full course customization.</p>
+          <p className="mk-muted">Visual work orders, live technician status, auto-updating inventory, offline sync, and full course customization.</p>
         </div>
         <div className="mk-card-grid mk-card-grid-three">
           {featureCards.map((card) => (
@@ -267,10 +267,10 @@ function LandingPage() {
       <section className="mk-section mk-trust-section">
         <div className="mk-trust-card">
           <div>
-            <p className="mk-eyebrow">Built with GRC principles</p>
-            <h2>Secure, traceable, and ready for your buyer.</h2>
+            <p className="mk-eyebrow">Security built in</p>
+            <h2>Secure, traceable, and ready for operational review.</h2>
             <p className="mk-muted">
-              As a GRC Analyst with 12+ years in IT and cybersecurity, Brandon designed TurfOp with audit trails, permission-based access, offline sync visibility, and operational controls that match how buyers evaluate software.
+              Built by an IT and GRC professional, TurfOp includes audit trails, permission-based access, offline sync visibility, and operational controls from day one.
             </p>
           </div>
           <ul className="mk-checklist">
@@ -281,12 +281,12 @@ function LandingPage() {
 
       <section className="mk-section mk-cta-band">
         <div>
-          <p className="mk-eyebrow">Ready for your buyer</p>
-          <h2>Deliver a professional, reliable product that solves their exact needs.</h2>
+          <p className="mk-eyebrow">Ready for your course</p>
+          <h2>Give your operations team one clear place to track work, people, and parts.</h2>
         </div>
         <div className="mk-actions mk-actions-right">
+          <a className="mk-btn mk-btn-primary" href="/signin">Start Free Trial</a>
           <button type="button" className="mk-btn mk-btn-secondary" onClick={() => navigate('/pricing')}>See Plans</button>
-          <a className="mk-btn mk-btn-primary" href="/signin">Start Free Trial for Your Buyer</a>
         </div>
       </section>
     </>
@@ -294,13 +294,13 @@ function LandingPage() {
 };
 
 const comparisonRows = [
-  ["Jira-like board", "Yes", "Yes", "Yes"],
-  ["Live technician feed", "Yes", "Yes", "Yes"],
-  ["Auto-updating inventory", "Yes", "Yes", "Yes"],
-  ["Offline-first mobile", "Yes", "Yes", "Yes"],
-  ["Course customization", "Yes", "Yes", "Yes"],
-  ["Full audit trail", "Yes", "Yes", "Yes"],
-  ["API and custom modules", "No", "No", "Yes"],
+  ["Visual work order board", "✓", "✓", "✓"],
+  ["Live technician feed", "✓", "✓", "✓"],
+  ["Auto-updating inventory", "✓", "✓", "✓"],
+  ["Offline-first mobile", "✓", "✓", "✓"],
+  ["Course customization", "✓", "✓", "✓"],
+  ["Full audit trail", "✓", "✓", "✓"],
+  ["API and custom modules", "—", "—", "✓"],
 ];
 
 function PricingPage() {
@@ -315,7 +315,10 @@ function PricingPage() {
         <div className="mk-pricing-grid">
           {pricingTiers.map((tier) => (
             <article className={`mk-price-card ${tier.featured ? 'featured' : ''}`} key={tier.name}>
-              <p className="mk-eyebrow">{tier.name}{tier.featured ? ' · Recommended' : ''}</p>
+              <div className="mk-price-card-top">
+                <p className="mk-eyebrow">{tier.name}</p>
+                {tier.featured ? <span className="mk-recommended-badge">Recommended</span> : null}
+              </div>
               <h2>{tier.price}<span>{tier.cadence}</span></h2>
               <strong>{tier.annualPrice}</strong>
               <p>{tier.fit}</p>
@@ -358,8 +361,8 @@ function SecurityPage() {
     <>
       <section className="mk-page-hero">
         <p className="mk-eyebrow">Security & GRC</p>
-        <h1>Built by a GRC Analyst for real operations data.</h1>
-        <p className="mk-lead">TurfOp uses role-based course scope, bcrypt password hashing, JWT auth, audit logging, offline sync visibility, and backend controls that match how buyers evaluate software.</p>
+        <h1>Security, permissions, and auditability built in from day one.</h1>
+        <p className="mk-lead">TurfOp uses role-based course scope, bcrypt password hashing, JWT auth, audit logging, offline sync visibility, and backend controls that help courses evaluate and trust operational software.</p>
       </section>
       <section className="mk-section">
         <div className="mk-card-grid mk-card-grid-four">
@@ -379,20 +382,20 @@ function ContactPage() {
   return (
     <section className="mk-page-hero mk-contact-hero">
       <div>
-        <p className="mk-eyebrow">Ready for your buyer</p>
-        <h1>Deliver a professional product that solves their exact needs.</h1>
-        <p className="mk-lead">We can tailor the demo to their specific golf course layout, technician workflow, inventory requirements, and offline use cases.</p>
+        <p className="mk-eyebrow">Tailored demo</p>
+        <h1>See how TurfOp fits your course operations.</h1>
+        <p className="mk-lead">We will tailor the walkthrough to your course layout, team workflow, inventory needs, and offline use cases.</p>
       </div>
       <div className="mk-card">
-        <h3>Fastest next steps</h3>
+        <h3>What we will cover</h3>
         <ul className="mk-checklist">
-          <li>Deploy the polished MVP with live activity feed, auto-updating inventory, and offline sync</li>
-          <li>Include course configuration and full audit trail for their operations team</li>
-          <li>Provide training materials and ongoing support for successful rollout</li>
+          <li>Configure your course layout, staff roles, and inventory rules</li>
+          <li>Walk through live work orders, technician activity, and offline sync</li>
+          <li>Build a rollout plan your operations team can actually use</li>
         </ul>
         <div className="mk-actions mk-actions-stack">
           <button type="button" className="mk-btn mk-btn-primary" onClick={() => navigate('/signin')}>Start Free Trial</button>
-          <a className="mk-btn mk-btn-secondary" href="mailto:sales@turfop.com?subject=TurfOp%20Buyer%20Rollout">Email for Buyer Handover</a>
+          <a className="mk-btn mk-btn-secondary" href="mailto:sales@turfop.com?subject=TurfOp%20Demo%20Request">Email Sales</a>
         </div>
       </div>
     </section>
@@ -464,13 +467,22 @@ function SignInPage() {
             {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
-        <p style={{ marginTop: "24px", textAlign: "center", fontSize: "0.9rem", color: "#64748b" }}>
+        <p className="mk-signin-help">
           Need access?{" "}
-          <a href="/invite" style={{ color: "#15803d", textDecoration: "none" }}>
+          <a href="/invite">
             Request an invite
           </a>
         </p>
       </div>
+      <aside className="mk-signin-proof" aria-label="TurfOp operations preview">
+        <p className="mk-eyebrow">Operations hub</p>
+        <h3>Track work, parts, and crew activity from one secure dashboard.</h3>
+        <ul className="mk-checklist">
+          <li>Course-scoped access for every employee</li>
+          <li>Audit trail for work order and inventory changes</li>
+          <li>Offline updates sync when coverage returns</li>
+        </ul>
+      </aside>
     </div>
   );
 };
@@ -493,10 +505,12 @@ function PublicSite() {
   else content = <LandingPage />;
 
   return (
-    <>
-      <MarketingNav activePage={activePage} />
-      {content}
-    </>
+    <div className="mk-shell">
+      <div className="mk-container">
+        <MarketingNav activePage={activePage} />
+        {content}
+      </div>
+    </div>
   );
 }
 
