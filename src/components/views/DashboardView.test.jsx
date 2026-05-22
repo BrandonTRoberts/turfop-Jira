@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import DashboardView from './DashboardView';
 
 const baseCourse = { course_id: 'course-1', name: 'Pine Hills' };
@@ -35,6 +35,27 @@ describe('DashboardView', () => {
     expect(screen.getByText('Clocked in now')).toBeInTheDocument();
     expect(screen.getByText('38.5 hours this week')).toBeInTheDocument();
     expect(screen.getAllByText(/Pine Hills/).length).toBeGreaterThan(0);
+  });
+
+  it('navigates when dashboard metric cards are clicked', () => {
+    const onSelectView = vi.fn();
+
+    render(
+      <DashboardView
+        employee={baseEmployee}
+        selectedCourse={baseCourse}
+        loading={false}
+        error=""
+        overview={{ summary: { pendingApprovals: 2 }, rollups: { workOrdersByCourse: [] } }}
+        onSelectView={onSelectView}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /open work orders/i }));
+    expect(onSelectView).toHaveBeenCalledWith('issues');
+
+    fireEvent.click(screen.getByRole('button', { name: /pending approvals/i }));
+    expect(onSelectView).toHaveBeenCalledWith('time');
   });
 
   it('shows loading and error states', () => {

@@ -53,7 +53,8 @@ export default function DashboardView({
   loading, 
   error,
   users = [],
-  workOrders = []
+  workOrders = [],
+  onSelectView,
 }) {
   const summary = overview?.summary || {};
   const workOrdersByCourse = overview?.rollups?.workOrdersByCourse || [];
