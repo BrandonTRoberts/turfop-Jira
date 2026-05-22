@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, ImagePlus, Loader2, PackagePlus, Save, Trash2, QrCode } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ImagePlus, Loader2, PackagePlus, Save, Trash2, QrCode, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getUploadUrl, readFilesAsDataUrls } from "@/lib/files";
 import QRScanner from "@/components/common/QRScanner";
+import { downloadCSV } from "@/lib/csv";
 
 const emptyForm = {
   sku: "",
@@ -59,6 +60,20 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
   }, [inventory, search]);
 
   const lowStockCount = inventory.filter((item) => Number(item.quantity_on_hand) <= 0).length;
+
+  function handleExport() {
+    const data = inventory.map(item => ({
+      SKU: item.sku || 'N/A',
+      Description: item.part_description || 'N/A',
+      'Quantity On Hand': item.quantity_on_hand || 0,
+      'Unit Cost': item.unit_cost || 0,
+      'Total Value': (Number(item.quantity_on_hand || 0) * Number(item.unit_cost || 0)).toFixed(2),
+      'Reorder URL': item.reorder_url || '',
+      'Status': Number(item.quantity_on_hand) <= 0 ? 'Out of Stock' : (Number(item.quantity_on_hand) <= 2 ? 'Low Stock' : 'In Stock'),
+      'Last Updated': item.updated_at ? new Date(item.updated_at).toLocaleDateString() : 'New'
+    }));
+    downloadCSV(`TurfOp_Inventory_${new Date().toISOString().split('T')[0]}.csv`, data);
+  }
 
   function handleScan(decodedText) {
     const currentMode = scannerMode;
@@ -296,12 +311,18 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
     <div className="space-y-6">
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
-          <h2 className="text-2xl font-semibold sm:text-3xl">Inventory</h2>
+          <h2 className="text-3xl font-semibold">Parts Inventory</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Parts inventory for {course.name}. SKU uniqueness is enforced inside this course only.
+            Course-scoped inventory for {course.name}.
           </p>
         </div>
-        <Badge variant="outline">{course.company_name}</Badge>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={handleExport} className="shrink-0" disabled={!inventory.length}>
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+          <Badge variant="outline">{course.company_name}</Badge>
+        </div>
       </div>
 
       {lowStockCount > 0 ? (

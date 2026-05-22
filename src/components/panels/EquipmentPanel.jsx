@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, ImagePlus, Loader2, Plus, Save, Wrench, QrCode } from "lucide-react";
+import { ArrowLeft, ImagePlus, Loader2, Plus, Save, Wrench, QrCode, Download } from "lucide-react";
 import { getUploadUrl, readFilesAsDataUrls } from "@/lib/files";
 import QRScanner from "@/components/common/QRScanner";
+import { downloadCSV } from "@/lib/csv";
 
 const emptyForm = {
   name: "",
@@ -53,6 +54,21 @@ export default function EquipmentPanel({ course, equipment, loading, error, canW
     () => equipment.find((item) => item.id === selectedId) || null,
     [equipment, selectedId],
   );
+
+  function handleExport() {
+    const data = equipment.map(item => ({
+      Name: item.name || 'N/A',
+      Make: item.make || '',
+      Model: item.model || '',
+      'Serial Number': item.serial_number || '',
+      VIN: item.vin || '',
+      'Assigned Area': item.assigned_area || '',
+      Status: item.status || '',
+      Hours: item.hours || 0,
+      'Last Updated': item.updated_at ? new Date(item.updated_at).toLocaleDateString() : 'New'
+    }));
+    downloadCSV(`TurfOp_Equipment_${new Date().toISOString().split('T')[0]}.csv`, data);
+  }
 
   useEffect(() => {
     if (!selectedItem) return;
@@ -290,7 +306,13 @@ export default function EquipmentPanel({ course, equipment, loading, error, canW
             Course-scoped equipment for {course.name}. Records from other courses are never loaded into this view.
           </p>
         </div>
-        <Badge variant="outline">{course.company_name}</Badge>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={handleExport} className="shrink-0" disabled={!equipment.length}>
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+          <Badge variant="outline">{course.company_name}</Badge>
+        </div>
       </div>
 
       {canWrite ? (
