@@ -88,6 +88,16 @@ export const api = {
     }));
   },
 
+  async courses() {
+    const facilities = await request("/facilities");
+    // Backward-compatibility for course-scoped UI while backend pivots to facilities
+    return (facilities || []).map((f) => ({
+      ...f,
+      course_id: f.course_id || f.facility_id || f.id,
+      name: f.name || f.facility_name,
+    }));
+  },
+
   async companies() {
     return request("/companies");
   },
