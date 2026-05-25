@@ -281,15 +281,27 @@ export default function WorkOrderDetailDialog({
                 </h4>
                 <div className="max-h-60 overflow-y-auto space-y-3 border border-border rounded-md p-3 bg-card">
                   {(selectedTicket.activity_log || []).length > 0 ? (
-                    selectedTicket.activity_log.map((log) => (
-                      <div key={log.id} className="text-xs border-l-2 border-blue-500 pl-3">
-                        <div className="flex justify-between text-muted-foreground">
-                          <span>{log.actor_name || "System"}</span>
-                          <span>{new Date(log.created_at).toLocaleString()}</span>
+                    selectedTicket.activity_log.map((log) => {
+                      const detailText = (() => {
+                        if (log.detail == null || log.detail === '') return '';
+                        if (typeof log.detail === 'string') return log.detail;
+                        try {
+                          return JSON.stringify(log.detail);
+                        } catch {
+                          return '[detail unavailable]';
+                        }
+                      })();
+
+                      return (
+                        <div key={log.id} className="text-xs border-l-2 border-blue-500 pl-3">
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>{log.actor_name || "System"}</span>
+                            <span>{new Date(log.created_at).toLocaleString()}</span>
+                          </div>
+                          <p className="mt-1 text-foreground">{detailText || log.action}</p>
                         </div>
-                        <p className="mt-1 text-foreground">{log.detail || log.action}</p>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <p className="text-sm text-muted-foreground italic text-center py-4">No activity yet.</p>
                   )}
