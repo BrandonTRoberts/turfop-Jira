@@ -17,7 +17,7 @@ export default function CompanyInventoryPanel({ facility }) {
     async function load() {
       try {
         setLoading(true);
-        const data = await api.companyInventory();
+        const data = await api.companyInventory(facility?.facility_id || facility?.course_id || "");
         setInventory(data);
       } catch (err) {
         setError(err.message || "Failed to load company inventory.");
@@ -26,7 +26,7 @@ export default function CompanyInventoryPanel({ facility }) {
       }
     }
     load();
-  }, []);
+  }, [facility?.facility_id, facility?.course_id]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();

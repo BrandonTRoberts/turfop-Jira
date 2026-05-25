@@ -147,8 +147,10 @@ export const api = {
     return request(`/parts-inventory?facilityId=${encodeURIComponent(facilityId)}`);
   },
 
-  async companyInventory() {
-    return request("/parts-inventory/company");
+  async companyInventory(courseId) {
+    const facilityId = asFacilityId(courseId);
+    const queryString = facilityId ? `?facilityId=${encodeURIComponent(facilityId)}` : "";
+    return request(`/parts-inventory/company${queryString}`);
   },
 
   async createInventoryItem(payload) {

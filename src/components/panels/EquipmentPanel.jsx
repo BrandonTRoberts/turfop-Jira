@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, ImagePlus, Loader2, Plus, Save, Wrench, QrCode, Download } from "lucide-react";
+import { ArrowLeft, ImagePlus, Loader2, Plus, Save, Wrench, QrCode, Download, Search } from "lucide-react";
 import { getUploadUrl, readFilesAsDataUrls } from "@/lib/files";
 import QRScanner from "@/components/common/QRScanner";
 import { downloadCSV } from "@/lib/csv";
@@ -49,6 +49,32 @@ export default function EquipmentPanel({ course, equipment, loading, error, canW
   const [formError, setFormError] = useState("");
   const [editError, setEditError] = useState("");
   const [showScanner, setShowScanner] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filteredEquipment = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return equipment;
+
+    return equipment.filter((item) => {
+      const haystack = [
+        item.name,
+        item.make,
+        item.model,
+        item.assigned_area,
+        item.serial_number,
+        item.vin,
+        item.status,
+        item.description,
+        item.detail,
+      ]
+        .map((value) => String(value || "").toLowerCase())
+        .join(" ");
+
+      return query
+        .split(/\s+/)
+        .every((token) => haystack.includes(token));
+    });
+  }, [equipment, search]);
 
   const selectedItem = useMemo(
     () => equipment.find((item) => item.id === selectedId) || null,
@@ -396,6 +422,17 @@ export default function EquipmentPanel({ course, equipment, loading, error, canW
 
       <Card>
         <CardContent className="p-0">
+          <div className="border-b p-4">
+            <div className="relative max-w-md">
+              <Search className="pointer-events-none absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search equipment (name, make, model, serial, area, status)..."
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className="pl-8"
+              />
+            </div>
+          </div>
           {loading ? (
             <div className="flex items-center justify-center gap-2 p-10 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -405,6 +442,8 @@ export default function EquipmentPanel({ course, equipment, loading, error, canW
             <div className="p-10 text-center text-red-400">{error}</div>
           ) : equipment.length === 0 ? (
             <div className="p-10 text-center text-muted-foreground">No equipment has been added for this course.</div>
+          ) : filteredEquipment.length === 0 ? (
+            <div className="p-10 text-center text-muted-foreground">No equipment matches your search.</div>
           ) : (
             <div className="overflow-x-auto">
             <Table>
@@ -419,7 +458,7 @@ export default function EquipmentPanel({ course, equipment, loading, error, canW
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {equipment.map((item) => (
+                {filteredEquipment.map((item) => (
                   <TableRow key={item.id} className="cursor-pointer" onClick={() => setSelectedId(item.id)}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-3">

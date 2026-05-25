@@ -10,9 +10,32 @@ const router = Router();
 
 // Company-wide inventory search ("global inventory" across all facilities in the same company)
 router.get('/company', requireAuth, async (req, res) => {
+  const { facilityId = '' } = req.query;
+
   try {
-    if (!req.employee?.company_id) {
-      return res.status(400).json({ error: 'Employee is not associated with a company' });
+    let scopedCompanyId = req.employee?.company_id || null;
+
+    if (!scopedCompanyId && facilityId) {
+      const role = await getRoleForFacility(req.employee, facilityId);
+      if (!role) {
+        return res.status(403).json({ error: 'No access to this facility' });
+      }
+
+      const facilityResult = await query(
+        `
+          select company_id
+          from facilities
+          where id = $1
+          limit 1
+        `,
+        [facilityId]
+      );
+
+      scopedCompanyId = facilityResult.rows[0]?.company_id || null;
+    }
+
+    if (!scopedCompanyId) {
+      return res.status(400).json({ error: 'Company context is required. Provide a facilityId or use an account associated with a company.' });
     }
 
     const result = await query(
@@ -29,7 +52,7 @@ router.get('/company', requireAuth, async (req, res) => {
         where f.company_id = $1
         order by pi.sku asc, f.name asc
       `,
-      [req.employee.company_id]
+      [scopedCompanyId]
     );
 
     return res.json(result.rows);

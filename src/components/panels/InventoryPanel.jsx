@@ -56,7 +56,21 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return inventory;
-    return inventory.filter((item) => [item.sku, item.part_description].some((value) => String(value || "").toLowerCase().includes(query)));
+
+    const tokens = query.split(/\s+/).filter(Boolean);
+    return inventory.filter((item) => {
+      const haystack = [
+        item.sku,
+        item.part_description,
+        item.reorder_url,
+        item.quantity_on_hand,
+        item.unit_cost,
+      ]
+        .map((value) => String(value ?? "").toLowerCase())
+        .join(" ");
+
+      return tokens.every((token) => haystack.includes(token));
+    });
   }, [inventory, search]);
 
   const lowStockCount = inventory.filter((item) => Number(item.quantity_on_hand) <= 0).length;
@@ -399,7 +413,7 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
       ) : null}
 
       <div className="flex gap-3 relative">
-        <Input placeholder="Search inventory..." value={search} onChange={(event) => setSearch(event.target.value)} className="pr-10" />
+        <Input placeholder="Search SKU, description, URL, qty, or cost..." value={search} onChange={(event) => setSearch(event.target.value)} className="pr-10" />
         <Button 
           type="button" 
           variant="ghost" 
