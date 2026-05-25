@@ -80,7 +80,7 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
     setLoadingDetail(true);
     try {
       const details = await onLoadDetails(user.id);
-      const currentMembership = details.memberships?.find((membership) => membership.course_id === user.courseId) || details.memberships?.[0];
+      const currentMembership = details.memberships?.find((membership) => membership.facility_id === user.courseId) || details.memberships?.[0];
       const merged = {
         ...user,
         ...details,
@@ -369,7 +369,7 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
       <Card>
         <CardContent className="p-0">
           {filtered.length === 0 ? (
-            <div className="p-10 text-center text-muted-foreground">No users found inside this course.</div>
+            <div className="p-10 text-center text-muted-foreground">No users found inside this facility.</div>
           ) : (
             <div className="overflow-x-auto">
             <Table>

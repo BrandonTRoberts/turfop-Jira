@@ -168,7 +168,7 @@ test('non-admin directory responses hide hourly rate', async () => {
     queryImpl: async (text) => {
       if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
       if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'read_write' }] };
-      if (text.includes('from employees e') && text.includes('join facility_memberships cm')) {
+      if (text.includes('from employees e') && text.includes('join facility_memberships fm')) {
         return {
           rows: [{ id: 'employee-2', email: 'tech@example.com', full_name: 'Tech', hourly_rate: '40', created_at: new Date().toISOString(), facility_id: 'course-1' }]
         };

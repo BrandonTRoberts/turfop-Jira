@@ -555,7 +555,7 @@ router.get('/directory', requireAuth, async (req, res) => {
       `
         select e.id, e.email, e.full_name, e.hourly_rate, e.profile_image_url, e.created_at, fm.facility_id, fm.role
         from employees e
-        join facility_memberships cm on fm.employee_id = e.id
+        join facility_memberships fm on fm.employee_id = e.id
         join facilities f on f.id = fm.facility_id
         where fm.facility_id = $1
         order by coalesce(e.full_name, e.email) asc
