@@ -34,16 +34,16 @@ export async function getMembershipsForEmployee(employeeId) {
         select
           null::uuid as id,
           'admin'::text as role,
-          c.id as course_id,
-          c.company_id,
+          f.id as facility_id,
+          f.company_id,
           coalesce(co.name, 'Unassigned company') as company_name,
-          c.name,
-          c.region,
-          c.superintendent_name,
-          c.course_areas_config
-        from courses c
-        left join companies co on co.id = c.company_id
-        order by coalesce(co.name, 'Unassigned company') asc, c.name asc
+          f.name,
+          f.region,
+          f.superintendent_name,
+          f.course_areas_config
+        from facilities f
+        left join companies co on co.id = f.company_id
+        order by coalesce(co.name, 'Unassigned company') asc, f.name asc
       `
     );
 
@@ -56,17 +56,17 @@ export async function getMembershipsForEmployee(employeeId) {
         select
           null::uuid as id,
           'admin'::text as role,
-          c.id as course_id,
-          c.company_id,
+          f.id as facility_id,
+          f.company_id,
           coalesce(co.name, 'Unassigned company') as company_name,
-          c.name,
-          c.region,
-          c.superintendent_name,
-          c.course_areas_config
-        from courses c
-        left join companies co on co.id = c.company_id
-        where c.company_id = $1
-        order by co.name asc, c.name asc
+          f.name,
+          f.region,
+          f.superintendent_name,
+          f.course_areas_config
+        from facilities f
+        left join companies co on co.id = f.company_id
+        where f.company_id = $1
+        order by co.name asc, f.name asc
       `,
       [employee.company_id]
     );
@@ -77,20 +77,20 @@ export async function getMembershipsForEmployee(employeeId) {
   const result = await query(
     `
         select
-          cm.id,
-          cm.role,
-          cm.course_id,
-          c.company_id,
+          fm.id,
+          fm.role,
+          fm.facility_id,
+          f.company_id,
           coalesce(co.name, 'Unassigned company') as company_name,
-          c.name,
-          c.region,
-          c.superintendent_name,
-          c.course_areas_config
-      from course_memberships cm
-      join courses c on c.id = cm.course_id
-      left join companies co on co.id = c.company_id
-      where cm.employee_id = $1
-      order by c.name asc
+          f.name,
+          f.region,
+          f.superintendent_name,
+          f.course_areas_config
+      from facility_memberships fm
+      join facilities f on f.id = fm.facility_id
+      left join companies co on co.id = f.company_id
+      where fm.employee_id = $1
+      order by f.name asc
     `,
     [employeeId]
   );
@@ -98,38 +98,38 @@ export async function getMembershipsForEmployee(employeeId) {
   return result.rows;
 }
 
-export async function getRoleForCourse(employeeOrId, courseId) {
+export async function getRoleForFacility(employeeOrId, facilityId) {
   const employeeId = typeof employeeOrId === 'object' ? employeeOrId?.id : employeeOrId;
   const employee = typeof employeeOrId === 'object' ? employeeOrId : null;
 
   if (employee && isPlatformAdmin(employee)) {
-    const courseResult = await query(
+    const facilityResult = await query(
       `
         select id
-        from courses
+        from facilities
         where id = $1
         limit 1
       `,
-      [courseId]
+      [facilityId]
     );
 
-    if (courseResult.rows[0]?.id) {
+    if (facilityResult.rows[0]?.id) {
       return 'admin';
     }
   }
 
   if (employee && isCompanySuperUser(employee)) {
-    const courseResult = await query(
+    const facilityResult = await query(
       `
         select id
-        from courses
+        from facilities
         where id = $1 and company_id = $2
         limit 1
       `,
-      [courseId, employee.company_id]
+      [facilityId, employee.company_id]
     );
 
-    if (courseResult.rows[0]?.id) {
+    if (facilityResult.rows[0]?.id) {
       return 'admin';
     }
   }
@@ -137,15 +137,19 @@ export async function getRoleForCourse(employeeOrId, courseId) {
   const result = await query(
     `
       select role
-      from course_memberships
-      where employee_id = $1 and course_id = $2
+      from facility_memberships
+      where employee_id = $1 and facility_id = $2
       limit 1
     `,
-    [employeeId, courseId]
+    [employeeId, facilityId]
   );
 
   return result.rows[0]?.role || null;
 }
+
+// Back-compat symbol name removed in hard cut-over: re-export under the old name so
+// any remaining callers fail loudly when they pass courseId (now treated as facilityId).
+export const getRoleForCourse = getRoleForFacility;
 
 export function canWrite(role) {
   return role === 'admin' || role === 'read_write';

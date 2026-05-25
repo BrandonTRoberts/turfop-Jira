@@ -2,11 +2,11 @@ import { Router } from 'express';
 import { connect, query } from '../lib/db.js';
 import { requireAuth } from '../lib/requireAuth.js';
 import { createInviteToken, hashInviteToken } from '../lib/auth.js';
-import { getRoleForCourse, isAdmin } from '../lib/permissions.js';
+import { getRoleForFacility, isAdmin } from '../lib/permissions.js';
 import {
   normalizeEmail,
   validateAdminEmployeeProfileInput,
-  validateCourseRoleInput,
+  validateFacilityRoleInput,
   validateEmployeeInviteInput,
   validateMembershipInput
 } from '../lib/validation.js';
@@ -23,14 +23,14 @@ import { handleUnexpectedError } from '../lib/http.js';
 const INVITE_TTL_HOURS = 72;
 const router = Router();
 
-function buildInvitePayload(token, courseId) {
+function buildInvitePayload(token, facilityId) {
   if (!shouldAllowManualTokenPreview()) {
     return { expiresInHours: INVITE_TTL_HOURS };
   }
 
   return {
     inviteToken: token,
-    inviteUrl: buildMagicLinkUrl(token, courseId),
+    inviteUrl: buildMagicLinkUrl(token, facilityId),
     expiresInHours: INVITE_TTL_HOURS
   };
 }
@@ -44,19 +44,23 @@ function ensureInviteDeliveryReady(res) {
   return true;
 }
 
-async function loadCourse(client, courseId) {
+async function loadFacility(client, facilityId) {
   const result = await client.query(
     `
       select id, company_id, name
-      from courses
+      from facilities
       where id = $1
       limit 1
     `,
-    [courseId]
+    [facilityId]
   );
 
   return result.rows[0] || null;
 }
+
+// Back-compat alias: many routes still call this helper name.
+// TODO: remove after the facility cut-over is complete.
+const loadCourse = loadFacility;
 
 async function ensureEmployeeInCompany(client, companyId, employeeId) {
   const result = await client.query(
@@ -72,7 +76,7 @@ async function ensureEmployeeInCompany(client, companyId, employeeId) {
   return result.rows[0] || null;
 }
 
-async function ensureEmployeeEditableForCourse(client, courseId, companyId, employeeId) {
+async function ensureEmployeeEditableForFacility(client, facilityId, companyId, employeeId) {
   const companyEmployee = await ensureEmployeeInCompany(client, companyId, employeeId);
   if (companyEmployee) {
     return companyEmployee;
@@ -82,11 +86,11 @@ async function ensureEmployeeEditableForCourse(client, courseId, companyId, empl
     `
       select e.id, e.company_id, e.email, e.full_name, e.password_hash, e.must_change_password, e.company_role
       from employees e
-      join course_memberships cm on cm.employee_id = e.id
-      where e.id = $1 and cm.course_id = $2
+      join facility_memberships fm on fm.employee_id = e.id
+      where e.id = $1 and fm.facility_id = $2
       limit 1
     `,
-    [employeeId, courseId]
+    [employeeId, facilityId]
   );
 
   return result.rows[0] || null;
@@ -105,10 +109,10 @@ function buildAccountStatus(employee) {
 }
 
 router.post('/', requireAuth, async (req, res) => {
-  const { email, fullName, courseId, role, hourlyRate, profileImage } = req.body;
+  const { email, fullName, facilityId, role, hourlyRate, profileImage } = req.body;
 
   try {
-    const validationError = validateEmployeeInviteInput({ email, fullName, courseId, role, hourlyRate });
+    const validationError = validateEmployeeInviteInput({ email, fullName, facilityId, role, hourlyRate });
     if (validationError) {
       return res.status(400).json({ error: validationError });
     }
@@ -117,9 +121,9 @@ router.post('/', requireAuth, async (req, res) => {
       return undefined;
     }
 
-    const currentRole = await getRoleForCourse(req.employee, courseId);
+    const currentRole = await getRoleForFacility(req.employee, facilityId);
     if (!isAdmin(currentRole)) {
-      return res.status(403).json({ error: 'Admin access required for this course' });
+      return res.status(403).json({ error: 'Admin access required for this facility' });
     }
 
     const client = await connect();
@@ -127,10 +131,10 @@ router.post('/', requireAuth, async (req, res) => {
     try {
       await client.query('begin');
 
-      const course = await loadCourse(client, courseId);
+      const course = await loadCourse(client, facilityId);
       if (!course) {
         await client.query('rollback');
-        return res.status(404).json({ error: 'Course not found' });
+        return res.status(404).json({ error: 'Facility not found' });
       }
 
       const profileImageUrl = await persistSingleImage(profileImage, { entityType: 'profiles' });
@@ -146,11 +150,11 @@ router.post('/', requireAuth, async (req, res) => {
       const employee = employeeResult.rows[0];
       const membershipResult = await client.query(
         `
-          insert into course_memberships (employee_id, course_id, role)
+          insert into facility_memberships (employee_id, facility_id, role)
           values ($1, $2, $3)
-          returning id, employee_id, course_id, role, created_at
+          returning id, employee_id, facility_id, role, created_at
         `,
-        [employee.id, courseId, role]
+        [employee.id, facilityId, role]
       );
 
       const inviteToken = createInviteToken();
@@ -160,30 +164,30 @@ router.post('/', requireAuth, async (req, res) => {
           insert into invite_tokens (employee_id, course_id, token_hash, created_by_employee_id, expires_at)
           values ($1, $2, $3, $4, now() + ($5 || ' hours')::interval)
         `,
-        [employee.id, courseId, tokenHash, req.employee.id, String(INVITE_TTL_HOURS)]
+        [employee.id, facilityId, tokenHash, req.employee.id, String(INVITE_TTL_HOURS)]
       );
 
       await client.query(
         `
-          insert into audit_logs (actor_employee_id, action, course_id, target_employee_id, detail)
+          insert into audit_logs (actor_employee_id, action, facility_id, target_employee_id, detail)
           values ($1, $2, $3, $4, $5)
         `,
-        [req.employee.id, 'employee.create', courseId, employee.id, { email: employee.email, role }]
+        [req.employee.id, 'employee.create', facilityId, employee.id, { email: employee.email, role }]
       );
 
       await client.query(
         `
-          insert into audit_logs (actor_employee_id, action, course_id, target_employee_id, detail)
+          insert into audit_logs (actor_employee_id, action, facility_id, target_employee_id, detail)
           values ($1, $2, $3, $4, $5)
         `,
-        [req.employee.id, 'employee.invite', courseId, employee.id, { email: employee.email }]
+        [req.employee.id, 'employee.invite', facilityId, employee.id, { email: employee.email }]
       );
 
       const delivery = await deliverMagicLinkEmail({
         to: employee.email,
         fullName: employee.full_name,
         token: inviteToken,
-        courseId,
+        facilityId,
         purpose: 'invite'
       });
 
@@ -198,7 +202,7 @@ router.post('/', requireAuth, async (req, res) => {
         },
         membership: membershipResult.rows[0],
         deliveryMode: delivery.mode,
-        ...buildInvitePayload(inviteToken, courseId)
+        ...buildInvitePayload(inviteToken, facilityId)
       });
     } catch (error) {
       await client.query('rollback');
@@ -217,28 +221,28 @@ router.post('/', requireAuth, async (req, res) => {
 
 router.post('/:employeeId/invitations', requireAuth, async (req, res) => {
   const { employeeId } = req.params;
-  const { courseId } = req.body;
+  const { facilityId } = req.body;
 
   try {
-    const validationError = validateCourseRoleInput({ courseId, role: 'read_only' });
+    const validationError = validateFacilityRoleInput({ facilityId, role: 'read_only' });
     if (validationError) {
-      return res.status(400).json({ error: 'Valid courseId is required' });
+      return res.status(400).json({ error: 'Valid facilityId is required' });
     }
 
     if (!ensureInviteDeliveryReady(res)) {
       return undefined;
     }
 
-    const currentRole = await getRoleForCourse(req.employee, courseId);
+    const currentRole = await getRoleForFacility(req.employee, facilityId);
     if (!isAdmin(currentRole)) {
-      return res.status(403).json({ error: 'Admin access required for this course' });
+      return res.status(403).json({ error: 'Admin access required for this facility' });
     }
 
     const client = await connect();
     try {
-      const course = await loadCourse(client, courseId);
+      const course = await loadCourse(client, facilityId);
       if (!course) {
-        return res.status(404).json({ error: 'Course not found' });
+        return res.status(404).json({ error: 'Facility not found' });
       }
 
       const employee = await ensureEmployeeInCompany(client, course.company_id, employeeId);
@@ -253,13 +257,13 @@ router.post('/:employeeId/invitations', requireAuth, async (req, res) => {
           insert into invite_tokens (employee_id, course_id, token_hash, created_by_employee_id, expires_at)
           values ($1, $2, $3, $4, now() + ($5 || ' hours')::interval)
         `,
-        [employeeId, courseId, tokenHash, req.employee.id, String(INVITE_TTL_HOURS)]
+        [employeeId, facilityId, tokenHash, req.employee.id, String(INVITE_TTL_HOURS)]
       );
 
       await logAuditEvent({
         actorEmployeeId: req.employee.id,
         action: 'employee.invite',
-        courseId,
+        facilityId,
         targetEmployeeId: employeeId,
         detail: { email: employee.email }
       });
@@ -268,13 +272,13 @@ router.post('/:employeeId/invitations', requireAuth, async (req, res) => {
         to: employee.email,
         fullName: employee.full_name,
         token: inviteToken,
-        courseId,
+        facilityId,
         purpose: 'invite'
       });
 
       return res.status(201).json({
         deliveryMode: delivery.mode,
-        ...buildInvitePayload(inviteToken, courseId)
+        ...buildInvitePayload(inviteToken, facilityId)
       });
     } finally {
       client.release();
@@ -286,28 +290,28 @@ router.post('/:employeeId/invitations', requireAuth, async (req, res) => {
 
 router.post('/:employeeId/resend-invite', requireAuth, async (req, res) => {
   const { employeeId } = req.params;
-  const { courseId } = req.body;
+  const { facilityId } = req.body;
 
   try {
-    const validationError = validateCourseRoleInput({ courseId, role: 'read_only' });
+    const validationError = validateFacilityRoleInput({ facilityId, role: 'read_only' });
     if (validationError) {
-      return res.status(400).json({ error: 'Valid courseId is required' });
+      return res.status(400).json({ error: 'Valid facilityId is required' });
     }
 
     if (!ensureInviteDeliveryReady(res)) {
       return undefined;
     }
 
-    const currentRole = await getRoleForCourse(req.employee, courseId);
+    const currentRole = await getRoleForFacility(req.employee, facilityId);
     if (!isAdmin(currentRole)) {
-      return res.status(403).json({ error: 'Admin access required for this course' });
+      return res.status(403).json({ error: 'Admin access required for this facility' });
     }
 
     const client = await connect();
     try {
-      const course = await loadCourse(client, courseId);
+      const course = await loadCourse(client, facilityId);
       if (!course) {
-        return res.status(404).json({ error: 'Course not found' });
+        return res.status(404).json({ error: 'Facility not found' });
       }
 
       const employee = await ensureEmployeeInCompany(client, course.company_id, employeeId);
@@ -322,13 +326,13 @@ router.post('/:employeeId/resend-invite', requireAuth, async (req, res) => {
           insert into invite_tokens (employee_id, course_id, token_hash, created_by_employee_id, expires_at)
           values ($1, $2, $3, $4, now() + ($5 || ' hours')::interval)
         `,
-        [employeeId, courseId, tokenHash, req.employee.id, String(INVITE_TTL_HOURS)]
+        [employeeId, facilityId, tokenHash, req.employee.id, String(INVITE_TTL_HOURS)]
       );
 
       await logAuditEvent({
         actorEmployeeId: req.employee.id,
         action: 'employee.invite.resend',
-        courseId,
+        facilityId,
         targetEmployeeId: employeeId,
         detail: { email: employee.email }
       });
@@ -337,13 +341,13 @@ router.post('/:employeeId/resend-invite', requireAuth, async (req, res) => {
         to: employee.email,
         fullName: employee.full_name,
         token: inviteToken,
-        courseId,
+        facilityId,
         purpose: 'invite'
       });
 
       return res.status(201).json({
         deliveryMode: delivery.mode,
-        ...buildInvitePayload(inviteToken, courseId)
+        ...buildInvitePayload(inviteToken, facilityId)
       });
     } finally {
       client.release();
@@ -355,28 +359,28 @@ router.post('/:employeeId/resend-invite', requireAuth, async (req, res) => {
 
 router.post('/:employeeId/send-reset-password', requireAuth, async (req, res) => {
   const { employeeId } = req.params;
-  const { courseId } = req.body;
+  const { facilityId } = req.body;
 
   try {
-    const validationError = validateCourseRoleInput({ courseId, role: 'read_only' });
+    const validationError = validateFacilityRoleInput({ facilityId, role: 'read_only' });
     if (validationError) {
-      return res.status(400).json({ error: 'Valid courseId is required' });
+      return res.status(400).json({ error: 'Valid facilityId is required' });
     }
 
     if (!ensureInviteDeliveryReady(res)) { // Using the same email delivery check
       return undefined;
     }
 
-    const currentRole = await getRoleForCourse(req.employee, courseId);
+    const currentRole = await getRoleForFacility(req.employee, facilityId);
     if (!isAdmin(currentRole)) {
-      return res.status(403).json({ error: 'Admin access required for this course' });
+      return res.status(403).json({ error: 'Admin access required for this facility' });
     }
 
     const client = await connect();
     try {
-      const course = await loadCourse(client, courseId);
+      const course = await loadCourse(client, facilityId);
       if (!course) {
-        return res.status(404).json({ error: 'Course not found' });
+        return res.status(404).json({ error: 'Facility not found' });
       }
 
       const employee = await ensureEmployeeInCompany(client, course.company_id, employeeId);
@@ -392,13 +396,13 @@ router.post('/:employeeId/send-reset-password', requireAuth, async (req, res) =>
           insert into invite_tokens (employee_id, course_id, token_hash, created_by_employee_id, expires_at)
           values ($1, $2, $3, $4, now() + ($5 || ' hours')::interval)
         `,
-        [employeeId, courseId, tokenHash, req.employee.id, String(INVITE_TTL_HOURS)]
+        [employeeId, facilityId, tokenHash, req.employee.id, String(INVITE_TTL_HOURS)]
       );
 
       await logAuditEvent({
         actorEmployeeId: req.employee.id,
         action: 'employee.password.reset.request',
-        courseId,
+        facilityId,
         targetEmployeeId: employeeId,
         detail: { email: employee.email }
       });
@@ -407,14 +411,14 @@ router.post('/:employeeId/send-reset-password', requireAuth, async (req, res) =>
         to: employee.email,
         fullName: employee.full_name,
         token: resetToken,
-        courseId,
+        facilityId,
         purpose: 'reset' // Indicate purpose is password reset
       });
 
       return res.status(201).json({
         deliveryMode: delivery.mode,
         // For security, don't expose the resetToken here in production
-        ...buildInvitePayload(resetToken, courseId) // Reusing for preview in dev
+        ...buildInvitePayload(resetToken, facilityId) // Reusing for preview in dev
       });
     } finally {
       client.release();
@@ -425,24 +429,24 @@ router.post('/:employeeId/send-reset-password', requireAuth, async (req, res) =>
 });
 
 router.post('/memberships', requireAuth, async (req, res) => {
-  const { employeeId, courseId, role } = req.body;
+  const { employeeId, facilityId, role } = req.body;
 
   try {
-    const validationError = validateMembershipInput({ employeeId, courseId, role });
+    const validationError = validateMembershipInput({ employeeId, facilityId, role });
     if (validationError) {
       return res.status(400).json({ error: validationError });
     }
 
-    const currentRole = await getRoleForCourse(req.employee, courseId);
+    const currentRole = await getRoleForFacility(req.employee, facilityId);
     if (!isAdmin(currentRole)) {
-      return res.status(403).json({ error: 'Admin access required for this course' });
+      return res.status(403).json({ error: 'Admin access required for this facility' });
     }
 
     const client = await connect();
     try {
-      const course = await loadCourse(client, courseId);
+      const course = await loadCourse(client, facilityId);
       if (!course) {
-        return res.status(404).json({ error: 'Course not found' });
+        return res.status(404).json({ error: 'Facility not found' });
       }
 
       const employee = await ensureEmployeeInCompany(client, course.company_id, employeeId);
@@ -452,19 +456,19 @@ router.post('/memberships', requireAuth, async (req, res) => {
 
       const result = await client.query(
         `
-          insert into course_memberships (employee_id, course_id, role)
+          insert into facility_memberships (employee_id, facility_id, role)
           values ($1, $2, $3)
-          on conflict (employee_id, course_id)
+          on conflict (employee_id, facility_id)
           do update set role = excluded.role
-          returning id, employee_id, course_id, role, created_at
+          returning id, employee_id, facility_id, role, created_at
         `,
-        [employeeId, courseId, role]
+        [employeeId, facilityId, role]
       );
 
       await logAuditEvent({
         actorEmployeeId: req.employee.id,
         action: 'membership.upsert',
-        courseId,
+        facilityId,
         targetEmployeeId: employeeId,
         detail: { role }
       });
@@ -478,39 +482,39 @@ router.post('/memberships', requireAuth, async (req, res) => {
   }
 });
 
-router.delete('/:employeeId/memberships/:courseId', requireAuth, async (req, res) => {
-  const { employeeId, courseId } = req.params;
+router.delete('/:employeeId/memberships/:facilityId', requireAuth, async (req, res) => {
+  const { employeeId, facilityId } = req.params;
 
   try {
-    const validationError = validateMembershipInput({ employeeId, courseId, role: 'read_only' });
+    const validationError = validateMembershipInput({ employeeId, facilityId, role: 'read_only' });
     if (validationError) {
-      return res.status(400).json({ error: 'Valid employeeId and courseId are required' });
+      return res.status(400).json({ error: 'Valid employeeId and facilityId are required' });
     }
 
-    const currentRole = await getRoleForCourse(req.employee, courseId);
+    const currentRole = await getRoleForFacility(req.employee, facilityId);
     if (!isAdmin(currentRole)) {
-      return res.status(403).json({ error: 'Admin access required for this course' });
+      return res.status(403).json({ error: 'Admin access required for this facility' });
     }
 
     const client = await connect();
     try {
-      const course = await loadCourse(client, courseId);
-      if (!course) {
-        return res.status(404).json({ error: 'Course not found' });
+      const facility = await loadCourse(client, facilityId);
+      if (!facility) {
+        return res.status(404).json({ error: 'Facility not found' });
       }
 
-      const employee = await ensureEmployeeInCompany(client, course.company_id, employeeId);
+      const employee = await ensureEmployeeInCompany(client, facility.company_id, employeeId);
       if (!employee) {
         return res.status(404).json({ error: 'Employee not found' });
       }
 
       const result = await client.query(
         `
-          delete from course_memberships
-          where employee_id = $1 and course_id = $2
-          returning id, employee_id, course_id, role, created_at
+          delete from facility_memberships
+          where employee_id = $1 and facility_id = $2
+          returning id, employee_id, facility_id, role, created_at
         `,
-        [employeeId, courseId]
+        [employeeId, facilityId]
       );
 
       if (!result.rows.length) {
@@ -520,9 +524,9 @@ router.delete('/:employeeId/memberships/:courseId', requireAuth, async (req, res
       await logAuditEvent({
         actorEmployeeId: req.employee.id,
         action: 'membership.remove',
-        courseId,
+        facilityId,
         targetEmployeeId: employeeId,
-        detail: { removedCourseId: courseId }
+        detail: { removedFacilityId: facilityId }
       });
 
       return res.json({ ok: true, membership: result.rows[0] });
@@ -535,28 +539,28 @@ router.delete('/:employeeId/memberships/:courseId', requireAuth, async (req, res
 });
 
 router.get('/directory', requireAuth, async (req, res) => {
-  const { courseId } = req.query;
+  const { facilityId } = req.query;
 
   try {
-    if (!courseId) {
-      return res.status(400).json({ error: 'courseId is required' });
+    if (!facilityId) {
+      return res.status(400).json({ error: 'facilityId is required' });
     }
 
-    const currentRole = await getRoleForCourse(req.employee, courseId);
+    const currentRole = await getRoleForFacility(req.employee, facilityId);
     if (!currentRole) {
-      return res.status(403).json({ error: 'No access to this course' });
+      return res.status(403).json({ error: 'No access to this facility' });
     }
 
     const result = await query(
       `
-        select e.id, e.email, e.full_name, e.hourly_rate, e.profile_image_url, e.created_at, cm.course_id, cm.role
+        select e.id, e.email, e.full_name, e.hourly_rate, e.profile_image_url, e.created_at, fm.facility_id, fm.role
         from employees e
-        join course_memberships cm on cm.employee_id = e.id
-        join courses c on c.id = cm.course_id
-        where cm.course_id = $1
+        join facility_memberships cm on fm.employee_id = e.id
+        join facilities f on f.id = fm.facility_id
+        where fm.facility_id = $1
         order by coalesce(e.full_name, e.email) asc
       `,
-      [courseId]
+      [facilityId]
     );
 
     const canSeeAdminFields = isAdmin(currentRole);
@@ -571,28 +575,28 @@ router.get('/directory', requireAuth, async (req, res) => {
 });
 
 router.get('/company-directory', requireAuth, async (req, res) => {
-  const { courseId } = req.query;
+  const { facilityId } = req.query;
 
   try {
-    if (!courseId) {
-      return res.status(400).json({ error: 'courseId is required' });
+    if (!facilityId) {
+      return res.status(400).json({ error: 'facilityId is required' });
     }
 
-    const currentRole = await getRoleForCourse(req.employee, courseId);
+    const currentRole = await getRoleForFacility(req.employee, facilityId);
     if (!isAdmin(currentRole)) {
-      return res.status(403).json({ error: 'Admin access required for this course' });
+      return res.status(403).json({ error: 'Admin access required for this facility' });
     }
 
     const result = await query(
       `
-        select e.id, e.company_id, e.email, e.full_name, e.hourly_rate, e.profile_image_url, e.created_at, e.must_change_password, e.password_hash, cm.role, cm.course_id
+        select e.id, e.company_id, e.email, e.full_name, e.hourly_rate, e.profile_image_url, e.created_at, e.must_change_password, e.password_hash, fm.role, fm.facility_id
         from employees e
-        join courses c on c.id = $1
-        left join course_memberships cm on cm.employee_id = e.id and cm.course_id = c.id
-        where e.company_id = c.company_id
+        join facilities f on f.id = $1
+        left join facility_memberships fm on fm.employee_id = e.id and fm.facility_id = f.id
+        where e.company_id = f.company_id
         order by coalesce(e.full_name, e.email) asc
       `,
-      [courseId]
+      [facilityId]
     );
 
     return res.json(result.rows.map((row) => {
@@ -609,31 +613,31 @@ router.get('/company-directory', requireAuth, async (req, res) => {
 
 router.get('/:employeeId', requireAuth, async (req, res) => {
   const { employeeId } = req.params;
-  const { courseId } = req.query;
+  const { facilityId } = req.query;
 
   try {
-    if (!courseId) {
-      return res.status(400).json({ error: 'courseId is required' });
+    if (!facilityId) {
+      return res.status(400).json({ error: 'facilityId is required' });
     }
 
-    const currentRole = await getRoleForCourse(req.employee, courseId);
+    const currentRole = await getRoleForFacility(req.employee, facilityId);
     if (!isAdmin(currentRole)) {
-      return res.status(403).json({ error: 'Admin access required for this course' });
+      return res.status(403).json({ error: 'Admin access required for this facility' });
     }
 
     const result = await query(
       `
         select e.id, e.email, e.full_name, e.hourly_rate, e.profile_image_url, e.phone, e.address_line_1, e.address_line_2, e.city, e.state, e.postal_code, e.created_at, e.must_change_password, e.password_hash
         from employees e
-        left join course_memberships cm on cm.employee_id = e.id and cm.course_id = $2
+        left join facility_memberships fm on fm.employee_id = e.id and fm.facility_id = $2
         where e.id = $1
           and (
-            e.company_id = (select company_id from courses where id = $2)
-            or cm.id is not null
+            e.company_id = (select company_id from facilities where id = $2)
+            or fm.id is not null
           )
         limit 1
       `,
-      [employeeId, courseId]
+      [employeeId, facilityId]
     );
 
     if (result.rows.length === 0) {
@@ -642,14 +646,14 @@ router.get('/:employeeId', requireAuth, async (req, res) => {
 
     const membershipsResult = await query(
       `
-        select cm.id, cm.course_id, cm.role, c.company_id, co.name as company_name, c.name, c.region, c.superintendent_name
-        from course_memberships cm
-        join courses c on c.id = cm.course_id
-        join companies co on co.id = c.company_id
-        where cm.employee_id = $1 and c.company_id = (select company_id from courses where id = $2)
-        order by c.name asc
+        select fm.id, fm.facility_id, fm.role, f.company_id, co.name as company_name, f.name, f.region, f.superintendent_name
+        from facility_memberships fm
+        join facilities f on f.id = fm.facility_id
+        join companies co on co.id = f.company_id
+        where fm.employee_id = $1 and f.company_id = (select company_id from facilities where id = $2)
+        order by f.name asc
       `,
-      [employeeId, courseId]
+      [employeeId, facilityId]
     );
 
     const employee = result.rows[0];
@@ -666,7 +670,7 @@ router.get('/:employeeId', requireAuth, async (req, res) => {
 
 router.patch('/:employeeId', requireAuth, async (req, res) => {
   const { employeeId } = req.params;
-  const { courseId, email, fullName, hourlyRate, phone, addressLine1, addressLine2, city, state, postalCode, profileImage } = req.body;
+  const { facilityId, email, fullName, hourlyRate, phone, addressLine1, addressLine2, city, state, postalCode, profileImage } = req.body;
 
   try {
     const validationError = validateAdminEmployeeProfileInput({ email, fullName, hourlyRate, phone, addressLine1, addressLine2, city, state, postalCode });
@@ -674,19 +678,19 @@ router.patch('/:employeeId', requireAuth, async (req, res) => {
       return res.status(400).json({ error: validationError });
     }
 
-    const currentRole = await getRoleForCourse(req.employee, courseId);
+    const currentRole = await getRoleForFacility(req.employee, facilityId);
     if (!isAdmin(currentRole)) {
-      return res.status(403).json({ error: 'Admin access required for this course' });
+      return res.status(403).json({ error: 'Admin access required for this facility' });
     }
 
     const client = await connect();
     try {
-      const course = await loadCourse(client, courseId);
+      const course = await loadCourse(client, facilityId);
       if (!course) {
-        return res.status(404).json({ error: 'Course not found' });
+        return res.status(404).json({ error: 'Facility not found' });
       }
 
-      const employee = await ensureEmployeeEditableForCourse(client, courseId, course.company_id, employeeId);
+      const employee = await ensureEmployeeEditableForFacility(client, facilityId, course.company_id, employeeId);
       if (!employee) {
         return res.status(404).json({ error: 'Employee not found' });
       }
@@ -713,19 +717,19 @@ router.patch('/:employeeId', requireAuth, async (req, res) => {
               company_id = $12
               or exists (
                 select 1
-                from course_memberships cm
-                where cm.employee_id = employees.id and cm.course_id = $13
+                from facility_memberships cm
+                where fm.employee_id = employees.id and fm.facility_id = $13
               )
             )
           returning id, email, full_name, hourly_rate, profile_image_url, phone, address_line_1, address_line_2, city, state, postal_code, created_at, must_change_password, password_hash
         `,
-        [employeeId, normalizeEmail(email), fullName.trim(), hourlyRate ?? null, phone?.trim() || null, addressLine1?.trim() || null, addressLine2?.trim() || null, city?.trim() || null, state?.trim() || null, postalCode?.trim() || null, profileImageUrl, course.company_id, courseId]
+        [employeeId, normalizeEmail(email), fullName.trim(), hourlyRate ?? null, phone?.trim() || null, addressLine1?.trim() || null, addressLine2?.trim() || null, city?.trim() || null, state?.trim() || null, postalCode?.trim() || null, profileImageUrl, course.company_id, facilityId]
       );
 
       await logAuditEvent({
         actorEmployeeId: req.employee.id,
         action: 'employee.profile.update',
-        courseId,
+        facilityId,
         targetEmployeeId: employeeId,
         detail: { email: normalizeEmail(email), fullName: fullName.trim(), hourlyRate: hourlyRate ?? null }
       });
@@ -750,30 +754,30 @@ router.patch('/:employeeId', requireAuth, async (req, res) => {
 
 router.delete('/:employeeId', requireAuth, async (req, res) => {
   const { employeeId } = req.params;
-  const { courseId } = req.query;
+  const { facilityId } = req.query;
 
   try {
-    if (!courseId) {
-      return res.status(400).json({ error: 'courseId is required' });
+    if (!facilityId) {
+      return res.status(400).json({ error: 'facilityId is required' });
     }
 
     if (employeeId === req.employee.id) {
       return res.status(400).json({ error: 'You cannot delete your own account from this screen.' });
     }
 
-    const currentRole = await getRoleForCourse(req.employee, courseId);
+    const currentRole = await getRoleForFacility(req.employee, facilityId);
     if (!isAdmin(currentRole)) {
-      return res.status(403).json({ error: 'Admin access required for this course' });
+      return res.status(403).json({ error: 'Admin access required for this facility' });
     }
 
     const client = await connect();
     try {
       await client.query('begin');
 
-      const course = await loadCourse(client, courseId);
+      const course = await loadCourse(client, facilityId);
       if (!course) {
         await client.query('rollback');
-        return res.status(404).json({ error: 'Course not found' });
+        return res.status(404).json({ error: 'Facility not found' });
       }
 
       const employee = await ensureEmployeeInCompany(client, course.company_id, employeeId);
@@ -800,10 +804,10 @@ router.delete('/:employeeId', requireAuth, async (req, res) => {
 
       await client.query(
         `
-          insert into audit_logs (actor_employee_id, action, course_id, target_employee_id, detail)
+          insert into audit_logs (actor_employee_id, action, facility_id, target_employee_id, detail)
           values ($1, $2, $3, $4, $5)
         `,
-        [req.employee.id, 'employee.delete', courseId, employeeId, { email: employee.email, fullName: employee.full_name }]
+        [req.employee.id, 'employee.delete', facilityId, employeeId, { email: employee.email, fullName: employee.full_name }]
       );
 
       const deleted = await client.query(
@@ -829,28 +833,28 @@ router.delete('/:employeeId', requireAuth, async (req, res) => {
 });
 
 router.get('/', requireAuth, async (req, res) => {
-  const { courseId } = req.query;
+  const { facilityId } = req.query;
 
   try {
-    if (!courseId) {
-      return res.status(400).json({ error: 'courseId is required' });
+    if (!facilityId) {
+      return res.status(400).json({ error: 'facilityId is required' });
     }
 
-    const currentRole = await getRoleForCourse(req.employee, courseId);
+    const currentRole = await getRoleForFacility(req.employee, facilityId);
     if (!isAdmin(currentRole)) {
-      return res.status(403).json({ error: 'Admin access required for this course' });
+      return res.status(403).json({ error: 'Admin access required for this facility' });
     }
 
     const result = await query(
       `
-        select distinct e.id, e.company_id, e.email, e.full_name, e.hourly_rate, e.profile_image_url, e.created_at, e.must_change_password, e.password_hash, cm.role, cm.course_id
+        select distinct e.id, e.company_id, e.email, e.full_name, e.hourly_rate, e.profile_image_url, e.created_at, e.must_change_password, e.password_hash, fm.role, fm.facility_id
         from employees e
-        join course_memberships cm on cm.employee_id = e.id
-        join courses c on c.id = cm.course_id
-        where cm.course_id = $1
+        join facility_memberships fm on fm.employee_id = e.id
+        join facilities f on f.id = fm.facility_id
+        where fm.facility_id = $1
         order by e.created_at desc
       `,
-      [courseId]
+      [facilityId]
     );
 
     return res.json(result.rows.map((row) => {

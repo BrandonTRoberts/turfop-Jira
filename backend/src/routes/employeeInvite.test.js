@@ -8,7 +8,7 @@ import { resetEmailDeliveryTestOverride, setEmailDeliveryTestOverride } from '..
 
 const ADMIN_ID = '11111111-1111-4111-8111-111111111111';
 const COMPANY_ID = '22222222-2222-4222-8222-222222222222';
-const COURSE_ID = '33333333-3333-4333-8333-333333333333';
+const FACILITY_ID = '33333333-3333-4333-8333-333333333333';
 const EMPLOYEE_ID = '44444444-4444-4444-8444-444444444444';
 
 function authHeader() {
@@ -27,8 +27,8 @@ function createInviteHarness({ failDelivery = false } = {}) {
         return { rows: [] };
       }
 
-      if (text.includes('from courses') && text.includes('where id = $1')) {
-        return { rows: [{ id: COURSE_ID, company_id: COMPANY_ID, name: 'Test Course' }] };
+      if (text.includes('from facilities') && text.includes('where id = $1')) {
+        return { rows: [{ id: FACILITY_ID, company_id: COMPANY_ID, name: 'Test Facility' }] };
       }
 
       if (text.includes('insert into employees')) {
@@ -47,12 +47,12 @@ function createInviteHarness({ failDelivery = false } = {}) {
         };
       }
 
-      if (text.includes('insert into course_memberships')) {
+      if (text.includes('insert into facility_memberships')) {
         return {
           rows: [{
             id: '55555555-5555-4555-8555-555555555555',
             employee_id: EMPLOYEE_ID,
-            course_id: COURSE_ID,
+            facility_id: FACILITY_ID,
             role: params[2],
             created_at: '2026-05-22T00:00:00.000Z'
           }]
@@ -84,7 +84,7 @@ function createInviteHarness({ failDelivery = false } = {}) {
         };
       }
 
-      if (text.includes('from course_memberships') && text.includes('where employee_id = $1 and course_id = $2')) {
+      if (text.includes('from facility_memberships') && text.includes('where employee_id = $1 and facility_id = $2')) {
         return { rows: [{ role: 'admin' }] };
       }
 
@@ -118,7 +118,7 @@ test('inviting an employee creates the employee, stores an invite token, and sen
     .post('/employees')
     .set('Authorization', authHeader())
     .send({
-      courseId: COURSE_ID,
+      facilityId: FACILITY_ID,
       email: 'New.User@Example.COM',
       fullName: 'New User',
       role: 'read_write',
@@ -130,10 +130,10 @@ test('inviting an employee creates the employee, stores an invite token, and sen
   assert.equal(response.body.employee.account_status, 'invited_pending_setup');
   assert.equal(response.body.deliveryMode, 'test-smtp');
   assert.equal(response.body.membership.employee_id, EMPLOYEE_ID);
-  assert.equal(response.body.membership.course_id, COURSE_ID);
+  assert.equal(response.body.membership.facility_id, FACILITY_ID);
 
   assert.ok(clientQueries.some(({ text }) => text.includes('insert into employees')));
-  assert.ok(clientQueries.some(({ text }) => text.includes('insert into course_memberships')));
+  assert.ok(clientQueries.some(({ text }) => text.includes('insert into facility_memberships')));
   assert.ok(clientQueries.some(({ text }) => text.includes('insert into invite_tokens')));
   assert.ok(clientQueries.some(({ text }) => text === 'commit'));
 
@@ -141,7 +141,7 @@ test('inviting an employee creates the employee, stores an invite token, and sen
   assert.equal(deliveries[0].to, 'new.user@example.com');
   assert.equal(deliveries[0].purpose, 'invite');
   assert.match(deliveries[0].actionUrl, /^http:\/\/localhost:5173\/signin\?token=/);
-  assert.match(deliveries[0].actionUrl, new RegExp(`courseId=${COURSE_ID}`));
+  assert.match(deliveries[0].actionUrl, new RegExp(`facilityId=${FACILITY_ID}`));
 });
 
 test('inviting an employee rolls back the database work when setup email delivery fails', async () => {
@@ -152,7 +152,7 @@ test('inviting an employee rolls back the database work when setup email deliver
     .post('/employees')
     .set('Authorization', authHeader())
     .send({
-      courseId: COURSE_ID,
+      facilityId: FACILITY_ID,
       email: 'delivery.failure@example.com',
       fullName: 'Delivery Failure',
       role: 'read_only'

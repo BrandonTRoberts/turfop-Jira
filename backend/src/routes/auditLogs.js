@@ -1,20 +1,20 @@
 import { Router } from 'express';
 import { query } from '../lib/db.js';
 import { requireAuth } from '../lib/requireAuth.js';
-import { getRoleForCourse, isAdmin } from '../lib/permissions.js';
+import { getRoleForFacility, isAdmin } from '../lib/permissions.js';
 import { validateAuditQueryInput } from '../lib/validation.js';
 import { handleUnexpectedError } from '../lib/http.js';
 
 const router = Router();
 
 router.get('/', requireAuth, async (req, res) => {
-  const { courseId, action = '', limit = '10', offset = '0' } = req.query;
+  const { facilityId, action = '', limit = '10', offset = '0' } = req.query;
   const parsedLimit = Number.parseInt(limit, 10);
   const parsedOffset = Number.parseInt(offset, 10);
 
   try {
-    if (!courseId) {
-      return res.status(400).json({ error: 'courseId is required' });
+    if (!facilityId) {
+      return res.status(400).json({ error: 'facilityId is required' });
     }
 
     const validationError = validateAuditQueryInput({
@@ -26,12 +26,12 @@ router.get('/', requireAuth, async (req, res) => {
       return res.status(400).json({ error: validationError });
     }
 
-    const currentRole = await getRoleForCourse(req.employee, courseId);
+    const currentRole = await getRoleForFacility(req.employee, facilityId);
     if (!isAdmin(currentRole)) {
-      return res.status(403).json({ error: 'Admin access required for this course' });
+      return res.status(403).json({ error: 'Admin access required for this facility' });
     }
 
-    const params = [courseId];
+    const params = [facilityId];
     let actionClause = '';
     if (action) {
       params.push(action);
@@ -56,7 +56,7 @@ router.get('/', requireAuth, async (req, res) => {
         from audit_logs al
         left join employees actor on actor.id = al.actor_employee_id
         left join employees target on target.id = al.target_employee_id
-        where al.course_id = $1${actionClause}
+        where al.facility_id = $1${actionClause}
         order by al.created_at desc
         limit $${params.length - 1}
         offset $${params.length}

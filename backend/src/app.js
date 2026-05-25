@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import healthRouter from './routes/health.js';
 import authRouter from './routes/auth.js';
 import employeesRouter from './routes/employees.js';
-import coursesRouter from './routes/courses.js';
+import facilitiesRouter from './routes/facilities.js';
 import workOrdersRouter from './routes/workOrders.js';
 import equipmentRouter from './routes/equipment.js';
 import partsInventoryRouter from './routes/partsInventory.js';
@@ -62,7 +62,7 @@ export function createApp() {
   app.use('/health', healthRouter);
   app.use('/auth', authRouter);
   app.use('/employees', employeesRouter);
-  app.use('/courses', coursesRouter);
+  app.use('/facilities', facilitiesRouter);
   app.use('/work-orders', workOrdersRouter);
   app.use('/equipment', equipmentRouter);
   app.use('/parts-inventory', partsInventoryRouter);

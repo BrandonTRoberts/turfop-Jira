@@ -46,7 +46,7 @@ test('auth me returns self-service profile fields', async () => {
         return { rows: [makeEmployeeRow()] };
       }
 
-      if (text.includes('from course_memberships')) {
+      if (text.includes('from facility_memberships')) {
         return { rows: [] };
       }
 

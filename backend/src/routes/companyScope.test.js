@@ -109,7 +109,7 @@ test('platform admin can create a company', async () => {
   assert.equal(response.body.name, 'Augusta Operations');
 });
 
-test('company super user can create a course for their own company', async () => {
+test('company super user can create a facility for their own company', async () => {
   setDbTestOverrides({
     queryImpl: async (text, params) => {
       if (text.includes('from employees') && text.includes('where id = $1')) {
@@ -120,7 +120,7 @@ test('company super user can create a course for their own company', async () =>
         return { rows: [{ id: params[0], name: 'Augusta Operations' }] };
       }
 
-      if (text.includes('insert into courses')) {
+      if (text.includes('insert into facilities')) {
         return {
           rows: [{
             id: 'course-1',
@@ -140,7 +140,7 @@ test('company super user can create a course for their own company', async () =>
 
   const app = createApp();
   const response = await request(app)
-    .post('/courses')
+    .post('/facilities')
     .set('Authorization', authHeader())
     .send({
       companyId: '6689c65a-7736-46af-b7f0-50008020be06',
@@ -162,7 +162,7 @@ test('company super user can create a course for their own company', async () =>
   assert.equal(response.body.course_areas_config[1].trackedCount, 36);
 });
 
-test('company super user cannot create a course for another company', async () => {
+test('company super user cannot create a facility for another company', async () => {
   setDbTestOverrides({
     queryImpl: async (text) => {
       if (text.includes('from employees') && text.includes('where id = $1')) {
@@ -175,7 +175,7 @@ test('company super user cannot create a course for another company', async () =
 
   const app = createApp();
   const response = await request(app)
-    .post('/courses')
+    .post('/facilities')
     .set('Authorization', authHeader())
     .send({
       companyId: '6689c65a-7736-46af-b7f0-50008020be06',
@@ -185,21 +185,21 @@ test('company super user cannot create a course for another company', async () =
     });
 
   assert.equal(response.status, 403);
-  assert.equal(response.body.error, 'Cannot create courses outside your company');
+  assert.equal(response.body.error, 'Cannot create facilities outside your company');
 });
 
-test('course admin can update course settings and area tracking', async () => {
+test('facility admin can update facility settings and area tracking', async () => {
   setDbTestOverrides({
     queryImpl: async (text, params) => {
       if (text.includes('from employees') && text.includes('where id = $1')) {
         return { rows: [makeEmployeeRow()] };
       }
 
-      if (text.includes('select role') && text.includes('from course_memberships')) {
+      if (text.includes('select role') && text.includes('from facility_memberships')) {
         return { rows: [{ role: 'admin' }] };
       }
 
-      if (text.includes('update courses')) {
+      if (text.includes('update facilities')) {
         return {
           rows: [{
             id: params[0],
@@ -219,7 +219,7 @@ test('course admin can update course settings and area tracking', async () => {
 
   const app = createApp();
   const response = await request(app)
-    .patch('/courses/course-1')
+    .patch('/facilities/course-1')
     .set('Authorization', authHeader())
     .send({
       name: '  Augusta National  ',
@@ -239,14 +239,14 @@ test('course admin can update course settings and area tracking', async () => {
   assert.equal(response.body.course_areas_config[1].name, 'Practice areas');
 });
 
-test('dashboard overview rejects inaccessible course requests', async () => {
+test('dashboard overview rejects inaccessible facility requests', async () => {
   setDbTestOverrides({
     queryImpl: async (text) => {
       if (text.includes('from employees') && text.includes('where id = $1')) {
         return { rows: [makeEmployeeRow()] };
       }
 
-      if (text.includes('select role') && text.includes('from course_memberships')) {
+      if (text.includes('select role') && text.includes('from facility_memberships')) {
         return { rows: [] };
       }
 
@@ -256,11 +256,11 @@ test('dashboard overview rejects inaccessible course requests', async () => {
 
   const app = createApp();
   const response = await request(app)
-    .get('/dashboard/overview?courseId=6689c65a-7736-46af-b7f0-50008020be06')
+    .get('/dashboard/overview?facilityId=6689c65a-7736-46af-b7f0-50008020be06')
     .set('Authorization', authHeader());
 
   assert.equal(response.status, 403);
-  assert.equal(response.body.error, 'No access to this course');
+  assert.equal(response.body.error, 'No access to this facility');
 });
 
 test('dashboard overview returns scoped summary and rollups for company super users', async () => {
@@ -270,7 +270,7 @@ test('dashboard overview returns scoped summary and rollups for company super us
         return { rows: [makeEmployeeRow({ company_role: 'company_super_user', company_id: 'company-1' })] };
       }
 
-      if (text.includes('select id') && text.includes('from courses') && text.includes('where company_id = $1')) {
+      if (text.includes('select id') && text.includes('from facilities') && text.includes('where company_id = $1')) {
         assert.deepEqual(params, ['company-1']);
         return {
           rows: [
@@ -280,7 +280,7 @@ test('dashboard overview returns scoped summary and rollups for company super us
         };
       }
 
-      if (text.includes('with scoped_courses as')) {
+      if (text.includes('with scoped_facilities as')) {
         assert.deepEqual(params, [[
           '6689c65a-7736-46af-b7f0-50008020be06',
           '7c6c1941-b25f-4f0f-b6c9-bb8991170c2f'
@@ -310,8 +310,8 @@ test('dashboard overview returns scoped summary and rollups for company super us
       if (text.includes('count(wo.id) filter')) {
         return {
           rows: [
-            { course_id: '6689c65a-7736-46af-b7f0-50008020be06', name: 'Augusta National', open_work_orders: 3, completed_this_week: 4 },
-            { course_id: '7c6c1941-b25f-4f0f-b6c9-bb8991170c2f', name: 'Pebble Beach', open_work_orders: 1, completed_this_week: 2 }
+            { facility_id: '6689c65a-7736-46af-b7f0-50008020be06', name: 'Augusta National', open_work_orders: 3, completed_this_week: 4 },
+            { facility_id: '7c6c1941-b25f-4f0f-b6c9-bb8991170c2f', name: 'Pebble Beach', open_work_orders: 1, completed_this_week: 2 }
           ]
         };
       }
@@ -319,17 +319,17 @@ test('dashboard overview returns scoped summary and rollups for company super us
       if (text.includes('sum(extract(epoch from (coalesce(te.clock_out_at, now()) - te.clock_in_at)) / 3600.0)')) {
         return {
           rows: [
-            { course_id: '6689c65a-7736-46af-b7f0-50008020be06', name: 'Augusta National', total_hours: '41.5' },
-            { course_id: '7c6c1941-b25f-4f0f-b6c9-bb8991170c2f', name: 'Pebble Beach', total_hours: '32.0' }
+            { facility_id: '6689c65a-7736-46af-b7f0-50008020be06', name: 'Augusta National', total_hours: '41.5' },
+            { facility_id: '7c6c1941-b25f-4f0f-b6c9-bb8991170c2f', name: 'Pebble Beach', total_hours: '32.0' }
           ]
         };
       }
 
-      if (text.includes('count(pi.id) filter')) {
+      if (text.includes('from parts_inventory pi') && text.includes('low_stock_items')) {
         return {
           rows: [
-            { course_id: '6689c65a-7736-46af-b7f0-50008020be06', name: 'Augusta National', low_stock_items: 3 },
-            { course_id: '7c6c1941-b25f-4f0f-b6c9-bb8991170c2f', name: 'Pebble Beach', low_stock_items: 2 }
+            { facility_id: '6689c65a-7736-46af-b7f0-50008020be06', name: 'Augusta National', low_stock_items: 3 },
+            { facility_id: '7c6c1941-b25f-4f0f-b6c9-bb8991170c2f', name: 'Pebble Beach', low_stock_items: 2 }
           ]
         };
       }
@@ -347,9 +347,9 @@ test('dashboard overview returns scoped summary and rollups for company super us
   assert.equal(response.body.summary.openWorkOrders, 4);
   assert.equal(response.body.summary.mttrHours, 3.25);
   assert.equal(response.body.summary.inventoryValue, 12450.75);
-  assert.equal(response.body.rollups.workOrdersByCourse.length, 2);
-  assert.equal(response.body.rollups.hoursByCourse[0].total_hours, '41.5');
-  assert.equal(response.body.rollups.lowStockByCourse[1].low_stock_items, 2);
+  assert.equal(response.body.rollups.workOrdersByFacility.length, 2);
+  assert.equal(response.body.rollups.hoursByFacility[0].total_hours, '41.5');
+  assert.equal(response.body.rollups.lowStockByFacility[1].low_stock_items, 2);
 });
 
 test('dashboard overview allows company super user to scope to a single course', async () => {
@@ -359,16 +359,16 @@ test('dashboard overview allows company super user to scope to a single course',
         return { rows: [makeEmployeeRow({ company_role: 'company_super_user', company_id: 'company-1' })] };
       }
 
-      if (text.includes('select id') && text.includes('from courses') && text.includes('where id = $1 and company_id = $2')) {
+      if (text.includes('select id') && text.includes('from facilities') && text.includes('where id = $1 and company_id = $2')) {
         assert.deepEqual(params, ['6689c65a-7736-46af-b7f0-50008020be06', 'company-1']);
         return { rows: [{ id: params[0] }] };
       }
 
-      if (text.includes('select role') && text.includes('from course_memberships')) {
+      if (text.includes('select role') && text.includes('from facility_memberships')) {
         throw new Error('Membership lookup should not run for company super user scoped requests');
       }
 
-      if (text.includes('with scoped_courses as')) {
+      if (text.includes('with scoped_facilities as')) {
         assert.deepEqual(params, [['6689c65a-7736-46af-b7f0-50008020be06']]);
         return {
           rows: [{
@@ -385,7 +385,7 @@ test('dashboard overview allows company super user to scope to a single course',
             out_of_stock_items: '0',
             inventory_value: '5250.00',
             total_employees: '4',
-            active_courses: '1',
+            active_facilities: '1',
             equipment_needing_attention: '1'
           }]
         };
@@ -394,7 +394,7 @@ test('dashboard overview allows company super user to scope to a single course',
       if (text.includes('count(wo.id) filter')) {
         return {
           rows: [
-            { course_id: '6689c65a-7736-46af-b7f0-50008020be06', name: 'Augusta National', open_work_orders: 2, completed_this_week: 3 }
+            { facility_id: '6689c65a-7736-46af-b7f0-50008020be06', name: 'Augusta National', open_work_orders: 2, completed_this_week: 3 }
           ]
         };
       }
@@ -402,15 +402,15 @@ test('dashboard overview allows company super user to scope to a single course',
       if (text.includes('sum(extract(epoch from (coalesce(te.clock_out_at, now()) - te.clock_in_at)) / 3600.0)')) {
         return {
           rows: [
-            { course_id: '6689c65a-7736-46af-b7f0-50008020be06', name: 'Augusta National', total_hours: '25.0' }
+            { facility_id: '6689c65a-7736-46af-b7f0-50008020be06', name: 'Augusta National', total_hours: '25.0' }
           ]
         };
       }
 
-      if (text.includes('count(pi.id) filter')) {
+      if (text.includes('from parts_inventory pi') && text.includes('low_stock_items')) {
         return {
           rows: [
-            { course_id: '6689c65a-7736-46af-b7f0-50008020be06', name: 'Augusta National', low_stock_items: 2 }
+            { facility_id: '6689c65a-7736-46af-b7f0-50008020be06', name: 'Augusta National', low_stock_items: 2 }
           ]
         };
       }
@@ -421,11 +421,11 @@ test('dashboard overview allows company super user to scope to a single course',
 
   const app = createApp();
   const response = await request(app)
-    .get('/dashboard/overview?courseId=6689c65a-7736-46af-b7f0-50008020be06')
+    .get('/dashboard/overview?facilityId=6689c65a-7736-46af-b7f0-50008020be06')
     .set('Authorization', authHeader());
 
   assert.equal(response.status, 200);
   assert.equal(response.body.summary.openWorkOrders, 2);
-  assert.equal(response.body.summary.activeCourses, 1);
-  assert.equal(response.body.rollups.workOrdersByCourse.length, 1);
+  assert.equal(response.body.summary.activeFacilities, 1);
+  assert.equal(response.body.rollups.workOrdersByFacility.length, 1);
 });

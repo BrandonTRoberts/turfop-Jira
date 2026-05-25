@@ -5,12 +5,12 @@ function normalizeBaseUrl(url) {
   return (url || '').trim().replace(/\/$/, '');
 }
 
-export function buildMagicLinkUrl(token, courseId) {
+export function buildMagicLinkUrl(token, facilityId) {
   const baseUrl = normalizeBaseUrl(env.appBaseUrl || 'http://localhost:5173');
   const params = new URLSearchParams({ token });
 
-  if (courseId) {
-    params.set('courseId', courseId);
+  if (facilityId) {
+    params.set('facilityId', facilityId);
   }
 
   return `${baseUrl}/signin?${params.toString()}`;
@@ -81,12 +81,13 @@ export function resetEmailDeliveryTestOverride() {
   deliveryOverride = null;
 }
 
-export async function deliverMagicLinkEmail({ to, fullName, token, courseId, purpose }) {
-  const actionUrl = buildMagicLinkUrl(token, courseId);
+export async function deliverMagicLinkEmail({ to, fullName, token, facilityId, courseId, purpose }) {
+  const scopedFacilityId = facilityId || courseId;
+  const actionUrl = buildMagicLinkUrl(token, scopedFacilityId);
   const recipientName = fullName?.trim() || 'there';
 
   if (deliveryOverride) {
-    return deliveryOverride({ to, fullName, token, courseId, purpose, actionUrl });
+    return deliveryOverride({ to, fullName, token, facilityId: scopedFacilityId, purpose, actionUrl });
   }
 
   if (!isEmailDeliveryReady()) {

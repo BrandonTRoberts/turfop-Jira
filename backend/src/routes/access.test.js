@@ -34,7 +34,7 @@ test('read_only cannot create work orders', async () => {
   setDbTestOverrides({
     queryImpl: async (text) => {
       if (text.includes('from employees')) return { rows: [makeEmployeeRow()] };
-      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_only' }] };
+      if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'read_only' }] };
       throw new Error(`Unexpected query: ${text}`);
     }
   });
@@ -43,16 +43,16 @@ test('read_only cannot create work orders', async () => {
   const response = await request(app)
     .post('/work-orders')
     .set('Authorization', authHeader())
-    .send({ courseId: '6689c65a-7736-46af-b7f0-50008020be06', title: 'Test', detail: 'Detail', status: 'Open', assignee: 'Crew' });
+    .send({ facilityId: '6689c65a-7736-46af-b7f0-50008020be06', title: 'Test', detail: 'Detail', status: 'Open', assignee: 'Crew' });
 
   assert.equal(response.status, 403);
-  assert.equal(response.body.error, 'Write access denied for this course');
+  assert.equal(response.body.error, 'Write access denied for this facility');
 });
 
 test('read_write can create work orders', async () => {
   const queryImpl = async (text) => {
     if (text.includes('from employees')) return { rows: [makeEmployeeRow()] };
-    if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_write' }] };
+    if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'read_write' }] };
     throw new Error(`Unexpected query: ${text}`);
   };
 
@@ -60,11 +60,11 @@ test('read_write can create work orders', async () => {
     if (text === 'begin' || text === 'commit' || text === 'rollback') return { rows: [] };
     if (text.includes('from employees') && text.includes('hourly_rate')) return { rows: [{ id: 'employee-2', full_name: 'Tech', hourly_rate: '40' }] };
     if (text.includes('insert into work_orders')) {
-      return { rows: [{ id: 'wo-1', course_id: 'course-1', title: 'Test', detail: 'Detail', status: 'Completed', assignee: 'Crew', technician_employee_id: 'employee-2', technician_name: 'Tech', labor_hours: '2.5', labor_rate: '40', labor_cost: '100', parts_cost: '0', total_cost: '100', completed_work_notes: 'Finished the repair and tested the unit.', completed_at: new Date().toISOString() }] };
+      return { rows: [{ id: 'wo-1', facility_id: 'course-1', title: 'Test', detail: 'Detail', status: 'Completed', assignee: 'Crew', technician_employee_id: 'employee-2', technician_name: 'Tech', labor_hours: '2.5', labor_rate: '40', labor_cost: '100', parts_cost: '0', total_cost: '100', completed_work_notes: 'Finished the repair and tested the unit.', completed_at: new Date().toISOString() }] };
     }
     if (text.includes('insert into work_order_activity')) return { rows: [] };
     if (text.includes('set parts_cost = $2')) {
-      return { rows: [{ id: 'wo-1', course_id: 'course-1', title: 'Test', detail: 'Detail', status: 'Completed', assignee: 'Crew', technician_employee_id: 'employee-2', technician_name: 'Tech', labor_hours: '2.5', labor_rate: '40', labor_cost: '100', parts_cost: '0', total_cost: '100', completed_work_notes: 'Finished the repair and tested the unit.', completed_at: new Date().toISOString() }] };
+      return { rows: [{ id: 'wo-1', facility_id: 'course-1', title: 'Test', detail: 'Detail', status: 'Completed', assignee: 'Crew', technician_employee_id: 'employee-2', technician_name: 'Tech', labor_hours: '2.5', labor_rate: '40', labor_cost: '100', parts_cost: '0', total_cost: '100', completed_work_notes: 'Finished the repair and tested the unit.', completed_at: new Date().toISOString() }] };
     }
     if (text.includes('from work_order_parts_usage')) return { rows: [] };
     if (text.includes('from work_order_activity')) {
@@ -82,7 +82,7 @@ test('read_write can create work orders', async () => {
   const response = await request(app)
     .post('/work-orders')
     .set('Authorization', authHeader())
-    .send({ courseId: '6689c65a-7736-46af-b7f0-50008020be06', title: 'Test', detail: 'Detail', status: 'Completed', assignee: 'Crew', technicianEmployeeId: 'employee-2', laborHours: 2.5, completedWorkNotes: 'Finished the repair and tested the unit.', completedAt: new Date().toISOString() });
+    .send({ facilityId: '6689c65a-7736-46af-b7f0-50008020be06', title: 'Test', detail: 'Detail', status: 'Completed', assignee: 'Crew', technicianEmployeeId: 'employee-2', laborHours: 2.5, completedWorkNotes: 'Finished the repair and tested the unit.', completedAt: new Date().toISOString() });
 
   assert.equal(response.status, 201);
   assert.equal(response.body.title, 'Test');
@@ -102,7 +102,7 @@ test('work order create rejects unknown workflow status', async () => {
   const response = await request(app)
     .post('/work-orders')
     .set('Authorization', authHeader())
-    .send({ courseId: 'course-1', title: 'Test', detail: 'Detail', status: 'Waiting on vendor', assignee: 'Crew' });
+    .send({ facilityId: 'course-1', title: 'Test', detail: 'Detail', status: 'Waiting on vendor', assignee: 'Crew' });
 
   assert.equal(response.status, 400);
   assert.equal(response.body.error, 'Invalid work order status: Waiting on vendor');
@@ -113,25 +113,25 @@ test('non-admin cannot list course employees', async () => {
   setDbTestOverrides({
     queryImpl: async (text) => {
       if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
-      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_write' }] };
+      if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'read_write' }] };
       throw new Error(`Unexpected query: ${text}`);
     }
   });
 
   const app = createApp();
   const response = await request(app)
-    .get('/employees?courseId=6689c65a-7736-46af-b7f0-50008020be06')
+    .get('/employees?facilityId=6689c65a-7736-46af-b7f0-50008020be06')
     .set('Authorization', authHeader());
 
   assert.equal(response.status, 403);
-  assert.equal(response.body.error, 'Admin access required for this course');
+assert.equal(response.body.error, 'Admin access required for this facility');
 });
 
 test('admin can list audit logs', async () => {
   setDbTestOverrides({
     queryImpl: async (text) => {
       if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
-      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'admin' }] };
+      if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'admin' }] };
       if (text.includes('from audit_logs')) {
         return {
           rows: [
@@ -155,7 +155,7 @@ test('admin can list audit logs', async () => {
 
   const app = createApp();
   const response = await request(app)
-    .get('/audit-logs?courseId=6689c65a-7736-46af-b7f0-50008020be06')
+    .get('/audit-logs?facilityId=6689c65a-7736-46af-b7f0-50008020be06')
     .set('Authorization', authHeader());
 
   assert.equal(response.status, 200);
@@ -167,10 +167,10 @@ test('non-admin directory responses hide hourly rate', async () => {
   setDbTestOverrides({
     queryImpl: async (text) => {
       if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
-      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_write' }] };
-      if (text.includes('from employees e') && text.includes('join course_memberships cm')) {
+      if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'read_write' }] };
+      if (text.includes('from employees e') && text.includes('join facility_memberships cm')) {
         return {
-          rows: [{ id: 'employee-2', email: 'tech@example.com', full_name: 'Tech', hourly_rate: '40', created_at: new Date().toISOString(), course_id: 'course-1' }]
+          rows: [{ id: 'employee-2', email: 'tech@example.com', full_name: 'Tech', hourly_rate: '40', created_at: new Date().toISOString(), facility_id: 'course-1' }]
         };
       }
       throw new Error(`Unexpected query: ${text}`);
@@ -179,7 +179,7 @@ test('non-admin directory responses hide hourly rate', async () => {
 
   const app = createApp();
   const response = await request(app)
-    .get('/employees/directory?courseId=course-1')
+    .get('/employees/directory?facilityId=course-1')
     .set('Authorization', authHeader());
 
   assert.equal(response.status, 200);
@@ -190,8 +190,8 @@ test('admin company directory responses include company employees not yet on the
   setDbTestOverrides({
     queryImpl: async (text) => {
       if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
-      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'admin' }] };
-      if (text.includes('from employees e') && text.includes('join courses c on c.id = $1') && text.includes('left join course_memberships cm')) {
+      if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'admin' }] };
+      if (text.includes('from employees e') && text.includes('join facilities f on f.id = $1') && text.includes('left join facility_memberships fm')) {
         return {
           rows: [{
             id: 'employee-2',
@@ -203,7 +203,7 @@ test('admin company directory responses include company employees not yet on the
             must_change_password: true,
             password_hash: null,
             role: null,
-            course_id: null
+            facility_id: null
           }]
         };
       }
@@ -213,7 +213,7 @@ test('admin company directory responses include company employees not yet on the
 
   const app = createApp();
   const response = await request(app)
-    .get('/employees/company-directory?courseId=course-1')
+    .get('/employees/company-directory?facilityId=course-1')
     .set('Authorization', authHeader());
 
   assert.equal(response.status, 200);
@@ -227,10 +227,10 @@ test('non-admin work order responses hide financial fields', async () => {
   setDbTestOverrides({
     queryImpl: async (text) => {
       if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
-      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_write' }] };
+      if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'read_write' }] };
       if (text.includes('from work_orders')) {
         return {
-          rows: [{ id: 'wo-1', course_id: 'course-1', title: 'Test', detail: 'Detail', status: 'Open', assignee: 'Crew', technician_employee_id: 'employee-2', technician_name: 'Tech', labor_hours: '2.5', labor_rate: '40', labor_cost: '100', parts_cost: '20', total_cost: '120', created_at: new Date().toISOString() }]
+          rows: [{ id: 'wo-1', facility_id: 'course-1', title: 'Test', detail: 'Detail', status: 'Open', assignee: 'Crew', technician_employee_id: 'employee-2', technician_name: 'Tech', labor_hours: '2.5', labor_rate: '40', labor_cost: '100', parts_cost: '20', total_cost: '120', created_at: new Date().toISOString() }]
         };
       }
       throw new Error(`Unexpected query: ${text}`);
@@ -246,7 +246,7 @@ test('non-admin work order responses hide financial fields', async () => {
 
   const app = createApp();
   const response = await request(app)
-    .get('/work-orders?courseId=course-1')
+    .get('/work-orders?facilityId=course-1')
     .set('Authorization', authHeader());
 
   assert.equal(response.status, 200);
@@ -261,8 +261,8 @@ test('non-admin work order responses hide financial fields', async () => {
 test('read_write can update work orders across accessible courses', async () => {
   const queryImpl = async (text) => {
     if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
-    if (text.includes('from work_orders') && text.includes('where id = $1')) return { rows: [{ id: 'wo-1', course_id: 'course-1' }] };
-    if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_write' }] };
+    if (text.includes('from work_orders') && text.includes('where id = $1')) return { rows: [{ id: 'wo-1', facility_id: 'course-1' }] };
+    if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'read_write' }] };
     throw new Error(`Unexpected query: ${text}`);
   };
 
@@ -273,8 +273,8 @@ test('read_write can update work orders across accessible courses', async () => 
     if (text.includes('insert into work_order_activity')) return { rows: [] };
     if (text.includes('from work_order_activity')) return { rows: [{ id: 'activity-2', action: 'status_changed', from_status: 'Open', to_status: 'Completed', detail: { changedFields: ['title'] }, created_at: new Date().toISOString() }] };
     if (text.includes('from employees') && text.includes('hourly_rate')) return { rows: [{ id: 'employee-2', full_name: 'Tech', hourly_rate: '40' }] };
-    if (text.includes('update work_orders') && text.includes('set course_id = $2')) return { rows: [{ id: 'wo-1', course_id: params[1], title: 'Updated', technician_employee_id: 'employee-2', technician_name: 'Tech', labor_rate: '40', labor_cost: '80', parts_cost: '0', total_cost: '80' }] };
-    if (text.includes('set parts_cost = $2')) return { rows: [{ id: 'wo-1', course_id: params[1] || 'course-2', title: 'Updated', technician_employee_id: 'employee-2', technician_name: 'Tech', labor_rate: '40', labor_cost: '80', parts_cost: '0', total_cost: '80' }] };
+    if (text.includes('update work_orders') && text.includes('set facility_id = $2')) return { rows: [{ id: 'wo-1', facility_id: params[1], title: 'Updated', technician_employee_id: 'employee-2', technician_name: 'Tech', labor_rate: '40', labor_cost: '80', parts_cost: '0', total_cost: '80' }] };
+    if (text.includes('set parts_cost = $2')) return { rows: [{ id: 'wo-1', facility_id: params[1] || 'course-2', title: 'Updated', technician_employee_id: 'employee-2', technician_name: 'Tech', labor_rate: '40', labor_cost: '80', parts_cost: '0', total_cost: '80' }] };
     throw new Error(`Unexpected client query: ${text}`);
   };
 
@@ -287,10 +287,10 @@ test('read_write can update work orders across accessible courses', async () => 
   const response = await request(app)
     .patch('/work-orders/wo-1')
     .set('Authorization', authHeader())
-    .send({ courseId: 'course-2', title: 'Updated', detail: 'D', status: 'Open', assignee: 'Crew', technicianEmployeeId: 'employee-2', laborHours: 2 });
+    .send({ facilityId: 'course-2', title: 'Updated', detail: 'D', status: 'Open', assignee: 'Crew', technicianEmployeeId: 'employee-2', laborHours: 2 });
 
   assert.equal(response.status, 200);
-  assert.equal(response.body.course_id, 'course-2');
+  assert.equal(response.body.facility_id, 'course-2');
 });
 
 test('work order update rejects invalid terminal workflow transition', async () => {
@@ -300,7 +300,7 @@ test('work order update rejects invalid terminal workflow transition', async () 
       return {
         rows: [{
           id: 'wo-1',
-          course_id: 'course-1',
+          facility_id: 'course-1',
           title: 'Test',
           detail: 'Detail',
           status: 'Completed',
@@ -314,7 +314,7 @@ test('work order update rejects invalid terminal workflow transition', async () 
         }]
       };
     }
-    if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_write' }] };
+    if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'read_write' }] };
     throw new Error(`Unexpected query: ${text}`);
   };
 
@@ -324,7 +324,7 @@ test('work order update rejects invalid terminal workflow transition', async () 
   const response = await request(app)
     .patch('/work-orders/wo-1')
     .set('Authorization', authHeader())
-    .send({ courseId: 'course-1', title: 'Test', detail: 'Detail', status: 'Cancelled', assignee: 'Crew' });
+    .send({ facilityId: 'course-1', title: 'Test', detail: 'Detail', status: 'Cancelled', assignee: 'Crew' });
 
   assert.equal(response.status, 400);
   assert.equal(response.body.error, 'Invalid work order status transition: Completed to Cancelled');
@@ -336,12 +336,12 @@ test('read_write can update and reassign equipment between accessible courses', 
   setDbTestOverrides({
     queryImpl: async (text, params) => {
       if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
-      if (text.includes('from equipment') && text.includes('where id = $1')) return { rows: [{ id: 'eq-1', course_id: 'course-1' }] };
-      if (text.includes('select role') && text.includes('from course_memberships')) {
+      if (text.includes('from equipment') && text.includes('where id = $1')) return { rows: [{ id: 'eq-1', facility_id: 'course-1' }] };
+      if (text.includes('select role') && text.includes('from facility_memberships')) {
         return { rows: [{ role: 'read_write' }] };
       }
       if (text.includes('update equipment')) {
-        return { rows: [{ id: 'eq-1', course_id: params[1], name: 'Updated mower', assigned_area: 'Fairways 10-18', status: 'Scheduled' }] };
+        return { rows: [{ id: 'eq-1', facility_id: params[1], name: 'Updated mower', assigned_area: 'Fairways 10-18', status: 'Scheduled' }] };
       }
       throw new Error(`Unexpected query: ${text}`);
     }
@@ -351,10 +351,10 @@ test('read_write can update and reassign equipment between accessible courses', 
   const response = await request(app)
     .patch('/equipment/eq-1')
     .set('Authorization', authHeader())
-    .send({ courseId: targetCourseId, name: 'Updated mower', make: 'Toro', model: '5510', assignedArea: 'Fairways 10-18', vin: 'VIN', serialNumber: 'SER', description: 'Desc', hours: '100', detail: 'Note', status: 'Scheduled' });
+    .send({ facilityId: targetCourseId, name: 'Updated mower', make: 'Toro', model: '5510', assignedArea: 'Fairways 10-18', vin: 'VIN', serialNumber: 'SER', description: 'Desc', hours: '100', detail: 'Note', status: 'Scheduled' });
 
   assert.equal(response.status, 200);
-  assert.equal(response.body.course_id, targetCourseId);
+  assert.equal(response.body.facility_id, targetCourseId);
   assert.equal(response.body.assigned_area, 'Fairways 10-18');
 });
 
@@ -365,8 +365,8 @@ test('read_write cannot move inventory into an inaccessible course', async () =>
   setDbTestOverrides({
     queryImpl: async (text, params) => {
       if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
-      if (text.includes('from parts_inventory') && text.includes('where id = $1')) return { rows: [{ id: 'part-1', course_id: accessibleCourseId, updated_at: '2026-05-19T12:00:00.000Z' }] };
-      if (text.includes('select role') && text.includes('from course_memberships')) {
+      if (text.includes('from parts_inventory') && text.includes('where id = $1')) return { rows: [{ id: 'part-1', facility_id: accessibleCourseId, updated_at: '2026-05-19T12:00:00.000Z' }] };
+      if (text.includes('select role') && text.includes('from facility_memberships')) {
         if (params[1] === accessibleCourseId) return { rows: [{ role: 'read_write' }] };
         return { rows: [] };
       }
@@ -379,7 +379,7 @@ test('read_write cannot move inventory into an inaccessible course', async () =>
     .patch('/parts-inventory/part-1')
     .set('Authorization', authHeader())
     .send({
-      courseId: inaccessibleCourseId,
+      facilityId: inaccessibleCourseId,
       sku: 'BEDKNIFE-22',
       partDescription: '22 inch bedknife',
       quantityOnHand: 12,
@@ -387,18 +387,18 @@ test('read_write cannot move inventory into an inaccessible course', async () =>
     });
 
   assert.equal(response.status, 403);
-  assert.equal(response.body.error, 'Write access denied for this course');
+  assert.equal(response.body.error, 'Write access denied for this facility');
 });
 
 test('stale inventory update returns 409 conflict', async () => {
-  const courseId = '11111111-1111-4111-8111-111111111111';
+  const facilityId = '11111111-1111-4111-8111-111111111111';
   const serverUpdatedAt = '2026-05-19T15:00:00.000Z';
 
   setDbTestOverrides({
     queryImpl: async (text) => {
       if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
-      if (text.includes('from parts_inventory') && text.includes('where id = $1')) return { rows: [{ id: 'part-1', course_id: courseId, updated_at: serverUpdatedAt }] };
-      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_write' }] };
+      if (text.includes('from parts_inventory') && text.includes('where id = $1')) return { rows: [{ id: 'part-1', facility_id: facilityId, updated_at: serverUpdatedAt }] };
+      if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'read_write' }] };
       throw new Error(`Unexpected query: ${text}`);
     }
   });
@@ -408,7 +408,7 @@ test('stale inventory update returns 409 conflict', async () => {
     .patch('/parts-inventory/part-1')
     .set('Authorization', authHeader())
     .send({
-      courseId,
+      facilityId,
       sku: 'FILTER-100',
       partDescription: 'Hydraulic filter',
       quantityOnHand: 8,
@@ -425,14 +425,14 @@ test('admin can fetch employee profile details', async () => {
   setDbTestOverrides({
     queryImpl: async (text, params) => {
       if (text.includes('from employees') && text.includes('where id = $1') && params?.[0] === 'employee-1') return { rows: [makeEmployeeRow()] };
-      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'admin' }] };
+      if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'admin' }] };
       if (text.includes('from employees e') && text.includes('where e.id = $1')) {
         return {
           rows: [{ id: 'employee-2', email: 'tech@example.com', full_name: 'Tech', hourly_rate: '40', profile_image_url: '/uploads/profiles/tech.jpg', phone: '555-222-3333', address_line_1: '100 Fairway', address_line_2: null, city: 'Denver', state: 'CO', postal_code: '80202', created_at: new Date().toISOString(), must_change_password: false }]
         };
       }
-      if (text.includes('join courses c on c.id = cm.course_id')) {
-        return { rows: [{ id: 'membership-1', course_id: 'course-1', role: 'read_write', name: 'Pine Ridge', region: 'AZ', superintendent_name: 'Dana' }] };
+      if (text.includes('from facility_memberships fm') && text.includes('join facilities f on f.id = fm.facility_id')) {
+        return { rows: [{ id: 'membership-1', facility_id: 'course-1', role: 'read_write', name: 'Pine Ridge', region: 'AZ', superintendent_name: 'Dana' }] };
       }
       throw new Error(`Unexpected query: ${text}`);
     }
@@ -440,7 +440,7 @@ test('admin can fetch employee profile details', async () => {
 
   const app = createApp();
   const response = await request(app)
-    .get('/employees/employee-2?courseId=course-1')
+    .get('/employees/employee-2?facilityId=course-1')
     .set('Authorization', authHeader());
 
   assert.equal(response.status, 200);
@@ -450,25 +450,25 @@ test('admin can fetch employee profile details', async () => {
 
 test('admin can remove an employee from a course membership', async () => {
   const employeeId = '11111111-1111-4111-8111-111111111111';
-  const courseId = '22222222-2222-4222-8222-222222222222';
+  const facilityId = '22222222-2222-4222-8222-222222222222';
 
   setDbTestOverrides({
     queryImpl: async (text, params) => {
       if (text.includes('from employees') && text.includes('where id = $1') && params?.[0] === 'employee-1') return { rows: [makeEmployeeRow()] };
-      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'admin' }] };
+      if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'admin' }] };
       if (text.includes('insert into audit_logs')) return { rows: [] };
       throw new Error(`Unexpected query: ${text}`);
     },
     connectImpl: async () => makeClient(async (text, params) => {
       if (text.includes('begin') || text.includes('commit') || text.includes('rollback')) return { rows: [] };
-      if (text.includes('from courses') && text.includes('where id = $1')) {
-        return { rows: [{ id: courseId, company_id: 'company-1', name: 'Airport' }] };
+      if (text.includes('from facilities') && text.includes('where id = $1')) {
+        return { rows: [{ id: facilityId, company_id: 'company-1', name: 'Airport' }] };
       }
       if (text.includes('from employees') && text.includes('where id = $1 and company_id = $2')) {
         return { rows: [{ id: employeeId, company_id: 'company-1', email: 'tech@example.com', full_name: 'Tech', must_change_password: false, password_hash: 'hash' }] };
       }
-      if (text.includes('delete from course_memberships')) {
-        return { rows: [{ id: 'membership-2', employee_id: employeeId, course_id: params[1], role: 'read_write', created_at: new Date().toISOString() }] };
+      if (text.includes('delete from facility_memberships')) {
+        return { rows: [{ id: 'membership-2', employee_id: employeeId, facility_id: params[1], role: 'read_write', created_at: new Date().toISOString() }] };
       }
       if (text.includes('insert into audit_logs')) {
         return { rows: [] };
@@ -479,28 +479,28 @@ test('admin can remove an employee from a course membership', async () => {
 
   const app = createApp();
   const response = await request(app)
-    .delete(`/employees/${employeeId}/memberships/${courseId}`)
+    .delete(`/employees/${employeeId}/memberships/${facilityId}`)
     .set('Authorization', authHeader());
 
   assert.equal(response.status, 200);
   assert.equal(response.body.ok, true);
-  assert.equal(response.body.membership.course_id, courseId);
+  assert.equal(response.body.membership.facility_id, facilityId);
 });
 
 test('admin can delete an employee account entirely', async () => {
   const employeeId = '33333333-3333-4333-8333-333333333333';
-  const courseId = '44444444-4444-4444-8444-444444444444';
+  const facilityId = '44444444-4444-4444-8444-444444444444';
 
   setDbTestOverrides({
     queryImpl: async (text, params) => {
       if (text.includes('from employees') && text.includes('where id = $1') && params?.[0] === 'employee-1') return { rows: [makeEmployeeRow()] };
-      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'admin' }] };
+      if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'admin' }] };
       throw new Error(`Unexpected query: ${text}`);
     },
     connectImpl: async () => makeClient(async (text, params) => {
       if (text === 'begin' || text === 'commit' || text === 'rollback') return { rows: [] };
-      if (text.includes('from courses') && text.includes('where id = $1')) {
-        return { rows: [{ id: courseId, company_id: 'company-1', name: 'North Course' }] };
+      if (text.includes('from facilities') && text.includes('where id = $1')) {
+        return { rows: [{ id: facilityId, company_id: 'company-1', name: 'North Course' }] };
       }
       if (text.includes('from employees') && text.includes('where id = $1 and company_id = $2')) {
         return { rows: [{ id: employeeId, company_id: 'company-1', email: 'former@example.com', full_name: 'Former Employee', must_change_password: false, password_hash: 'hash', company_role: null }] };
@@ -517,7 +517,7 @@ test('admin can delete an employee account entirely', async () => {
 
   const app = createApp();
   const response = await request(app)
-    .delete(`/employees/${employeeId}?courseId=${courseId}`)
+    .delete(`/employees/${employeeId}?facilityId=${facilityId}`)
     .set('Authorization', authHeader());
 
   assert.equal(response.status, 200);
@@ -529,8 +529,8 @@ test('read_only cannot delete equipment', async () => {
   setDbTestOverrides({
     queryImpl: async (text) => {
       if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
-      if (text.includes('from equipment') && text.includes('where id = $1')) return { rows: [{ id: 'eq-1', course_id: 'course-1' }] };
-      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_only' }] };
+      if (text.includes('from equipment') && text.includes('where id = $1')) return { rows: [{ id: 'eq-1', facility_id: 'course-1' }] };
+      if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'read_only' }] };
       throw new Error(`Unexpected query: ${text}`);
     }
   });
@@ -541,15 +541,15 @@ test('read_only cannot delete equipment', async () => {
     .set('Authorization', authHeader());
 
   assert.equal(response.status, 403);
-  assert.equal(response.body.error, 'Write access denied for this course');
+  assert.equal(response.body.error, 'Write access denied for this facility');
 });
 
 test('read_only cannot delete work orders', async () => {
   setDbTestOverrides({
     queryImpl: async (text) => {
       if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
-      if (text.includes('from work_orders') && text.includes('where id = $1')) return { rows: [{ id: 'wo-1', course_id: 'course-1' }] };
-      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_only' }] };
+      if (text.includes('from work_orders') && text.includes('where id = $1')) return { rows: [{ id: 'wo-1', facility_id: 'course-1' }] };
+      if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'read_only' }] };
       throw new Error(`Unexpected query: ${text}`);
     }
   });
@@ -560,13 +560,13 @@ test('read_only cannot delete work orders', async () => {
     .set('Authorization', authHeader());
 
   assert.equal(response.status, 403);
-  assert.equal(response.body.error, 'Write access denied for this course');
+  assert.equal(response.body.error, 'Write access denied for this facility');
 });
 
 test('employee can clock in and create a time entry', async () => {
   const queryImpl = async (text) => {
     if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
-    if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_write' }] };
+    if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'read_write' }] };
     throw new Error(`Unexpected query: ${text}`);
   };
 
@@ -576,7 +576,7 @@ test('employee can clock in and create a time entry', async () => {
     if (text.includes('insert into employee_time_entries')) return { rows: [{ id: 'time-1' }] };
     if (text.includes('insert into audit_logs')) return { rows: [] };
     if (text.includes('from employee_time_entries te') && text.includes('where te.id = $1')) {
-      return { rows: [{ id: 'time-1', employee_id: 'employee-1', course_id: 'course-1', clock_in_at: new Date().toISOString(), clock_out_at: null, clock_in_note: 'Starting shift', clock_out_note: null, created_at: new Date().toISOString(), worked_hours: '0.00', employee_name: 'Test User', employee_email: 'test@example.com' }] };
+      return { rows: [{ id: 'time-1', employee_id: 'employee-1', facility_id: 'course-1', clock_in_at: new Date().toISOString(), clock_out_at: null, clock_in_note: 'Starting shift', clock_out_note: null, created_at: new Date().toISOString(), worked_hours: '0.00', employee_name: 'Test User', employee_email: 'test@example.com' }] };
     }
     throw new Error(`Unexpected client query: ${text}`);
   };
@@ -590,17 +590,17 @@ test('employee can clock in and create a time entry', async () => {
   const response = await request(app)
     .post('/time-entries/clock-in')
     .set('Authorization', authHeader())
-    .send({ courseId: '6689c65a-7736-46af-b7f0-50008020be06', note: 'Starting shift' });
+    .send({ facilityId: '6689c65a-7736-46af-b7f0-50008020be06', note: 'Starting shift' });
 
   assert.equal(response.status, 201);
-  assert.equal(response.body.course_id, 'course-1');
+  assert.equal(response.body.facility_id, 'course-1');
   assert.equal(response.body.clock_in_note, 'Starting shift');
 });
 
 test('employee cannot clock in twice for the same course', async () => {
   const queryImpl = async (text) => {
     if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
-    if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_write' }] };
+    if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'read_write' }] };
     throw new Error(`Unexpected query: ${text}`);
   };
 
@@ -619,19 +619,19 @@ test('employee cannot clock in twice for the same course', async () => {
   const response = await request(app)
     .post('/time-entries/clock-in')
     .set('Authorization', authHeader())
-    .send({ courseId: '6689c65a-7736-46af-b7f0-50008020be06' });
+    .send({ facilityId: '6689c65a-7736-46af-b7f0-50008020be06' });
 
   assert.equal(response.status, 409);
-  assert.equal(response.body.error, 'You are already clocked in for this course.');
+  assert.equal(response.body.error, 'You are already clocked in for this facility.');
 });
 
 test('admin can list course time entries', async () => {
   setDbTestOverrides({
     queryImpl: async (text) => {
       if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
-      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'admin' }] };
+      if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'admin' }] };
       if (text.includes('from employee_time_entries te')) {
-        return { rows: [{ id: 'time-1', employee_id: 'employee-2', course_id: 'course-1', clock_in_at: new Date().toISOString(), clock_out_at: null, clock_in_note: 'Opening shift', clock_out_note: null, created_at: new Date().toISOString(), worked_hours: '1.25', employee_name: 'Tech', employee_email: 'tech@example.com' }] };
+        return { rows: [{ id: 'time-1', employee_id: 'employee-2', facility_id: 'course-1', clock_in_at: new Date().toISOString(), clock_out_at: null, clock_in_note: 'Opening shift', clock_out_note: null, created_at: new Date().toISOString(), worked_hours: '1.25', employee_name: 'Tech', employee_email: 'tech@example.com' }] };
       }
       throw new Error(`Unexpected query: ${text}`);
     }
@@ -639,7 +639,7 @@ test('admin can list course time entries', async () => {
 
   const app = createApp();
   const response = await request(app)
-    .get('/time-entries?courseId=6689c65a-7736-46af-b7f0-50008020be06&scope=course')
+    .get('/time-entries?facilityId=6689c65a-7736-46af-b7f0-50008020be06&scope=course')
     .set('Authorization', authHeader());
 
   assert.equal(response.status, 200);
@@ -653,7 +653,7 @@ test('admin can request payroll summary with date range and approved filter', as
   setDbTestOverrides({
     queryImpl: async (text, params) => {
       if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
-      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'admin' }] };
+      if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'admin' }] };
       if (text.includes('with entry_summary as (')) {
         summaryQueryCount += 1;
         assert.equal(params[1], '2026-05-01T00:00:00.000Z');
@@ -681,7 +681,7 @@ test('admin can request payroll summary with date range and approved filter', as
 
   const app = createApp();
   const response = await request(app)
-    .get('/time-entries/summary?courseId=6689c65a-7736-46af-b7f0-50008020be06&scope=course&startDate=2026-05-01T00:00:00.000Z&endDate=2026-05-14T23:59:59.999Z&approvedOnly=true')
+    .get('/time-entries/summary?facilityId=6689c65a-7736-46af-b7f0-50008020be06&scope=course&startDate=2026-05-01T00:00:00.000Z&endDate=2026-05-14T23:59:59.999Z&approvedOnly=true')
     .set('Authorization', authHeader());
 
   assert.equal(response.status, 200);
@@ -700,8 +700,8 @@ test('stale work order update returns 409 conflict', async () => {
   setDbTestOverrides({
     queryImpl: async (text) => {
       if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
-      if (text.includes('from work_orders') && text.includes('where id = $1')) return { rows: [{ id: 'wo-1', course_id: 'course-1', updated_at: serverUpdatedAt }] };
-      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_write' }] };
+      if (text.includes('from work_orders') && text.includes('where id = $1')) return { rows: [{ id: 'wo-1', facility_id: 'course-1', updated_at: serverUpdatedAt }] };
+      if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'read_write' }] };
       throw new Error(`Unexpected query: ${text}`);
     }
   });
@@ -710,7 +710,7 @@ test('stale work order update returns 409 conflict', async () => {
   const response = await request(app)
     .patch('/work-orders/wo-1')
     .set('Authorization', authHeader())
-    .send({ courseId: 'course-1', title: 'Updated', detail: 'D', status: 'Open', assignee: 'Crew', expectedUpdatedAt: '2026-05-07T13:00:00.000Z' });
+    .send({ facilityId: 'course-1', title: 'Updated', detail: 'D', status: 'Open', assignee: 'Crew', expectedUpdatedAt: '2026-05-07T13:00:00.000Z' });
 
   assert.equal(response.status, 409);
   assert.equal(response.body.conflict, 'stale_update');
@@ -723,8 +723,8 @@ test('stale equipment delete returns 409 conflict', async () => {
   setDbTestOverrides({
     queryImpl: async (text) => {
       if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
-      if (text.includes('from equipment') && text.includes('where id = $1')) return { rows: [{ id: 'eq-1', course_id: 'course-1', updated_at: serverUpdatedAt }] };
-      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_write' }] };
+      if (text.includes('from equipment') && text.includes('where id = $1')) return { rows: [{ id: 'eq-1', facility_id: 'course-1', updated_at: serverUpdatedAt }] };
+      if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'read_write' }] };
       throw new Error(`Unexpected query: ${text}`);
     }
   });
@@ -744,29 +744,29 @@ test('non-admin cannot fetch reports course summary', async () => {
   setDbTestOverrides({
     queryImpl: async (text) => {
       if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
-      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_write' }] };
+      if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'read_write' }] };
       throw new Error(`Unexpected query: ${text}`);
     }
   });
 
   const app = createApp();
   const response = await request(app)
-    .get('/reports/course-summary?courseId=course-1')
+    .get('/reports/course-summary?facilityId=course-1')
     .set('Authorization', authHeader());
 
   assert.equal(response.status, 403);
-  assert.equal(response.body.error, 'Admin access required for this course');
+assert.equal(response.body.error, 'Admin access required for this facility');
 });
 
 test('non-admin directory responses hide parts inventory unit_cost', async () => {
   setDbTestOverrides({
     queryImpl: async (text) => {
       if (text.includes('from employees') && text.includes('where id = $1')) return { rows: [makeEmployeeRow()] };
-      if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_write' }] };
+      if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'read_write' }] };
       if (text.includes('from parts_inventory')) {
         return {
           rows: [
-            { id: 'part-1', course_id: 'course-1', sku: 'SKU-1', part_description: 'Part Description', quantity_on_hand: 10, unit_cost: '25.50' }
+            { id: 'part-1', facility_id: 'course-1', sku: 'SKU-1', part_description: 'Part Description', quantity_on_hand: 10, unit_cost: '25.50' }
           ]
         };
       }
@@ -776,7 +776,7 @@ test('non-admin directory responses hide parts inventory unit_cost', async () =>
 
   const app = createApp();
   const response = await request(app)
-    .get('/parts-inventory?courseId=course-1')
+    .get('/parts-inventory?facilityId=course-1')
     .set('Authorization', authHeader());
 
   assert.equal(response.status, 200);
@@ -787,7 +787,7 @@ test('non-admin directory responses hide parts inventory unit_cost', async () =>
 test('non-admin creating work order ignores custom laborRate', async () => {
   const queryImpl = async (text) => {
     if (text.includes('from employees')) return { rows: [makeEmployeeRow()] };
-    if (text.includes('select role') && text.includes('from course_memberships')) return { rows: [{ role: 'read_write' }] };
+    if (text.includes('select role') && text.includes('from facility_memberships')) return { rows: [{ role: 'read_write' }] };
     throw new Error(`Unexpected query: ${text}`);
   };
 
@@ -797,11 +797,11 @@ test('non-admin creating work order ignores custom laborRate', async () => {
       return { rows: [{ id: 'employee-2', full_name: 'Tech', hourly_rate: '30.00' }] };
     }
     if (text.includes('insert into work_orders')) {
-      return { rows: [{ id: 'wo-1', course_id: 'course-1', title: 'Test', detail: 'Detail', status: 'Completed', assignee: 'Crew', technician_employee_id: 'employee-2', technician_name: 'Tech', labor_hours: '2', labor_rate: '30.00', labor_cost: '60.00', parts_cost: '0', total_cost: '60.00' }] };
+      return { rows: [{ id: 'wo-1', facility_id: 'course-1', title: 'Test', detail: 'Detail', status: 'Completed', assignee: 'Crew', technician_employee_id: 'employee-2', technician_name: 'Tech', labor_hours: '2', labor_rate: '30.00', labor_cost: '60.00', parts_cost: '0', total_cost: '60.00' }] };
     }
     if (text.includes('insert into work_order_activity')) return { rows: [] };
     if (text.includes('set parts_cost = $2')) {
-      return { rows: [{ id: 'wo-1', course_id: 'course-1', title: 'Test', detail: 'Detail', status: 'Completed', assignee: 'Crew', technician_employee_id: 'employee-2', technician_name: 'Tech', labor_hours: '2', labor_rate: '30.00', labor_cost: '60.00', parts_cost: '0', total_cost: '60.00' }] };
+      return { rows: [{ id: 'wo-1', facility_id: 'course-1', title: 'Test', detail: 'Detail', status: 'Completed', assignee: 'Crew', technician_employee_id: 'employee-2', technician_name: 'Tech', labor_hours: '2', labor_rate: '30.00', labor_cost: '60.00', parts_cost: '0', total_cost: '60.00' }] };
     }
     if (text.includes('from work_order_parts_usage')) return { rows: [] };
     if (text.includes('from work_order_activity')) return { rows: [] };
@@ -817,7 +817,7 @@ test('non-admin creating work order ignores custom laborRate', async () => {
   const response = await request(app)
     .post('/work-orders')
     .set('Authorization', authHeader())
-    .send({ courseId: 'course-1', title: 'Test', detail: 'Detail', status: 'Completed', assignee: 'Crew', technicianEmployeeId: 'employee-2', laborHours: 2, laborRate: 99 });
+    .send({ facilityId: 'course-1', title: 'Test', detail: 'Detail', status: 'Completed', assignee: 'Crew', technicianEmployeeId: 'employee-2', laborHours: 2, laborRate: 99 });
 
   assert.equal(response.status, 201);
 });

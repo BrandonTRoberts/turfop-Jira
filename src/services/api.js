@@ -78,8 +78,14 @@ export const api = {
     return request("/auth/profile", { method: "PATCH", body: payload });
   },
 
-  async courses() {
-    return request("/courses");
+  async facilities() {
+    const facilities = await request("/facilities");
+    // Normalize shape so the UI can consistently use facility_id / facility_name
+    return (facilities || []).map((f) => ({
+      ...f,
+      facility_id: f.facility_id || f.id,
+      facility_name: f.facility_name || f.name,
+    }));
   },
 
   async companies() {

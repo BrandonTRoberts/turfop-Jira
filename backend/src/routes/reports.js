@@ -1,21 +1,21 @@
 import { Router } from 'express';
 import { query } from '../lib/db.js';
 import { requireAuth } from '../lib/requireAuth.js';
-import { getRoleForCourse, isAdmin } from '../lib/permissions.js';
+import { getRoleForFacility, isAdmin } from '../lib/permissions.js';
 import { handleUnexpectedError } from '../lib/http.js';
 
 const router = Router();
 
 router.get('/course-summary', requireAuth, async (req, res) => {
-  const { courseId } = req.query;
+  const { facilityId } = req.query;
 
   try {
-    const role = await getRoleForCourse(req.employee, courseId);
+    const role = await getRoleForFacility(req.employee, facilityId);
     if (!role) {
-      return res.status(403).json({ error: 'No access to this course' });
+      return res.status(403).json({ error: 'No access to this facility' });
     }
     if (!isAdmin(role)) {
-      return res.status(403).json({ error: 'Admin access required for this course' });
+      return res.status(403).json({ error: 'Admin access required for this facility' });
     }
 
     const [workOrderTotals, partsTotals] = await Promise.all([
@@ -28,9 +28,9 @@ router.get('/course-summary', requireAuth, async (req, res) => {
             coalesce(sum(parts_cost), 0) as parts_cost_total,
             coalesce(sum(total_cost), 0) as total_cost_total
           from work_orders
-          where course_id = $1
+          where facility_id = $1
         `,
-        [courseId]
+        [facilityId]
       ),
       query(
         `
@@ -39,9 +39,9 @@ router.get('/course-summary', requireAuth, async (req, res) => {
             coalesce(sum(quantity_on_hand), 0) as quantity_on_hand_total,
             coalesce(sum(quantity_on_hand * unit_cost), 0) as inventory_value_total
           from parts_inventory
-          where course_id = $1
+          where facility_id = $1
         `,
-        [courseId]
+        [facilityId]
       )
     ]);
 

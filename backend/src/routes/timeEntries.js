@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { connect, query } from '../lib/db.js';
 import { requireAuth } from '../lib/requireAuth.js';
-import { getRoleForCourse, isAdmin } from '../lib/permissions.js';
+import { getRoleForFacility, isAdmin } from '../lib/permissions.js';
 import { handleUnexpectedError } from '../lib/http.js';
 import {
   validateTimeEntryActionInput,
@@ -35,7 +35,7 @@ const timeEntrySelect = `
   select
     te.id,
     te.employee_id,
-    te.course_id,
+    te.facility_id,
     te.clock_in_at,
     te.clock_out_at,
     te.clock_in_note,
@@ -59,33 +59,33 @@ const timeEntrySelect = `
   left join employees approver on approver.id = te.approved_by_employee_id
 `;
 
-async function ensureCourseRole(employee, courseId) {
-  const role = await getRoleForCourse(employee, courseId);
+async function ensureFacilityRole(employee, facilityId) {
+  const role = await getRoleForFacility(employee, facilityId);
   return role;
 }
 
 router.get('/', requireAuth, async (req, res) => {
-  const { courseId, employeeId = '' } = req.query;
+  const { facilityId, employeeId = '' } = req.query;
   const scope = req.query.scope === 'course' ? 'course' : 'mine';
   const parsedLimit = req.query.limit ? Number.parseInt(String(req.query.limit), 10) : 14;
 
   try {
-    const validationError = validateTimeEntryQueryInput({ courseId, employeeId, scope, limit: parsedLimit });
+    const validationError = validateTimeEntryQueryInput({ facilityId, employeeId, scope, limit: parsedLimit });
     if (validationError) {
       return res.status(400).json({ error: validationError });
     }
 
-    const currentRole = await ensureCourseRole(req.employee, courseId);
+    const currentRole = await ensureFacilityRole(req.employee, facilityId);
     if (!currentRole) {
-      return res.status(403).json({ error: 'No access to this course' });
+      return res.status(403).json({ error: 'No access to this facility' });
     }
 
     if (scope === 'course' && !isAdmin(currentRole)) {
-      return res.status(403).json({ error: 'Admin access required for this course' });
+      return res.status(403).json({ error: 'Admin access required for this facility' });
     }
 
-    const params = [courseId];
-    let whereClause = 'where te.course_id = $1';
+    const params = [facilityId];
+    let whereClause = 'where te.facility_id = $1';
 
     if (scope === 'mine') {
       params.push(req.employee.id);
@@ -118,27 +118,27 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 router.get('/summary', requireAuth, async (req, res) => {
-  const { courseId, employeeId = '', startDate = '', endDate = '' } = req.query;
+  const { facilityId, employeeId = '', startDate = '', endDate = '' } = req.query;
   const scope = req.query.scope === 'course' ? 'course' : 'mine';
   const approvedOnly = req.query.approvedOnly === 'true';
 
   try {
-    const validationError = validateTimeEntryQueryInput({ courseId, employeeId, scope, limit: 14, startDate, endDate, approvedOnly });
+    const validationError = validateTimeEntryQueryInput({ facilityId, employeeId, scope, limit: 14, startDate, endDate, approvedOnly });
     if (validationError) {
       return res.status(400).json({ error: validationError });
     }
 
-    const currentRole = await ensureCourseRole(req.employee, courseId);
+    const currentRole = await ensureFacilityRole(req.employee, facilityId);
     if (!currentRole) {
-      return res.status(403).json({ error: 'No access to this course' });
+      return res.status(403).json({ error: 'No access to this facility' });
     }
 
     if (scope === 'course' && !isAdmin(currentRole)) {
-      return res.status(403).json({ error: 'Admin access required for this course' });
+      return res.status(403).json({ error: 'Admin access required for this facility' });
     }
 
-    const params = [courseId];
-    let whereClause = 'where te.course_id = $1';
+    const params = [facilityId];
+    let whereClause = 'where te.facility_id = $1';
 
     if (startDate) {
       params.push(startDate);
@@ -252,17 +252,17 @@ router.get('/summary', requireAuth, async (req, res) => {
 });
 
 router.post('/clock-in', requireAuth, async (req, res) => {
-  const { courseId, note = '', location = null } = req.body;
+  const { facilityId, note = '', location = null } = req.body;
 
   try {
-    const validationError = validateTimeEntryActionInput({ courseId, note, location });
+    const validationError = validateTimeEntryActionInput({ facilityId, note, location });
     if (validationError) {
       return res.status(400).json({ error: validationError });
     }
 
-    const currentRole = await ensureCourseRole(req.employee, courseId);
+    const currentRole = await ensureFacilityRole(req.employee, facilityId);
     if (!currentRole) {
-      return res.status(403).json({ error: 'No access to this course' });
+      return res.status(403).json({ error: 'No access to this facility' });
     }
 
     const client = await connect();
@@ -274,22 +274,22 @@ router.post('/clock-in', requireAuth, async (req, res) => {
         `
           select id
           from employee_time_entries
-          where employee_id = $1 and course_id = $2 and clock_out_at is null
+          where employee_id = $1 and facility_id = $2 and clock_out_at is null
           limit 1
         `,
-        [req.employee.id, courseId]
+        [req.employee.id, facilityId]
       );
 
       if (existing.rows.length) {
         await client.query('rollback');
-        return res.status(409).json({ error: 'You are already clocked in for this course.' });
+        return res.status(409).json({ error: 'You are already clocked in for this facility.' });
       }
 
       const insertResult = await client.query(
         `
           insert into employee_time_entries (
             employee_id,
-            course_id,
+            facility_id,
             clock_in_note,
             clock_in_latitude,
             clock_in_longitude
@@ -297,17 +297,17 @@ router.post('/clock-in', requireAuth, async (req, res) => {
           values ($1, $2, $3, $4, $5)
           returning id
         `,
-        [req.employee.id, courseId, note || null, location?.latitude ?? null, location?.longitude ?? null]
+        [req.employee.id, facilityId, note || null, location?.latitude ?? null, location?.longitude ?? null]
       );
 
       const entryId = insertResult.rows[0].id;
 
       await client.query(
         `
-          insert into audit_logs (actor_employee_id, action, course_id, target_employee_id, detail)
+          insert into audit_logs (actor_employee_id, action, facility_id, target_employee_id, detail)
           values ($1, $2, $3, $4, $5)
         `,
-        [req.employee.id, 'employee.clock_in', courseId, req.employee.id, { note: note || null, location: location || null }]
+        [req.employee.id, 'employee.clock_in', facilityId, req.employee.id, { note: note || null, location: location || null }]
       );
 
       const entryResult = await client.query(`${timeEntrySelect} where te.id = $1 limit 1`, [entryId]);
@@ -316,7 +316,7 @@ router.post('/clock-in', requireAuth, async (req, res) => {
     } catch (error) {
       await client.query('rollback');
       if (error?.code === '23505') {
-        return res.status(409).json({ error: 'You are already clocked in for this course.' });
+        return res.status(409).json({ error: 'You are already clocked in for this facility.' });
       }
       throw error;
     } finally {
@@ -328,17 +328,17 @@ router.post('/clock-in', requireAuth, async (req, res) => {
 });
 
 router.post('/clock-out', requireAuth, async (req, res) => {
-  const { courseId, note = '', location = null } = req.body;
+  const { facilityId, note = '', location = null } = req.body;
 
   try {
-    const validationError = validateTimeEntryActionInput({ courseId, note, location });
+    const validationError = validateTimeEntryActionInput({ facilityId, note, location });
     if (validationError) {
       return res.status(400).json({ error: validationError });
     }
 
-    const currentRole = await ensureCourseRole(req.employee, courseId);
+    const currentRole = await ensureFacilityRole(req.employee, facilityId);
     if (!currentRole) {
-      return res.status(403).json({ error: 'No access to this course' });
+      return res.status(403).json({ error: 'No access to this facility' });
     }
 
     const client = await connect();
@@ -350,17 +350,17 @@ router.post('/clock-out', requireAuth, async (req, res) => {
         `
           select id
           from employee_time_entries
-          where employee_id = $1 and course_id = $2 and clock_out_at is null
+          where employee_id = $1 and facility_id = $2 and clock_out_at is null
           order by clock_in_at desc
           limit 1
           for update
         `,
-        [req.employee.id, courseId]
+        [req.employee.id, facilityId]
       );
 
       if (!activeResult.rows.length) {
         await client.query('rollback');
-        return res.status(404).json({ error: 'No active clock-in was found for this course.' });
+        return res.status(404).json({ error: 'No active clock-in was found for this facility.' });
       }
 
       const entryId = activeResult.rows[0].id;
@@ -379,10 +379,10 @@ router.post('/clock-out', requireAuth, async (req, res) => {
 
       await client.query(
         `
-          insert into audit_logs (actor_employee_id, action, course_id, target_employee_id, detail)
+          insert into audit_logs (actor_employee_id, action, facility_id, target_employee_id, detail)
           values ($1, $2, $3, $4, $5)
         `,
-        [req.employee.id, 'employee.clock_out', courseId, req.employee.id, { note: note || null, location: location || null }]
+        [req.employee.id, 'employee.clock_out', facilityId, req.employee.id, { note: note || null, location: location || null }]
       );
 
       const entryResult = await client.query(`${timeEntrySelect} where te.id = $1 limit 1`, [entryId]);
@@ -401,23 +401,23 @@ router.post('/clock-out', requireAuth, async (req, res) => {
 
 router.patch('/:entryId', requireAuth, async (req, res) => {
   const { entryId } = req.params;
-  const { courseId, clockInAt, clockOutAt = null, clockInNote = '', clockOutNote = '' } = req.body;
+  const { facilityId, clockInAt, clockOutAt = null, clockInNote = '', clockOutNote = '' } = req.body;
 
   try {
-    const validationError = validateTimeEntryUpdateInput({ entryId, courseId, clockInAt, clockOutAt, clockInNote, clockOutNote });
+    const validationError = validateTimeEntryUpdateInput({ entryId, facilityId, clockInAt, clockOutAt, clockInNote, clockOutNote });
     if (validationError) {
       return res.status(400).json({ error: validationError });
     }
 
-    const currentRole = await ensureCourseRole(req.employee, courseId);
+    const currentRole = await ensureFacilityRole(req.employee, facilityId);
     if (!isAdmin(currentRole)) {
-      return res.status(403).json({ error: 'Admin access required for this course' });
+      return res.status(403).json({ error: 'Admin access required for this facility' });
     }
 
     const client = await connect();
     try {
       await client.query('begin');
-      const existing = await client.query('select employee_id from employee_time_entries where id = $1 and course_id = $2 limit 1', [entryId, courseId]);
+      const existing = await client.query('select employee_id from employee_time_entries where id = $1 and facility_id = $2 limit 1', [entryId, facilityId]);
       if (!existing.rows.length) {
         await client.query('rollback');
         return res.status(404).json({ error: 'Time entry not found' });
@@ -441,10 +441,10 @@ router.patch('/:entryId', requireAuth, async (req, res) => {
 
       await client.query(
         `
-          insert into audit_logs (actor_employee_id, action, course_id, target_employee_id, detail)
+          insert into audit_logs (actor_employee_id, action, facility_id, target_employee_id, detail)
           values ($1, $2, $3, $4, $5)
         `,
-        [req.employee.id, 'employee.time_edit', courseId, existing.rows[0].employee_id, { entryId }]
+        [req.employee.id, 'employee.time_edit', facilityId, existing.rows[0].employee_id, { entryId }]
       );
 
       const result = await client.query(`${timeEntrySelect} where te.id = $1 limit 1`, [entryId]);
@@ -463,23 +463,23 @@ router.patch('/:entryId', requireAuth, async (req, res) => {
 
 router.post('/:entryId/approve', requireAuth, async (req, res) => {
   const { entryId } = req.params;
-  const { courseId, approvalNote = '' } = req.body;
+  const { facilityId, approvalNote = '' } = req.body;
 
   try {
-    const validationError = validateTimeEntryApprovalInput({ entryId, courseId, approvalNote });
+    const validationError = validateTimeEntryApprovalInput({ entryId, facilityId, approvalNote });
     if (validationError) {
       return res.status(400).json({ error: validationError });
     }
 
-    const currentRole = await ensureCourseRole(req.employee, courseId);
+    const currentRole = await ensureFacilityRole(req.employee, facilityId);
     if (!isAdmin(currentRole)) {
-      return res.status(403).json({ error: 'Admin access required for this course' });
+      return res.status(403).json({ error: 'Admin access required for this facility' });
     }
 
     const client = await connect();
     try {
       await client.query('begin');
-      const existing = await client.query('select employee_id from employee_time_entries where id = $1 and course_id = $2 limit 1', [entryId, courseId]);
+      const existing = await client.query('select employee_id from employee_time_entries where id = $1 and facility_id = $2 limit 1', [entryId, facilityId]);
       if (!existing.rows.length) {
         await client.query('rollback');
         return res.status(404).json({ error: 'Time entry not found' });
@@ -499,10 +499,10 @@ router.post('/:entryId/approve', requireAuth, async (req, res) => {
 
       await client.query(
         `
-          insert into audit_logs (actor_employee_id, action, course_id, target_employee_id, detail)
+          insert into audit_logs (actor_employee_id, action, facility_id, target_employee_id, detail)
           values ($1, $2, $3, $4, $5)
         `,
-        [req.employee.id, 'employee.time_approved', courseId, existing.rows[0].employee_id, { entryId, approvalNote: approvalNote || null }]
+        [req.employee.id, 'employee.time_approved', facilityId, existing.rows[0].employee_id, { entryId, approvalNote: approvalNote || null }]
       );
 
       const result = await client.query(`${timeEntrySelect} where te.id = $1 limit 1`, [entryId]);

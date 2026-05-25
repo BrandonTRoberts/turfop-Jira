@@ -4,9 +4,9 @@ function isUuid(value) {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
-export function validateCourseRoleInput({ courseId, role }) {
-  if (!isUuid(courseId)) {
-    return 'Valid courseId is required';
+export function validateFacilityRoleInput({ facilityId, role }) {
+  if (!isUuid(facilityId)) {
+    return 'Valid facilityId is required';
   }
 
   if (!allowedRoles.has(role)) {
@@ -16,13 +16,16 @@ export function validateCourseRoleInput({ courseId, role }) {
   return null;
 }
 
-export function validateMembershipInput({ employeeId, courseId, role }) {
+export function validateMembershipInput({ employeeId, facilityId, role }) {
   if (!isUuid(employeeId)) {
     return 'Valid employeeId is required';
   }
 
-  return validateCourseRoleInput({ courseId, role });
+  return validateFacilityRoleInput({ facilityId, role });
 }
+
+// Hard cut-over alias (kept to reduce cascading changes inside backend):
+export const validateCourseRoleInput = ({ courseId, role }) => validateFacilityRoleInput({ facilityId: courseId, role });
 
 export function validateCompanyInput({ name }) {
   if (typeof name !== 'string' || name.trim().length < 2) {
@@ -98,9 +101,9 @@ export function validateCourseSettingsInput({ name, region, superintendentName, 
   return fieldErrors[0] || null;
 }
 
-export function validateEquipmentInput({ courseId, name, make, model, assignedArea, vin, serialNumber, description, hours, detail, status }) {
-  if (!isUuid(courseId)) {
-    return 'Valid courseId is required';
+export function validateEquipmentInput({ facilityId, name, make, model, assignedArea, vin, serialNumber, description, hours, detail, status }) {
+  if (!isUuid(facilityId)) {
+    return 'Valid facilityId is required';
   }
 
   if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 160) {
@@ -125,9 +128,9 @@ export function validateEquipmentInput({ courseId, name, make, model, assignedAr
   return fieldErrors[0] || null;
 }
 
-export function validatePartsInventoryInput({ courseId, sku, partDescription, quantityOnHand, unitCost, reorderUrl }) {
-  if (!isUuid(courseId)) {
-    return 'Valid courseId is required';
+export function validatePartsInventoryInput({ facilityId, sku, partDescription, quantityOnHand, unitCost, reorderUrl }) {
+  if (!isUuid(facilityId)) {
+    return 'Valid facilityId is required';
   }
 
   if (typeof sku !== 'string' || sku.trim().length < 1 || sku.trim().length > 80) {
@@ -195,7 +198,7 @@ export function validateRegistrationInput({ email, fullName, password }) {
   return null;
 }
 
-export function validateEmployeeInviteInput({ email, fullName, courseId, role, hourlyRate }) {
+export function validateEmployeeInviteInput({ email, fullName, facilityId, role, hourlyRate }) {
   if (!validateEmail(email)) {
     return 'Valid email is required';
   }
@@ -208,7 +211,7 @@ export function validateEmployeeInviteInput({ email, fullName, courseId, role, h
     return 'Hourly rate must be zero or greater';
   }
 
-  return validateCourseRoleInput({ courseId, role });
+  return validateFacilityRoleInput({ facilityId, role });
 }
 
 export function validateEmployeeProfileInput({ fullName, hourlyRate }) {
@@ -317,9 +320,9 @@ export function validateAuditQueryInput({ action, limit, offset }) {
   return null;
 }
 
-export function validateTimeEntryQueryInput({ courseId, employeeId, scope, limit, startDate, endDate, approvedOnly }) {
-  if (!isUuid(courseId)) {
-    return 'Valid courseId is required';
+export function validateTimeEntryQueryInput({ facilityId, employeeId, scope, limit, startDate, endDate, approvedOnly }) {
+  if (!isUuid(facilityId)) {
+    return 'Valid facilityId is required';
   }
 
   if (employeeId && !isUuid(employeeId)) {
@@ -353,9 +356,9 @@ export function validateTimeEntryQueryInput({ courseId, employeeId, scope, limit
   return null;
 }
 
-export function validateTimeEntryActionInput({ courseId, note, location }) {
-  if (!isUuid(courseId)) {
-    return 'Valid courseId is required';
+export function validateTimeEntryActionInput({ facilityId, note, location }) {
+  if (!isUuid(facilityId)) {
+    return 'Valid facilityId is required';
   }
 
   const noteError = validateOptionalText(note, 'Note', 500);
@@ -364,12 +367,12 @@ export function validateTimeEntryActionInput({ courseId, note, location }) {
   return validateLocation(location);
 }
 
-export function validateTimeEntryUpdateInput({ entryId, courseId, clockInAt, clockOutAt, clockInNote, clockOutNote }) {
+export function validateTimeEntryUpdateInput({ entryId, facilityId, clockInAt, clockOutAt, clockInNote, clockOutNote }) {
   if (!isUuid(entryId)) {
     return 'Valid entryId is required';
   }
-  if (!isUuid(courseId)) {
-    return 'Valid courseId is required';
+  if (!isUuid(facilityId)) {
+    return 'Valid facilityId is required';
   }
   if (!isIsoDateTime(clockInAt)) {
     return 'Valid clockInAt is required';
@@ -385,12 +388,12 @@ export function validateTimeEntryUpdateInput({ entryId, courseId, clockInAt, clo
     || validateOptionalText(clockOutNote, 'Clock-out note', 500);
 }
 
-export function validateTimeEntryApprovalInput({ entryId, courseId, approvalNote }) {
+export function validateTimeEntryApprovalInput({ entryId, facilityId, approvalNote }) {
   if (!isUuid(entryId)) {
     return 'Valid entryId is required';
   }
-  if (!isUuid(courseId)) {
-    return 'Valid courseId is required';
+  if (!isUuid(facilityId)) {
+    return 'Valid facilityId is required';
   }
 
   return validateOptionalText(approvalNote, 'Approval note', 500);

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query } from '../lib/db.js';
 import { requireAuth } from '../lib/requireAuth.js';
-import { canWrite, getRoleForCourse } from '../lib/permissions.js';
+import { canWrite, getRoleForFacility } from '../lib/permissions.js';
 import { persistAttachmentCollection, persistImageCollection } from '../lib/media.js';
 import { handleUnexpectedError } from '../lib/http.js';
 import { validateEquipmentInput } from '../lib/validation.js';
@@ -9,22 +9,22 @@ import { validateEquipmentInput } from '../lib/validation.js';
 const router = Router();
 
 router.get('/', requireAuth, async (req, res) => {
-  const { courseId } = req.query;
+  const { facilityId } = req.query;
 
   try {
-    const role = await getRoleForCourse(req.employee, courseId);
+    const role = await getRoleForFacility(req.employee, facilityId);
     if (!role) {
-      return res.status(403).json({ error: 'No access to this course' });
+      return res.status(403).json({ error: 'No access to this facility' });
     }
 
     const result = await query(
       `
-        select id, course_id, name, make, model, assigned_area, vin, serial_number, description, hours, detail, status, image_urls, attachments, created_at, updated_at
+        select id, facility_id, name, make, model, assigned_area, vin, serial_number, description, hours, detail, status, image_urls, attachments, created_at, updated_at
         from equipment
-        where course_id = $1
+        where facility_id = $1
         order by created_at desc
       `,
-      [courseId]
+      [facilityId]
     );
 
     res.json(result.rows);
@@ -34,28 +34,28 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 router.post('/', requireAuth, async (req, res) => {
-  const { courseId, name, make, model, assignedArea, vin, serialNumber, description, hours, detail, status, images = [], attachments = [] } = req.body;
+  const { facilityId, name, make, model, assignedArea, vin, serialNumber, description, hours, detail, status, images = [], attachments = [] } = req.body;
 
   try {
-    const validationError = validateEquipmentInput({ courseId, name, make, model, assignedArea, vin, serialNumber, description, hours, detail, status });
+    const validationError = validateEquipmentInput({ facilityId, name, make, model, assignedArea, vin, serialNumber, description, hours, detail, status });
     if (validationError) {
       return res.status(400).json({ error: validationError });
     }
 
-    const role = await getRoleForCourse(req.employee, courseId);
+    const role = await getRoleForFacility(req.employee, facilityId);
     if (!canWrite(role)) {
-      return res.status(403).json({ error: 'Write access denied for this course' });
+      return res.status(403).json({ error: 'Write access denied for this facility' });
     }
 
     const imageUrls = await persistImageCollection(images, { entityType: 'equipment', maxCount: 6 });
     const attachmentItems = await persistAttachmentCollection(attachments, { entityType: 'equipment-attachments', maxCount: 12 });
     const result = await query(
       `
-        insert into equipment (course_id, name, make, model, assigned_area, vin, serial_number, description, hours, detail, status, image_urls, attachments)
+        insert into equipment (facility_id, name, make, model, assigned_area, vin, serial_number, description, hours, detail, status, image_urls, attachments)
         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-        returning id, course_id, name, make, model, assigned_area, vin, serial_number, description, hours, detail, status, image_urls, attachments, created_at, updated_at
+        returning id, facility_id, name, make, model, assigned_area, vin, serial_number, description, hours, detail, status, image_urls, attachments, created_at, updated_at
       `,
-      [courseId, name, make, model, assignedArea || null, vin, serialNumber, description, hours, detail, status, JSON.stringify(imageUrls), JSON.stringify(attachmentItems)]
+      [facilityId, name, make, model, assignedArea || null, vin, serialNumber, description, hours, detail, status, JSON.stringify(imageUrls), JSON.stringify(attachmentItems)]
     );
 
     res.status(201).json(result.rows[0]);
@@ -66,17 +66,17 @@ router.post('/', requireAuth, async (req, res) => {
 
 router.patch('/:equipmentId', requireAuth, async (req, res) => {
   const { equipmentId } = req.params;
-  const { courseId, name, make, model, assignedArea, vin, serialNumber, description, hours, detail, status, images = [], attachments = [], expectedUpdatedAt } = req.body;
+  const { facilityId, name, make, model, assignedArea, vin, serialNumber, description, hours, detail, status, images = [], attachments = [], expectedUpdatedAt } = req.body;
 
   try {
-    const validationError = validateEquipmentInput({ courseId, name, make, model, assignedArea, vin, serialNumber, description, hours, detail, status });
+    const validationError = validateEquipmentInput({ facilityId, name, make, model, assignedArea, vin, serialNumber, description, hours, detail, status });
     if (validationError) {
       return res.status(400).json({ error: validationError });
     }
 
     const existing = await query(
       `
-        select id, course_id, updated_at
+        select id, facility_id, updated_at
         from equipment
         where id = $1
       `,
@@ -88,10 +88,10 @@ router.patch('/:equipmentId', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Equipment record not found' });
     }
 
-    const currentRole = await getRoleForCourse(req.employee, equipment.course_id);
-    const targetRole = await getRoleForCourse(req.employee, courseId);
+    const currentRole = await getRoleForFacility(req.employee, equipment.facility_id);
+    const targetRole = await getRoleForFacility(req.employee, facilityId);
     if (!canWrite(currentRole) || !canWrite(targetRole)) {
-      return res.status(403).json({ error: 'Write access denied for this course' });
+      return res.status(403).json({ error: 'Write access denied for this facility' });
     }
 
     if (expectedUpdatedAt && new Date(equipment.updated_at).toISOString() !== new Date(expectedUpdatedAt).toISOString()) {
@@ -103,7 +103,7 @@ router.patch('/:equipmentId', requireAuth, async (req, res) => {
     const result = await query(
       `
         update equipment
-        set course_id = $2,
+        set facility_id = $2,
             name = $3,
             make = $4,
             model = $5,
@@ -118,9 +118,9 @@ router.patch('/:equipmentId', requireAuth, async (req, res) => {
             attachments = $14,
             updated_at = now()
         where id = $1
-        returning id, course_id, name, make, model, assigned_area, vin, serial_number, description, hours, detail, status, image_urls, attachments, created_at, updated_at
+        returning id, facility_id, name, make, model, assigned_area, vin, serial_number, description, hours, detail, status, image_urls, attachments, created_at, updated_at
       `,
-      [equipmentId, courseId, name, make, model, assignedArea || null, vin, serialNumber, description, hours, detail, status, JSON.stringify(imageUrls), JSON.stringify(attachmentItems)]
+      [equipmentId, facilityId, name, make, model, assignedArea || null, vin, serialNumber, description, hours, detail, status, JSON.stringify(imageUrls), JSON.stringify(attachmentItems)]
     );
 
     res.json(result.rows[0]);
@@ -136,7 +136,7 @@ router.delete('/:equipmentId', requireAuth, async (req, res) => {
   try {
     const existing = await query(
       `
-        select id, course_id, updated_at
+        select id, facility_id, updated_at
         from equipment
         where id = $1
       `,
@@ -148,9 +148,9 @@ router.delete('/:equipmentId', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Equipment record not found' });
     }
 
-    const role = await getRoleForCourse(req.employee, equipment.course_id);
+    const role = await getRoleForFacility(req.employee, equipment.facility_id);
     if (!canWrite(role)) {
-      return res.status(403).json({ error: 'Write access denied for this course' });
+      return res.status(403).json({ error: 'Write access denied for this facility' });
     }
 
     if (expectedUpdatedAt && new Date(equipment.updated_at).toISOString() !== new Date(expectedUpdatedAt).toISOString()) {

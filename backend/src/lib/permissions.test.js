@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { canWrite, isAdmin } from './permissions.js';
 import { validateMembershipInput, validateRegistrationInput, validateCourseRoleInput } from './validation.js';
+// facility-native name for membership validation
+import { validateFacilityRoleInput } from './validation.js';
 
 test('canWrite allows admin and read_write only', () => {
   assert.equal(canWrite('admin'), true);
@@ -28,7 +30,7 @@ test('validateCourseRoleInput accepts valid ids and roles', () => {
 test('validateMembershipInput accepts valid ids and roles', () => {
   const result = validateMembershipInput({
     employeeId: 'f00b5999-86b3-40e0-918e-a6177456b78d',
-    courseId: '6689c65a-7736-46af-b7f0-50008020be06',
+    facilityId: '6689c65a-7736-46af-b7f0-50008020be06',
     role: 'admin'
   });
 
@@ -41,11 +43,11 @@ test('validateMembershipInput rejects invalid input', () => {
     'Valid employeeId is required'
   );
   assert.equal(
-    validateMembershipInput({ employeeId: 'f00b5999-86b3-40e0-918e-a6177456b78d', courseId: 'bad', role: 'admin' }),
-    'Valid courseId is required'
+    validateMembershipInput({ employeeId: 'f00b5999-86b3-40e0-918e-a6177456b78d', facilityId: 'bad', role: 'admin' }),
+    'Valid facilityId is required'
   );
   assert.equal(
-    validateMembershipInput({ employeeId: 'f00b5999-86b3-40e0-918e-a6177456b78d', courseId: '6689c65a-7736-46af-b7f0-50008020be06', role: 'owner' }),
+    validateMembershipInput({ employeeId: 'f00b5999-86b3-40e0-918e-a6177456b78d', facilityId: '6689c65a-7736-46af-b7f0-50008020be06', role: 'owner' }),
     'Role must be one of admin, read_write, or read_only'
   );
 });

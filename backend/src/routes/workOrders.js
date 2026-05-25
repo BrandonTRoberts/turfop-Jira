@@ -1,14 +1,14 @@
 import { Router } from 'express';
 import { connect, query } from '../lib/db.js';
 import { requireAuth } from '../lib/requireAuth.js';
-import { canWrite, getRoleForCourse, isAdmin } from '../lib/permissions.js';
+import { canWrite, getRoleForFacility, isAdmin } from '../lib/permissions.js';
 import { persistAttachmentCollection, persistImageCollection } from '../lib/media.js';
 import { handleUnexpectedError } from '../lib/http.js';
 import { validateWorkOrderStatus, validateWorkOrderTransition } from '../lib/workOrderWorkflow.js';
 
 const router = Router();
 
-async function loadTechnician(client, technicianEmployeeId, courseId) {
+async function loadTechnician(client, technicianEmployeeId, facilityId) {
   if (!technicianEmployeeId) {
     return null;
   }
@@ -17,11 +17,11 @@ async function loadTechnician(client, technicianEmployeeId, courseId) {
     `
       select e.id, e.full_name, e.hourly_rate
       from employees e
-      join courses c on c.company_id = e.company_id
-      where e.id = $1 and c.id = $2
+      join facilities f on f.company_id = e.company_id
+      where e.id = $1 and f.id = $2
       limit 1
     `,
-    [technicianEmployeeId, courseId]
+    [technicianEmployeeId, facilityId]
   );
 
   return result.rows[0] || null;
@@ -49,7 +49,7 @@ async function loadPartsUsage(client, workOrderId) {
   return result.rows;
 }
 
-async function ensureEquipmentInCourse(client, equipmentId, courseId) {
+async function ensureEquipmentInFacility(client, equipmentId, facilityId) {
   if (!equipmentId) {
     return null;
   }
@@ -58,14 +58,14 @@ async function ensureEquipmentInCourse(client, equipmentId, courseId) {
     `
       select id, name
       from equipment
-      where id = $1 and course_id = $2
+      where id = $1 and facility_id = $2
       limit 1
     `,
-    [equipmentId, courseId]
+    [equipmentId, facilityId]
   );
 
   if (!result.rows[0]) {
-    throw new Error('Selected equipment was not found for this course');
+    throw new Error('Selected equipment was not found for this facility');
   }
 
   return result.rows[0];
@@ -96,19 +96,19 @@ async function loadWorkOrderActivity(client, workOrderId) {
   return result.rows;
 }
 
-async function logWorkOrderActivity(client, { workOrderId, courseId, actorEmployeeId, action, fromStatus = null, toStatus = null, detail = {} }) {
+async function logWorkOrderActivity(client, { workOrderId, facilityId, actorEmployeeId, action, fromStatus = null, toStatus = null, detail = {} }) {
   await client.query(
     `
-      insert into work_order_activity (work_order_id, course_id, actor_employee_id, action, from_status, to_status, detail)
+      insert into work_order_activity (work_order_id, facility_id, actor_employee_id, action, from_status, to_status, detail)
       values ($1, $2, $3, $4, $5, $6, $7)
     `,
-    [workOrderId, courseId, actorEmployeeId, action, fromStatus, toStatus, detail]
+    [workOrderId, facilityId, actorEmployeeId, action, fromStatus, toStatus, detail]
   );
 }
 
 function buildChangedFields(existing, next) {
   const comparisons = [
-    ['course_id', existing.course_id, next.courseId],
+    ['facility_id', existing.facility_id, next.facilityId],
     ['title', existing.title, next.title],
     ['detail', existing.detail, next.detail],
     ['assignee', existing.assignee, next.assignee],
@@ -150,7 +150,7 @@ async function restorePartInventory(client, workOrderId) {
   await client.query('delete from work_order_parts_usage where work_order_id = $1', [workOrderId]);
 }
 
-async function applyPartUsage(client, workOrderId, courseId, partUsages = []) {
+async function applyPartUsage(client, workOrderId, facilityId, partUsages = []) {
   let partsCost = 0;
 
   for (const usage of partUsages) {
@@ -161,15 +161,15 @@ async function applyPartUsage(client, workOrderId, courseId, partUsages = []) {
       `
         select id, sku, part_description, quantity_on_hand, unit_cost
         from parts_inventory
-        where id = $1 and course_id = $2
+        where id = $1 and facility_id = $2
         for update
       `,
-      [usage.partInventoryId, courseId]
+      [usage.partInventoryId, facilityId]
     );
 
     const part = partResult.rows[0];
     if (!part) {
-      throw new Error('Selected inventory part was not found for this course');
+      throw new Error('Selected inventory part was not found for this facility');
     }
 
     if (Number(part.quantity_on_hand) < quantityUsed) {
@@ -240,7 +240,7 @@ async function hydrateWorkOrderRow(client, row, canSeeFinancials = true) {
 
 async function deriveWorkOrderCosts(client, payload, isAdminUser) {
   const laborHours = Number(payload.laborHours || 0);
-  const technician = await loadTechnician(client, payload.technicianEmployeeId, payload.courseId);
+  const technician = await loadTechnician(client, payload.technicianEmployeeId, payload.facilityId);
   const laborRate = isAdminUser 
     ? Number(payload.laborRate ?? technician?.hourly_rate ?? 0)
     : Number(technician?.hourly_rate ?? 0);
@@ -256,23 +256,23 @@ async function deriveWorkOrderCosts(client, payload, isAdminUser) {
 }
 
 router.get('/', requireAuth, async (req, res) => {
-  const { courseId } = req.query;
+  const { facilityId } = req.query;
 
   try {
-    const role = await getRoleForCourse(req.employee, courseId);
+    const role = await getRoleForFacility(req.employee, facilityId);
     if (!role) {
-      return res.status(403).json({ error: 'No access to this course' });
+      return res.status(403).json({ error: 'No access to this facility' });
     }
 
     const canSeeFinancials = isAdmin(role);
     const result = await query(
       `
-        select id, course_id, title, detail, status, assignee, equipment_id, due_at, technician_employee_id, technician_name, labor_hours, labor_rate, labor_cost, parts_cost, total_cost, completed_work_notes, completed_at, image_urls, attachments, created_at, updated_at
+        select id, facility_id, title, detail, status, assignee, equipment_id, due_at, technician_employee_id, technician_name, labor_hours, labor_rate, labor_cost, parts_cost, total_cost, completed_work_notes, completed_at, image_urls, attachments, created_at, updated_at
         from work_orders
-        where course_id = $1
+        where facility_id = $1
         order by created_at desc
       `,
-      [courseId]
+      [facilityId]
     );
 
     const client = await connect();
@@ -291,37 +291,37 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 router.post('/', requireAuth, async (req, res) => {
-  const { courseId, title, detail, status, assignee, equipmentId = null, dueAt = null, technicianEmployeeId, technicianName, laborHours, laborRate, completedWorkNotes, completedAt, partUsages = [], images = [], attachments = [] } = req.body;
+  const { facilityId, title, detail, status, assignee, equipmentId = null, dueAt = null, technicianEmployeeId, technicianName, laborHours, laborRate, completedWorkNotes, completedAt, partUsages = [], images = [], attachments = [] } = req.body;
   const nextStatus = validateWorkOrderStatus(status);
   if (!nextStatus.ok) {
     return res.status(400).json({ error: nextStatus.error, allowedStatuses: nextStatus.allowedStatuses });
   }
 
   try {
-    const role = await getRoleForCourse(req.employee, courseId);
+    const role = await getRoleForFacility(req.employee, facilityId);
     if (!canWrite(role)) {
-      return res.status(403).json({ error: 'Write access denied for this course' });
+      return res.status(403).json({ error: 'Write access denied for this facility' });
     }
 
     const canSeeFinancials = isAdmin(role);
     const client = await connect();
     try {
       await client.query('begin');
-      await ensureEquipmentInCourse(client, equipmentId, courseId);
+      await ensureEquipmentInFacility(client, equipmentId, facilityId);
       const imageUrls = await persistImageCollection(images, { entityType: 'work-orders', maxCount: 6 });
       const attachmentItems = await persistAttachmentCollection(attachments, { entityType: 'work-order-attachments', maxCount: 12 });
-      const costs = await deriveWorkOrderCosts(client, { technicianEmployeeId, technicianName, laborHours, laborRate, courseId }, canSeeFinancials);
+      const costs = await deriveWorkOrderCosts(client, { technicianEmployeeId, technicianName, laborHours, laborRate, facilityId }, canSeeFinancials);
       const result = await client.query(
         `
-          insert into work_orders (course_id, title, detail, status, assignee, equipment_id, due_at, technician_employee_id, technician_name, labor_hours, labor_rate, labor_cost, parts_cost, total_cost, completed_work_notes, completed_at, image_urls, attachments)
+          insert into work_orders (facility_id, title, detail, status, assignee, equipment_id, due_at, technician_employee_id, technician_name, labor_hours, labor_rate, labor_cost, parts_cost, total_cost, completed_work_notes, completed_at, image_urls, attachments)
           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 0, $12, $13, $14, $15, $16)
-          returning id, course_id, title, detail, status, assignee, equipment_id, due_at, technician_employee_id, technician_name, labor_hours, labor_rate, labor_cost, parts_cost, total_cost, completed_work_notes, completed_at, image_urls, attachments, created_at, updated_at
+          returning id, facility_id, title, detail, status, assignee, equipment_id, due_at, technician_employee_id, technician_name, labor_hours, labor_rate, labor_cost, parts_cost, total_cost, completed_work_notes, completed_at, image_urls, attachments, created_at, updated_at
         `,
-        [courseId, title, detail, nextStatus.status, assignee, equipmentId || null, dueAt || null, costs.technicianEmployeeId, costs.technicianName, costs.laborHours, costs.laborRate, costs.laborCost, completedWorkNotes || null, completedAt || null, JSON.stringify(imageUrls), JSON.stringify(attachmentItems)]
+        [facilityId, title, detail, nextStatus.status, assignee, equipmentId || null, dueAt || null, costs.technicianEmployeeId, costs.technicianName, costs.laborHours, costs.laborRate, costs.laborCost, completedWorkNotes || null, completedAt || null, JSON.stringify(imageUrls), JSON.stringify(attachmentItems)]
       );
 
       const workOrder = result.rows[0];
-      const partsCost = await applyPartUsage(client, workOrder.id, courseId, partUsages);
+      const partsCost = await applyPartUsage(client, workOrder.id, facilityId, partUsages);
       const totalCost = Number((costs.laborCost + partsCost).toFixed(2));
       const updateTotals = await client.query(
         `
@@ -329,13 +329,13 @@ router.post('/', requireAuth, async (req, res) => {
           set parts_cost = $2,
               total_cost = $3
           where id = $1
-          returning id, course_id, title, detail, status, assignee, equipment_id, due_at, technician_employee_id, technician_name, labor_hours, labor_rate, labor_cost, parts_cost, total_cost, completed_work_notes, completed_at, image_urls, attachments, created_at, updated_at
+          returning id, facility_id, title, detail, status, assignee, equipment_id, due_at, technician_employee_id, technician_name, labor_hours, labor_rate, labor_cost, parts_cost, total_cost, completed_work_notes, completed_at, image_urls, attachments, created_at, updated_at
         `,
         [workOrder.id, partsCost, totalCost]
       );
       await logWorkOrderActivity(client, {
         workOrderId: workOrder.id,
-        courseId,
+        facilityId,
         actorEmployeeId: req.employee.id,
         action: 'created',
         toStatus: nextStatus.status,
@@ -363,12 +363,12 @@ router.post('/', requireAuth, async (req, res) => {
 
 router.patch('/:workOrderId', requireAuth, async (req, res) => {
   const { workOrderId } = req.params;
-  const { courseId, title, detail, status, assignee, equipmentId = null, dueAt = null, technicianEmployeeId, technicianName, laborHours, laborRate, completedWorkNotes, completedAt, partUsages = [], images = [], attachments = [], expectedUpdatedAt } = req.body;
+  const { facilityId, title, detail, status, assignee, equipmentId = null, dueAt = null, technicianEmployeeId, technicianName, laborHours, laborRate, completedWorkNotes, completedAt, partUsages = [], images = [], attachments = [], expectedUpdatedAt } = req.body;
 
   try {
     const existing = await query(
       `
-        select id, course_id, title, detail, status, assignee, equipment_id, due_at, technician_employee_id, technician_name, labor_hours, completed_work_notes, completed_at, updated_at
+        select id, facility_id, title, detail, status, assignee, equipment_id, due_at, technician_employee_id, technician_name, labor_hours, completed_work_notes, completed_at, updated_at
         from work_orders
         where id = $1
       `,
@@ -379,10 +379,10 @@ router.patch('/:workOrderId', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Work order not found' });
     }
 
-    const currentRole = await getRoleForCourse(req.employee, workOrder.course_id);
-    const targetRole = await getRoleForCourse(req.employee, courseId);
+    const currentRole = await getRoleForFacility(req.employee, workOrder.facility_id);
+    const targetRole = await getRoleForFacility(req.employee, facilityId);
     if (!canWrite(currentRole) || !canWrite(targetRole)) {
-      return res.status(403).json({ error: 'Write access denied for this course' });
+      return res.status(403).json({ error: 'Write access denied for this facility' });
     }
 
     if (expectedUpdatedAt && new Date(workOrder.updated_at).toISOString() !== new Date(expectedUpdatedAt).toISOString()) {
@@ -399,14 +399,14 @@ router.patch('/:workOrderId', requireAuth, async (req, res) => {
     try {
       await client.query('begin');
       await restorePartInventory(client, workOrderId);
-      await ensureEquipmentInCourse(client, equipmentId, courseId);
+      await ensureEquipmentInFacility(client, equipmentId, facilityId);
       const imageUrls = await persistImageCollection(images, { entityType: 'work-orders', maxCount: 6 });
       const attachmentItems = await persistAttachmentCollection(attachments, { entityType: 'work-order-attachments', maxCount: 12 });
-      const costs = await deriveWorkOrderCosts(client, { technicianEmployeeId, technicianName, laborHours, laborRate, courseId }, canSeeFinancials);
+      const costs = await deriveWorkOrderCosts(client, { technicianEmployeeId, technicianName, laborHours, laborRate, facilityId }, canSeeFinancials);
       const result = await client.query(
         `
           update work_orders
-          set course_id = $2,
+          set facility_id = $2,
               title = $3,
               detail = $4,
               status = $5,
@@ -426,12 +426,12 @@ router.patch('/:workOrderId', requireAuth, async (req, res) => {
               attachments = $17,
               updated_at = now()
           where id = $1
-          returning id, course_id, title, detail, status, assignee, equipment_id, due_at, technician_employee_id, technician_name, labor_hours, labor_rate, labor_cost, parts_cost, total_cost, completed_work_notes, completed_at, image_urls, attachments, created_at, updated_at
+          returning id, facility_id, title, detail, status, assignee, equipment_id, due_at, technician_employee_id, technician_name, labor_hours, labor_rate, labor_cost, parts_cost, total_cost, completed_work_notes, completed_at, image_urls, attachments, created_at, updated_at
         `,
-        [workOrderId, courseId, title, detail, transition.toStatus, assignee, equipmentId || null, dueAt || null, costs.technicianEmployeeId, costs.technicianName, costs.laborHours, costs.laborRate, costs.laborCost, completedWorkNotes || null, completedAt || null, JSON.stringify(imageUrls), JSON.stringify(attachmentItems)]
+        [workOrderId, facilityId, title, detail, transition.toStatus, assignee, equipmentId || null, dueAt || null, costs.technicianEmployeeId, costs.technicianName, costs.laborHours, costs.laborRate, costs.laborCost, completedWorkNotes || null, completedAt || null, JSON.stringify(imageUrls), JSON.stringify(attachmentItems)]
       );
 
-      const partsCost = await applyPartUsage(client, workOrderId, courseId, partUsages);
+      const partsCost = await applyPartUsage(client, workOrderId, facilityId, partUsages);
       const totalCost = Number((costs.laborCost + partsCost).toFixed(2));
       const updateTotals = await client.query(
         `
@@ -439,12 +439,12 @@ router.patch('/:workOrderId', requireAuth, async (req, res) => {
           set parts_cost = $2,
               total_cost = $3
           where id = $1
-          returning id, course_id, title, detail, status, assignee, equipment_id, due_at, technician_employee_id, technician_name, labor_hours, labor_rate, labor_cost, parts_cost, total_cost, completed_work_notes, completed_at, image_urls, attachments, created_at, updated_at
+          returning id, facility_id, title, detail, status, assignee, equipment_id, due_at, technician_employee_id, technician_name, labor_hours, labor_rate, labor_cost, parts_cost, total_cost, completed_work_notes, completed_at, image_urls, attachments, created_at, updated_at
         `,
         [workOrderId, partsCost, totalCost]
       );
       const changedFields = buildChangedFields(workOrder, {
-        courseId,
+        facilityId,
         title,
         detail,
         assignee,
@@ -459,7 +459,7 @@ router.patch('/:workOrderId', requireAuth, async (req, res) => {
       if (transition.fromStatus !== transition.toStatus) {
         await logWorkOrderActivity(client, {
           workOrderId,
-          courseId,
+          facilityId,
           actorEmployeeId: req.employee.id,
           action: 'status_changed',
           fromStatus: transition.fromStatus,
@@ -469,7 +469,7 @@ router.patch('/:workOrderId', requireAuth, async (req, res) => {
       } else if (changedFields.length || partUsages.length) {
         await logWorkOrderActivity(client, {
           workOrderId,
-          courseId,
+          facilityId,
           actorEmployeeId: req.employee.id,
           action: 'updated',
           fromStatus: transition.fromStatus,
@@ -496,26 +496,26 @@ router.patch('/:workOrderId', requireAuth, async (req, res) => {
 
 router.post('/:workOrderId/comments', requireAuth, async (req, res) => {
   const { workOrderId } = req.params;
-  const { courseId, comment } = req.body;
+  const { facilityId, comment } = req.body;
 
   try {
     if (typeof comment !== 'string' || comment.trim().length < 1 || comment.trim().length > 2000) {
       return res.status(400).json({ error: 'Comment must be between 1 and 2000 characters' });
     }
 
-    const existing = await query('select id, course_id, status from work_orders where id = $1', [workOrderId]);
+    const existing = await query('select id, facility_id, status from work_orders where id = $1', [workOrderId]);
     const workOrder = existing.rows[0];
     if (!workOrder) {
       return res.status(404).json({ error: 'Work order not found' });
     }
 
-    if (workOrder.course_id !== courseId) {
-      return res.status(403).json({ error: 'Course scope mismatch' });
+    if (workOrder.facility_id !== facilityId) {
+      return res.status(403).json({ error: 'Facility scope mismatch' });
     }
 
-    const role = await getRoleForCourse(req.employee, workOrder.course_id);
+    const role = await getRoleForFacility(req.employee, workOrder.facility_id);
     if (!role) {
-      return res.status(403).json({ error: 'No access to this course' });
+      return res.status(403).json({ error: 'No access to this facility' });
     }
 
     const client = await connect();
@@ -523,7 +523,7 @@ router.post('/:workOrderId/comments', requireAuth, async (req, res) => {
       await client.query('begin');
       await logWorkOrderActivity(client, {
         workOrderId,
-        courseId: workOrder.course_id,
+        facilityId: workOrder.facility_id,
         actorEmployeeId: req.employee.id,
         action: 'commented',
         fromStatus: workOrder.status,
@@ -549,15 +549,15 @@ router.delete('/:workOrderId', requireAuth, async (req, res) => {
   const { expectedUpdatedAt } = req.body || {};
 
   try {
-    const existing = await query('select id, course_id, updated_at from work_orders where id = $1', [workOrderId]);
+    const existing = await query('select id, facility_id, updated_at from work_orders where id = $1', [workOrderId]);
     const workOrder = existing.rows[0];
     if (!workOrder) {
       return res.status(404).json({ error: 'Work order not found' });
     }
 
-    const role = await getRoleForCourse(req.employee, workOrder.course_id);
+    const role = await getRoleForFacility(req.employee, workOrder.facility_id);
     if (!canWrite(role)) {
-      return res.status(403).json({ error: 'Write access denied for this course' });
+      return res.status(403).json({ error: 'Write access denied for this facility' });
     }
 
     if (expectedUpdatedAt && new Date(workOrder.updated_at).toISOString() !== new Date(expectedUpdatedAt).toISOString()) {

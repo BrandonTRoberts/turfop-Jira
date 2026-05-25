@@ -1,61 +1,61 @@
 import { Router } from 'express';
 import { query } from '../lib/db.js';
 import { requireAuth } from '../lib/requireAuth.js';
-import { getMembershipsForEmployee, getRoleForCourse, isCompanySuperUser, isGlobalSuperUser } from '../lib/permissions.js';
+import { getMembershipsForEmployee, getRoleForFacility, isCompanySuperUser, isGlobalSuperUser } from '../lib/permissions.js';
 import { handleUnexpectedError } from '../lib/http.js';
 
 const router = Router();
 
-async function resolveScopedCourseIds(employee, courseId) {
-  if (courseId) {
-    const role = await getRoleForCourse(employee, courseId);
+async function resolveScopedFacilityIds(employee, facilityId) {
+  if (facilityId) {
+    const role = await getRoleForFacility(employee, facilityId);
     if (!role) {
       return null;
     }
 
-    return [courseId];
+    return [facilityId];
   }
 
   if (isGlobalSuperUser(employee)) {
-    const companyCourses = await query(
+    const companyFacilities = await query(
       `
         select id
-        from courses
+        from facilities
         order by name asc
       `
     );
 
-    return companyCourses.rows.map((row) => row.id);
+    return companyFacilities.rows.map((row) => row.id);
   }
 
   if (isCompanySuperUser(employee)) {
-    const companyCourses = await query(
+    const companyFacilities = await query(
       `
         select id
-        from courses
+        from facilities
         where company_id = $1
         order by name asc
       `,
       [employee.company_id]
     );
 
-    return companyCourses.rows.map((row) => row.id);
+    return companyFacilities.rows.map((row) => row.id);
   }
 
   const memberships = await getMembershipsForEmployee(employee.id);
-  return memberships.map((membership) => membership.course_id);
+  return memberships.map((membership) => membership.facility_id);
 }
 
 router.get('/overview', requireAuth, async (req, res) => {
-  const { courseId = '' } = req.query;
+  const { facilityId = '' } = req.query;
 
   try {
-    const courseIds = await resolveScopedCourseIds(req.employee, courseId);
-    if (courseIds === null) {
-      return res.status(403).json({ error: 'No access to this course' });
+    const facilityIds = await resolveScopedFacilityIds(req.employee, facilityId);
+    if (facilityIds === null) {
+      return res.status(403).json({ error: 'No access to this facility' });
     }
 
-    if (!courseIds.length) {
+    if (!facilityIds.length) {
       return res.json({
         summary: {
           openWorkOrders: 0,
@@ -71,43 +71,43 @@ router.get('/overview', requireAuth, async (req, res) => {
           outOfStockItems: 0,
           inventoryValue: 0,
           totalEmployees: 0,
-          activeCourses: 0,
+          activeFacilities: 0,
           equipmentNeedingAttention: 0
         },
         rollups: {
-          workOrdersByCourse: [],
-          hoursByCourse: [],
-          lowStockByCourse: []
+          workOrdersByFacility: [],
+          hoursByFacility: [],
+          lowStockByFacility: []
         }
       });
     }
 
-    const [summaryResult, workOrdersByCourseResult, hoursByCourseResult, lowStockByCourseResult] = await Promise.all([
+    const [summaryResult, workOrdersByFacilityResult, hoursByFacilityResult, lowStockByFacilityResult] = await Promise.all([
       query(
         `
-          with scoped_courses as (
-            select unnest($1::uuid[]) as course_id
+          with scoped_facilities as (
+            select unnest($1::uuid[]) as facility_id
           ), scoped_work_orders as (
             select wo.*
             from work_orders wo
-            join scoped_courses sc on sc.course_id = wo.course_id
+            join scoped_facilities sf on sf.facility_id = wo.facility_id
           ), scoped_time_entries as (
             select te.*
             from employee_time_entries te
-            join scoped_courses sc on sc.course_id = te.course_id
+            join scoped_facilities sf on sf.facility_id = te.facility_id
           ), scoped_inventory as (
             select pi.*
             from parts_inventory pi
-            join scoped_courses sc on sc.course_id = pi.course_id
+            join scoped_facilities sf on sf.facility_id = pi.facility_id
           ), scoped_equipment as (
             select eq.*
             from equipment eq
-            join scoped_courses sc on sc.course_id = eq.course_id
+            join scoped_facilities sf on sf.facility_id = eq.facility_id
           ), scoped_employees as (
             select distinct e.id
             from employees e
-            join course_memberships cm on cm.employee_id = e.id
-            join scoped_courses sc on sc.course_id = cm.course_id
+            join facility_memberships fm on fm.employee_id = e.id
+            join scoped_facilities sf on sf.facility_id = fm.facility_id
           ), weekly_time as (
             select
               coalesce(sum(extract(epoch from (coalesce(te.clock_out_at, now()) - te.clock_in_at)) / 3600.0), 0) as total_hours,
@@ -118,87 +118,97 @@ router.get('/overview', requireAuth, async (req, res) => {
             where te.clock_in_at >= date_trunc('week', now())
           )
           select
-            (select count(*)::int from scoped_work_orders where status <> 'Completed') as open_work_orders,
-            (select count(*)::int from scoped_work_orders where status = 'Due today') as overdue_work_orders,
-            (select count(*)::int from scoped_work_orders where status = 'Completed' and completed_at >= date_trunc('week', now())) as completed_this_week,
-            (select round(coalesce(avg(extract(epoch from (completed_at - created_at)) / 3600.0), 0)::numeric, 2) from scoped_work_orders where status = 'Completed' and completed_at is not null) as mttr_hours,
-            (select active_entries::int from weekly_time) as clocked_in_now,
-            (select round(total_hours::numeric, 2) from weekly_time) as total_hours_this_week,
-            (select round(overtime_hours::numeric, 2) from weekly_time) as overtime_hours_this_week,
-            (select pending_approvals::int from weekly_time) as pending_approvals,
-            (select count(*)::int from scoped_inventory) as total_skus,
-            (select count(*)::int from scoped_inventory where coalesce(quantity_on_hand, 0) <= 2) as low_stock_items,
-            (select count(*)::int from scoped_inventory where coalesce(quantity_on_hand, 0) <= 0) as out_of_stock_items,
-            (select round(coalesce(sum(coalesce(quantity_on_hand, 0) * coalesce(unit_cost, 0)), 0)::numeric, 2) from scoped_inventory) as inventory_value,
-            (select count(*)::int from scoped_employees) as total_employees,
-            (select count(*)::int from scoped_courses) as active_courses,
-            (select count(*)::int from scoped_equipment where status in ('Needs service', 'Overdue')) as equipment_needing_attention
+            count(*) filter (where wo.status != 'completed') as open_work_orders,
+            count(*) filter (where wo.status != 'completed' and wo.due_date < current_date) as overdue_work_orders,
+            count(*) filter (where wo.status = 'completed' and wo.completed_at >= date_trunc('week', now())) as completed_this_week,
+            coalesce(avg(extract(epoch from (wo.completed_at - wo.created_at)) / 3600.0) filter (where wo.status = 'completed' and wo.completed_at >= date_trunc('week', now() - interval '4 weeks')), 0) as mttr_hours,
+            (select active_entries from weekly_time) as clocked_in_now,
+            (select total_hours from weekly_time) as total_hours_this_week,
+            (select overtime_hours from weekly_time) as overtime_hours_this_week,
+            (select pending_approvals from weekly_time) as pending_approvals,
+            (select count(*) from scoped_inventory) as total_skus,
+            (select count(*) from scoped_inventory where quantity_on_hand <= min_quantity_threshold) as low_stock_items,
+            (select count(*) from scoped_inventory where quantity_on_hand = 0) as out_of_stock_items,
+            (select coalesce(sum(unit_cost * quantity_on_hand), 0) from scoped_inventory) as inventory_value,
+            (select count(*) from scoped_employees) as total_employees,
+            (select count(*) from scoped_facilities) as active_facilities,
+            (select count(*) from scoped_equipment where needs_attention = true) as equipment_needing_attention
+          from scoped_work_orders wo
         `,
-        [courseIds]
+        [facilityIds]
       ),
       query(
         `
-          select c.id as course_id, c.name,
-                 count(wo.id) filter (where wo.status <> 'Completed')::int as open_work_orders,
-                 count(wo.id) filter (where wo.status = 'Completed' and wo.completed_at >= date_trunc('week', now()))::int as completed_this_week
-          from courses c
-          join unnest($1::uuid[]) with ordinality as scoped(course_id, ord) on scoped.course_id = c.id
-          left join work_orders wo on wo.course_id = c.id
-          group by c.id, c.name, scoped.ord
-          order by scoped.ord asc
+          select
+            wo.facility_id,
+            f.name,
+            count(wo.id) filter (where wo.status != 'completed') as open_work_orders,
+            count(wo.id) filter (where wo.status = 'completed' and wo.completed_at >= date_trunc('week', now())) as completed_this_week
+          from work_orders wo
+          join facilities f on f.id = wo.facility_id
+          where wo.facility_id = any($1::uuid[])
+          group by wo.facility_id, f.name
+          order by f.name asc
         `,
-        [courseIds]
+        [facilityIds]
       ),
       query(
         `
-          select c.id as course_id, c.name,
-                 round(coalesce(sum(extract(epoch from (coalesce(te.clock_out_at, now()) - te.clock_in_at)) / 3600.0), 0)::numeric, 2) as total_hours
-          from courses c
-          join unnest($1::uuid[]) with ordinality as scoped(course_id, ord) on scoped.course_id = c.id
-          left join employee_time_entries te on te.course_id = c.id and te.clock_in_at >= date_trunc('week', now())
-          group by c.id, c.name, scoped.ord
-          order by scoped.ord asc
+          select
+            te.facility_id,
+            f.name,
+            coalesce(sum(extract(epoch from (coalesce(te.clock_out_at, now()) - te.clock_in_at)) / 3600.0), 0) as total_hours,
+            coalesce(sum(greatest((extract(epoch from (coalesce(te.clock_out_at, now()) - te.clock_in_at)) / 3600.0) - 8, 0)), 0) as overtime_hours
+          from employee_time_entries te
+          join facilities f on f.id = te.facility_id
+          where te.facility_id = any($1::uuid[])
+            and te.clock_in_at >= date_trunc('week', now())
+          group by te.facility_id, f.name
+          order by f.name asc
         `,
-        [courseIds]
+        [facilityIds]
       ),
       query(
         `
-          select c.id as course_id, c.name,
-                 count(pi.id) filter (where coalesce(pi.quantity_on_hand, 0) <= 2)::int as low_stock_items
-          from courses c
-          join unnest($1::uuid[]) with ordinality as scoped(course_id, ord) on scoped.course_id = c.id
-          left join parts_inventory pi on pi.course_id = c.id
-          group by c.id, c.name, scoped.ord
-          order by scoped.ord asc
+          select
+            pi.facility_id,
+            f.name,
+            count(*) as low_stock_items
+          from parts_inventory pi
+          join facilities f on f.id = pi.facility_id
+          where pi.facility_id = any($1::uuid[])
+            and pi.quantity_on_hand <= pi.min_quantity_threshold
+          group by pi.facility_id, f.name
+          order by f.name asc
         `,
-        [courseIds]
+        [facilityIds]
       )
     ]);
 
-    const summary = summaryResult.rows[0] || {};
+    const summaryRow = summaryResult.rows[0] || {};
 
     return res.json({
       summary: {
-        openWorkOrders: Number(summary.open_work_orders || 0),
-        overdueWorkOrders: Number(summary.overdue_work_orders || 0),
-        completedThisWeek: Number(summary.completed_this_week || 0),
-        mttrHours: Number(summary.mttr_hours || 0),
-        clockedInNow: Number(summary.clocked_in_now || 0),
-        totalHoursThisWeek: Number(summary.total_hours_this_week || 0),
-        overtimeHoursThisWeek: Number(summary.overtime_hours_this_week || 0),
-        pendingApprovals: Number(summary.pending_approvals || 0),
-        totalSkus: Number(summary.total_skus || 0),
-        lowStockItems: Number(summary.low_stock_items || 0),
-        outOfStockItems: Number(summary.out_of_stock_items || 0),
-        inventoryValue: Number(summary.inventory_value || 0),
-        totalEmployees: Number(summary.total_employees || 0),
-        activeCourses: Number(summary.active_courses || 0),
-        equipmentNeedingAttention: Number(summary.equipment_needing_attention || 0)
+        openWorkOrders: Number(summaryRow.open_work_orders || 0),
+        overdueWorkOrders: Number(summaryRow.overdue_work_orders || 0),
+        completedThisWeek: Number(summaryRow.completed_this_week || 0),
+        mttrHours: Number(summaryRow.mttr_hours || 0),
+        clockedInNow: Number(summaryRow.clocked_in_now || 0),
+        totalHoursThisWeek: Number(summaryRow.total_hours_this_week || 0),
+        overtimeHoursThisWeek: Number(summaryRow.overtime_hours_this_week || 0),
+        pendingApprovals: Number(summaryRow.pending_approvals || 0),
+        totalSkus: Number(summaryRow.total_skus || 0),
+        lowStockItems: Number(summaryRow.low_stock_items || 0),
+        outOfStockItems: Number(summaryRow.out_of_stock_items || 0),
+        inventoryValue: Number(summaryRow.inventory_value || 0),
+        totalEmployees: Number(summaryRow.total_employees || 0),
+        activeFacilities: Number(summaryRow.active_facilities || 0),
+        equipmentNeedingAttention: Number(summaryRow.equipment_needing_attention || 0)
       },
       rollups: {
-        workOrdersByCourse: workOrdersByCourseResult.rows,
-        hoursByCourse: hoursByCourseResult.rows,
-        lowStockByCourse: lowStockByCourseResult.rows
+        workOrdersByFacility: workOrdersByFacilityResult.rows,
+        hoursByFacility: hoursByFacilityResult.rows,
+        lowStockByFacility: lowStockByFacilityResult.rows
       }
     });
   } catch (error) {
