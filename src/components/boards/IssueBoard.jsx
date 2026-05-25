@@ -112,7 +112,7 @@ function BoardColumn({ status, tickets, workOrders, canWrite, onMoveTicket, onOp
       onDrop={(event) => {
         event.preventDefault();
         const ticketId = event.dataTransfer.getData("text/plain");
-        const ticket = workOrders.find((item) => item.id === ticketId);
+        const ticket = workOrders.find((item) => String(item.id) === String(ticketId));
         if (ticket) onMoveTicket(ticket, status);
       }}
     >
