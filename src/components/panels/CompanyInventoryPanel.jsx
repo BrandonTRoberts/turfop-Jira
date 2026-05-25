@@ -4,11 +4,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api } from "@/services/api";
 
 export default function CompanyInventoryPanel({ facility }) {
   const [search, setSearch] = useState("");
+  const [selectedFacilityId, setSelectedFacilityId] = useState("all");
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -28,19 +30,47 @@ export default function CompanyInventoryPanel({ facility }) {
     load();
   }, [facility?.facility_id, facility?.course_id]);
 
+  const facilityOptions = useMemo(() => {
+    const map = new Map();
+    for (const item of inventory) {
+      if (!item.facility_id) continue;
+      if (!map.has(item.facility_id)) {
+        map.set(item.facility_id, item.facility_name || "Unknown Facility");
+      }
+    }
+
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [inventory]);
+
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return inventory;
     
-    return inventory.filter(
-      (item) =>
+    return inventory.filter((item) => {
+      if (selectedFacilityId !== "all" && item.facility_id !== selectedFacilityId) {
+        return false;
+      }
+
+      if (!query) return true;
+
+      return (
         (item.sku && item.sku.toLowerCase().includes(query)) ||
         (item.part_description && item.part_description.toLowerCase().includes(query)) ||
         (item.facility_name && item.facility_name.toLowerCase().includes(query))
-    );
-  }, [inventory, search]);
+      );
+    });
+  }, [inventory, search, selectedFacilityId]);
 
   const outOfStockCount = useMemo(() => filtered.filter((i) => Number(i.quantity_on_hand) <= 0).length, [filtered]);
+
+  useEffect(() => {
+    if (selectedFacilityId === "all") return;
+    const exists = facilityOptions.some((option) => option.id === selectedFacilityId);
+    if (!exists) {
+      setSelectedFacilityId("all");
+    }
+  }, [facilityOptions, selectedFacilityId]);
 
   if (loading) {
     return (
@@ -68,7 +98,18 @@ export default function CompanyInventoryPanel({ facility }) {
       <Card className="flex-1 overflow-hidden flex flex-col">
         <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/20 pb-4 pt-4">
           <CardTitle className="text-lg font-medium">Shared Database</CardTitle>
-          <div className="flex w-full max-w-sm items-center space-x-2">
+          <div className="flex w-full max-w-3xl items-center space-x-2">
+            <Select value={selectedFacilityId} onValueChange={setSelectedFacilityId}>
+              <SelectTrigger className="w-[240px]">
+                <SelectValue placeholder="Filter by facility" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All facilities</SelectItem>
+                {facilityOptions.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>{option.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <div className="relative w-full">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
