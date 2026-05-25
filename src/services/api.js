@@ -39,6 +39,19 @@ async function request(path, { method = "GET", body, token = getStoredToken() } 
   return payload;
 }
 
+function asFacilityId(value) {
+  return value || "";
+}
+
+function withFacilityId(payload = {}) {
+  const facilityId = payload.facilityId || payload.courseId || payload.course_id || null;
+  const { courseId, course_id, ...rest } = payload;
+  return {
+    ...rest,
+    facilityId,
+  };
+}
+
 export const api = {
   async login({ email, password }) {
     const payload = await request("/auth/login", { method: "POST", body: { email, password }, token: null });
@@ -103,7 +116,8 @@ export const api = {
   },
 
   async dashboardOverview(courseId) {
-    const queryString = courseId ? `?courseId=${encodeURIComponent(courseId)}` : "";
+    const facilityId = asFacilityId(courseId);
+    const queryString = facilityId ? `?facilityId=${encodeURIComponent(facilityId)}` : "";
     return request(`/dashboard/overview${queryString}`);
   },
 
@@ -112,11 +126,12 @@ export const api = {
   },
 
   async createCourse(payload) {
-    return request("/courses", { method: "POST", body: payload });
+    return request("/facilities", { method: "POST", body: payload });
   },
 
   async equipment(courseId) {
-    return request(`/equipment?courseId=${encodeURIComponent(courseId)}`);
+    const facilityId = asFacilityId(courseId);
+    return request(`/equipment?facilityId=${encodeURIComponent(facilityId)}`);
   },
 
   async createEquipment(payload) {
@@ -128,7 +143,12 @@ export const api = {
   },
 
   async inventory(courseId) {
-    return request(`/parts-inventory?courseId=${encodeURIComponent(courseId)}`);
+    const facilityId = asFacilityId(courseId);
+    return request(`/parts-inventory?facilityId=${encodeURIComponent(facilityId)}`);
+  },
+
+  async companyInventory() {
+    return request("/parts-inventory/company");
   },
 
   async createInventoryItem(payload) {
@@ -144,11 +164,13 @@ export const api = {
   },
 
   async courseDirectory(courseId) {
-    return request(`/employees/directory?courseId=${encodeURIComponent(courseId)}`);
+    const facilityId = asFacilityId(courseId);
+    return request(`/employees/directory?facilityId=${encodeURIComponent(facilityId)}`);
   },
 
   async employeeDetails(employeeId, courseId) {
-    return request(`/employees/${encodeURIComponent(employeeId)}?courseId=${encodeURIComponent(courseId)}`);
+    const facilityId = asFacilityId(courseId);
+    return request(`/employees/${encodeURIComponent(employeeId)}?facilityId=${encodeURIComponent(facilityId)}`);
   },
 
   async updateEmployee(employeeId, payload) {
@@ -156,11 +178,12 @@ export const api = {
   },
 
   async workOrders(courseId) {
-    return request(`/work-orders?courseId=${encodeURIComponent(courseId)}`);
+    const facilityId = asFacilityId(courseId);
+    return request(`/work-orders?facilityId=${encodeURIComponent(facilityId)}`);
   },
 
   async createWorkOrder(payload) {
-    return request("/work-orders", { method: "POST", body: payload });
+    return request("/work-orders", { method: "POST", body: withFacilityId(payload) });
   },
 
   async updateWorkOrder(workOrderId, payload) {
@@ -172,44 +195,49 @@ export const api = {
   },
 
   async timeEntries(courseId, scope = "mine") {
-    return request(`/time-entries?courseId=${encodeURIComponent(courseId)}&scope=${encodeURIComponent(scope)}&limit=20`);
+    const facilityId = asFacilityId(courseId);
+    return request(`/time-entries?facilityId=${encodeURIComponent(facilityId)}&scope=${encodeURIComponent(scope)}&limit=20`);
   },
 
   async timeSummary(courseId) {
-    return request(`/time-entries/summary?courseId=${encodeURIComponent(courseId)}&scope=course`);
+    const facilityId = asFacilityId(courseId);
+    return request(`/time-entries/summary?facilityId=${encodeURIComponent(facilityId)}&scope=course`);
   },
 
   async clockIn(payload) {
-    return request("/time-entries/clock-in", { method: "POST", body: payload });
+    return request("/time-entries/clock-in", { method: "POST", body: withFacilityId(payload) });
   },
 
   async clockOut(payload) {
-    return request("/time-entries/clock-out", { method: "POST", body: payload });
+    return request("/time-entries/clock-out", { method: "POST", body: withFacilityId(payload) });
   },
 
   async companyDirectory(courseId) {
-    return request(`/employees/company-directory?courseId=${encodeURIComponent(courseId)}`);
+    const facilityId = asFacilityId(courseId);
+    return request(`/employees/company-directory?facilityId=${encodeURIComponent(facilityId)}`);
   },
 
   async inviteEmployee(payload) {
-    return request("/employees", { method: "POST", body: payload });
+    return request("/employees", { method: "POST", body: withFacilityId(payload) });
   },
 
   async resendInvite(employeeId, courseId) {
+    const facilityId = asFacilityId(courseId);
     return request(`/employees/${encodeURIComponent(employeeId)}/resend-invite`, {
       method: "POST",
-      body: { courseId },
+      body: { facilityId },
     });
   },
 
   async sendResetPassword(employeeId, courseId) {
+    const facilityId = asFacilityId(courseId);
     return request(`/employees/${encodeURIComponent(employeeId)}/send-reset-password`, {
       method: "POST",
-      body: { courseId },
+      body: { facilityId },
     });
   },
 
   async upsertMembership(payload) {
-    return request("/employees/memberships", { method: "POST", body: payload });
+    return request("/employees/memberships", { method: "POST", body: withFacilityId(payload) });
   },
 };

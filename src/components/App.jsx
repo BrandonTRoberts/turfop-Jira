@@ -148,6 +148,7 @@ export default function App() {
     { id: "time", label: "Time Tracking", icon: Clock },
     { id: "equipment", label: "Equipment", icon: Wrench },
     { id: "inventory", label: "Inventory", icon: Package },
+    ...(isAccountAdmin ? [{ id: "company-inventory", label: "Company Inventory", icon: Package }] : []),
     ...(isAccountAdmin ? [{ id: "admin", label: "Admin", icon: ShieldCheck }] : []),
   ];
 

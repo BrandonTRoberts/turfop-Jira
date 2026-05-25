@@ -5,6 +5,7 @@ import UsersPanel from "./panels/UsersPanel";
 import TimeTracker from "./panels/TimeTracker";
 import EquipmentPanel from "./panels/EquipmentPanel";
 import InventoryPanel from "./panels/InventoryPanel";
+import CompanyInventoryPanel from "./panels/CompanyInventoryPanel";
 import ProfilePanel from "./panels/ProfilePanel";
 import AdminPanel from "./panels/AdminPanel";
 import { api } from "@/services/api";
@@ -220,6 +221,9 @@ export default function AppMainContent({
           onDelete={deleteInventoryItem}
         />
       );
+
+    case "company-inventory":
+      return <CompanyInventoryPanel facility={selectedCourse} />;
 
     case "profile":
       return (

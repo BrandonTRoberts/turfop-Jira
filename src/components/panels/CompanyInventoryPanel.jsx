@@ -17,7 +17,7 @@ export default function CompanyInventoryPanel({ facility }) {
     async function load() {
       try {
         setLoading(true);
-        const data = await api.get('/parts-inventory/company');
+        const data = await api.companyInventory();
         setInventory(data);
       } catch (err) {
         setError(err.message || "Failed to load company inventory.");
