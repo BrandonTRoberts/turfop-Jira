@@ -56,7 +56,7 @@ describe('PublicSite authentication flows', () => {
         expect.stringMatching(/\/auth\/invitations\/request-reset$/),
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ email: 'crew@example.com', courseId: null }),
+          body: JSON.stringify({ email: 'crew@example.com', facilityId: null }),
         }),
       );
     });

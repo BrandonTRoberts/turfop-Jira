@@ -478,7 +478,7 @@ function SignInPage() {
     setLoading(true);
 
     try {
-      await api.requestPasswordReset({ email, courseId });
+      await api.requestPasswordReset({ email, facilityId: courseId });
       setSuccess('Check your email for a password reset link. If the account exists, the reset instructions are on the way.');
     } catch (err) {
       setError(err.message || 'Could not request a password reset right now.');

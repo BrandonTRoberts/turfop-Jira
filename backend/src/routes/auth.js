@@ -38,26 +38,26 @@ const INVITE_TTL_HOURS = 72;
 const GENERIC_RESET_MESSAGE = 'If an account exists for that email, reset instructions have been prepared.';
 const router = Router();
 
-function buildPreviewPayload(token, courseId) {
+function buildPreviewPayload(token, facilityId) {
   if (!shouldAllowManualTokenPreview()) {
     return {};
   }
 
   return {
     inviteToken: token,
-    inviteUrl: buildMagicLinkUrl(token, courseId),
+    inviteUrl: buildMagicLinkUrl(token, facilityId),
     expiresInHours: INVITE_TTL_HOURS
   };
 }
 
-function buildResetResponse({ delivered, token, courseId, mode }) {
+function buildResetResponse({ delivered, token, facilityId, mode }) {
   return {
     ok: true,
     message: delivered
       ? 'If an account exists for that email, a reset email has been sent.'
       : GENERIC_RESET_MESSAGE,
     deliveryMode: mode,
-    ...buildPreviewPayload(token, courseId)
+    ...buildPreviewPayload(token, facilityId)
   };
 }
 
@@ -375,7 +375,7 @@ router.post('/invitations/accept', inviteAcceptLimiter, async (req, res) => {
 });
 
 router.post('/invitations/request-reset', passwordResetRequestLimiter, async (req, res) => {
-  const { email, courseId } = req.body;
+  const { email, facilityId } = req.body;
 
   try {
     const validationError = validatePasswordResetRequestInput({ email });
@@ -404,14 +404,14 @@ router.post('/invitations/request-reset', passwordResetRequestLimiter, async (re
 
     const membershipResult = await query(
       `
-        select course_id
-        from course_memberships
+        select facility_id
+        from facility_memberships
         where employee_id = $1
-          and ($2::uuid is null or course_id = $2::uuid)
+          and ($2::uuid is null or facility_id = $2::uuid)
         order by created_at asc
         limit 1
       `,
-      [employee.id, courseId || null]
+      [employee.id, facilityId || null]
     );
 
     const membership = membershipResult.rows[0];
@@ -427,7 +427,7 @@ router.post('/invitations/request-reset', passwordResetRequestLimiter, async (re
         insert into invite_tokens (employee_id, course_id, token_hash, created_by_employee_id, expires_at)
         values ($1, $2, $3, null, now() + ($4 || ' hours')::interval)
       `,
-      [employee.id, membership.course_id, tokenHash, String(INVITE_TTL_HOURS)]
+      [employee.id, membership.facility_id, tokenHash, String(INVITE_TTL_HOURS)]
     );
 
     await query(
@@ -435,21 +435,21 @@ router.post('/invitations/request-reset', passwordResetRequestLimiter, async (re
         insert into audit_logs (actor_employee_id, action, course_id, target_employee_id, detail)
         values (null, $1, $2, $3, $4)
       `,
-      ['password.reset.request', membership.course_id, employee.id, { email: employee.email }]
+      ['password.reset.request', membership.facility_id, employee.id, { email: employee.email }]
     );
 
     const delivery = await deliverMagicLinkEmail({
       to: employee.email,
       fullName: employee.full_name,
       token: inviteToken,
-      courseId: membership.course_id,
+      facilityId: membership.facility_id,
       purpose: 'reset'
     });
 
     return res.json(buildResetResponse({
       delivered: delivery.delivered,
       token: inviteToken,
-      courseId: membership.course_id,
+      facilityId: membership.facility_id,
       mode: delivery.mode
     }));
   } catch (error) {

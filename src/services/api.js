@@ -67,10 +67,10 @@ export const api = {
     });
   },
 
-  async requestPasswordReset({ email, courseId }) {
+  async requestPasswordReset({ email, facilityId }) {
     return request("/auth/invitations/request-reset", {
       method: "POST",
-      body: { email, courseId: courseId || null },
+      body: { email, facilityId: facilityId || null },
       token: null,
     });
   },
@@ -170,9 +170,9 @@ export const api = {
     return request(`/employees/directory?facilityId=${encodeURIComponent(facilityId)}`);
   },
 
-  async employeeDetails(employeeId, courseId) {
-    const facilityId = asFacilityId(courseId);
-    return request(`/employees/${encodeURIComponent(employeeId)}?facilityId=${encodeURIComponent(facilityId)}`);
+  async employeeDetails(employeeId, facilityId) {
+    const scopedFacilityId = asFacilityId(facilityId);
+    return request(`/employees/${encodeURIComponent(employeeId)}?facilityId=${encodeURIComponent(scopedFacilityId)}`);
   },
 
   async updateEmployee(employeeId, payload) {
@@ -223,19 +223,19 @@ export const api = {
     return request("/employees", { method: "POST", body: withFacilityId(payload) });
   },
 
-  async resendInvite(employeeId, courseId) {
-    const facilityId = asFacilityId(courseId);
+  async resendInvite(employeeId, facilityId) {
+    const scopedFacilityId = asFacilityId(facilityId);
     return request(`/employees/${encodeURIComponent(employeeId)}/resend-invite`, {
       method: "POST",
-      body: { facilityId },
+      body: { facilityId: scopedFacilityId },
     });
   },
 
-  async sendResetPassword(employeeId, courseId) {
-    const facilityId = asFacilityId(courseId);
+  async sendResetPassword(employeeId, facilityId) {
+    const scopedFacilityId = asFacilityId(facilityId);
     return request(`/employees/${encodeURIComponent(employeeId)}/send-reset-password`, {
       method: "POST",
-      body: { facilityId },
+      body: { facilityId: scopedFacilityId },
     });
   },
 

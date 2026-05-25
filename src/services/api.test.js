@@ -13,7 +13,7 @@ describe('api dashboard requests', () => {
     await expect(api.dashboardOverview('course-123')).resolves.toEqual(payload);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringMatching(/\/dashboard\/overview\?courseId=course-123$/),
+      expect.stringMatching(/\/dashboard\/overview\?facilityId=course-123$/),
       expect.objectContaining({ method: 'GET' }),
     );
   });

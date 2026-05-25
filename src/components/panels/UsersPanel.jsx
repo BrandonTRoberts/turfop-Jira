@@ -80,7 +80,7 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
     setLoadingDetail(true);
     try {
       const details = await onLoadDetails(user.id);
-      const currentMembership = details.memberships?.find((membership) => membership.facility_id === user.courseId) || details.memberships?.[0];
+      const currentMembership = details.memberships?.find((membership) => membership.facility_id === (user.facilityId || user.courseId)) || details.memberships?.[0];
       const merged = {
         ...user,
         ...details,
@@ -177,7 +177,7 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
             </Button>
             <h2 className="text-3xl font-semibold">{selectedUser.name}</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Edit profile, contact details, and course role for {business.name}.
+              Edit profile, contact details, and facility role for {business.name}.
             </p>
           </div>
           <Badge variant={selectedUser.status === "Active" ? "default" : "outline"}>{selectedUser.status}</Badge>
@@ -313,7 +313,7 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
       <div>
         <h2 className="text-3xl font-semibold">Team Members</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Team access for {business.name}. Membership and roles are course-specific.
+          Team access for {business.name}. Membership and roles are facility-specific.
         </p>
       </div>
 

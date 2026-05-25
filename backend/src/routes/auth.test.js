@@ -197,8 +197,8 @@ test('password reset request creates reset token for known employee', async () =
         return { rows: [{ id: 'employee-1', email: 'test@example.com', full_name: 'Test User' }] };
       }
 
-      if (text.includes('from course_memberships') && text.includes('where employee_id = $1')) {
-        return { rows: [{ course_id: '6689c65a-7736-46af-b7f0-50008020be06' }] };
+      if (text.includes('from facility_memberships') && text.includes('where employee_id = $1')) {
+        return { rows: [{ facility_id: '6689c65a-7736-46af-b7f0-50008020be06' }] };
       }
 
       if (text.includes('insert into invite_tokens')) {
@@ -231,8 +231,8 @@ test('test environment allows manual preview for reset flows', async () => {
         return { rows: [{ id: 'employee-1', email: 'test@example.com', full_name: 'Test User' }] };
       }
 
-      if (text.includes('from course_memberships') && text.includes('where employee_id = $1')) {
-        return { rows: [{ course_id: '6689c65a-7736-46af-b7f0-50008020be06' }] };
+      if (text.includes('from facility_memberships') && text.includes('where employee_id = $1')) {
+        return { rows: [{ facility_id: '6689c65a-7736-46af-b7f0-50008020be06' }] };
       }
 
       if (text.includes('insert into invite_tokens') || text.includes('insert into audit_logs')) {

@@ -219,11 +219,11 @@ export default function App() {
   async function updateEmployee(employeeId, payload) {
     const updated = await api.updateEmployee(employeeId, {
       ...payload,
-      courseId: selectedCourse.course_id,
+      facilityId: selectedCourse.course_id,
     });
 
     if (payload.role) {
-      await api.upsertMembership({ employeeId, courseId: selectedCourse.course_id, role: payload.role });
+      await api.upsertMembership({ employeeId, facilityId: selectedCourse.course_id, role: payload.role });
     }
 
     setUsers((current) => current.map((user) => (

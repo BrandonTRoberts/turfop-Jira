@@ -148,7 +148,7 @@ export default function AppMainContent({
               onUpdate={updateEmployee}
               onInvite={async (invite) => {
                 await api.inviteEmployee({
-                  courseId: selectedCourse.course_id,
+                  facilityId: selectedCourse.course_id,
                   email: invite.email,
                   fullName: invite.fullName,
                   role: invite.role,
@@ -159,7 +159,7 @@ export default function AppMainContent({
                 setUsers(mapDirectoryRows(rows));
               }}
               onRoleChange={async (employeeId, role) => {
-                await api.upsertMembership({ employeeId, courseId: selectedCourse.course_id, role });
+                await api.upsertMembership({ employeeId, facilityId: selectedCourse.course_id, role });
                 setUsers((current) =>
                   current.map((user) => (user.id === employeeId ? { ...user, role } : user))
                 );
