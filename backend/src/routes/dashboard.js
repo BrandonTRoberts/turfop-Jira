@@ -132,7 +132,7 @@ router.get('/overview', requireAuth, async (req, res) => {
             (select coalesce(sum(unit_cost * quantity_on_hand), 0) from scoped_inventory) as inventory_value,
             (select count(*) from scoped_employees) as total_employees,
             (select count(*) from scoped_facilities) as active_facilities,
-            (select count(*) from scoped_equipment where needs_attention = true) as equipment_needing_attention
+            (select count(*) from scoped_equipment where lower(coalesce(status, '')) in ('needs repair', 'out of service')) as equipment_needing_attention
           from scoped_work_orders wo
         `,
         [facilityIds]
