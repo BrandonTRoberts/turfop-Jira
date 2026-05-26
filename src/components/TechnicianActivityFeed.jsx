@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Clock, UserCircle2, Activity } from "lucide-react";
 
 export default function TechnicianActivityFeed({ 
-  course = { name: "Current Course" }, 
+  course = { name: "Current Facility" }, 
   users = [], 
   workOrders = [], 
   onRefresh = () => window.location.reload() 
@@ -54,7 +54,7 @@ export default function TechnicianActivityFeed({
           Live Technician Activity
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Real-time view of field team • {technicians.length} technicians on {course?.name || "course"}
+          Real-time view of field team • {technicians.length} technicians on {course?.name || "facility"}
         </p>
       </CardHeader>
       <CardContent>
@@ -95,7 +95,7 @@ export default function TechnicianActivityFeed({
 
           {technicians.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
-              No field technicians found for this course yet.
+              No field technicians found for this facility yet.
             </div>
           )}
         </div>

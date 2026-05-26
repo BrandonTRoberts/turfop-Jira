@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import AppMainContent from "./AppMainContent";
 import AppSidebar from "./AppSidebar";
 import { api } from "@/services/api";
-import { canUseAccountAdmin, useCourseData } from "@/hooks/useCourseData";
+import { canUseAccountAdmin, useFacilityData } from "@/hooks/useCourseData";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useSessionBootstrap } from "@/hooks/useSessionBootstrap";
 import { useTimeEntries } from "@/hooks/useTimeEntries";
@@ -13,8 +13,22 @@ import { Input } from "@/components/ui/input";
 import { BarChart3, Clock, LayoutGrid, Loader2, LogOut, Menu, Package, ShieldCheck, Users, Wrench } from "lucide-react";
 import { readFilesAsDataUrls } from "@/lib/files";
 
-function canWriteCourse(course) {
-  return course?.role === "admin" || course?.role === "read_write";
+function canWriteFacility(facility) {
+  return facility?.role === "admin" || facility?.role === "read_write";
+}
+
+function selectedFacilityId(selectedFacility, payload = {}) {
+  return (
+    selectedFacility?.facility_id
+    || selectedFacility?.course_id
+    || selectedFacility?.id
+    || payload?.facilityId
+    || payload?.facility_id
+    || payload?.courseId
+    || payload?.course_id
+    || payload?.id
+    || null
+  );
 }
 
 function LoginScreen({ onLogin }) {
@@ -43,7 +57,7 @@ function LoginScreen({ onLogin }) {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl">Sign in to TurfOp</CardTitle>
-          <p className="text-sm text-muted-foreground">Use a TurfOp employee account to load only the companies and courses you can access.</p>
+          <p className="text-sm text-muted-foreground">Use a TurfOp employee account to load only the companies and facilities you can access.</p>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={handleSubmit}>
@@ -74,17 +88,17 @@ export default function App() {
   const {
     courses,
     companies,
-    selectedCourse,
-    setSelectedCourseId,
-    loadingCourses,
+    selectedFacility,
+    setSelectedFacilityId,
+    loadingFacilities,
     loadingCompanies,
-    courseError,
+    facilityError,
     companiesError,
     setCompanies,
-    loadCourses,
+    loadFacilities,
     loadCompanies,
     resetCourseData,
-  } = useCourseData({
+  } = useFacilityData({
     currentView,
     onAdminViewRevoked: useCallback(() => setCurrentView("dashboard"), []),
   });
@@ -109,7 +123,7 @@ export default function App() {
     setUsers,
     setWorkOrders,
     resetDashboardData,
-  } = useDashboardData(selectedCourse);
+  } = useDashboardData(selectedFacility);
 
   const {
     timeEntries,
@@ -118,10 +132,10 @@ export default function App() {
     timeError,
     reloadTimeEntries,
     resetTimeEntries,
-  } = useTimeEntries(selectedCourse);
+  } = useTimeEntries(selectedFacility);
 
   const { session, setSession, booting, handleLogin, handleLogout } = useSessionBootstrap({
-    loadCourses,
+    loadFacilities,
     resetCourseData,
     resetDashboardData,
     resetTimeEntries,
@@ -158,9 +172,9 @@ export default function App() {
     return created;
   }
 
-  async function createCourse(payload) {
-    const created = await api.createCourse(payload);
-    await loadCourses();
+  async function createFacility(payload) {
+    const created = await api.createFacility(payload);
+    await loadFacilities();
     return created;
   }
 
@@ -182,23 +196,39 @@ export default function App() {
   }
 
   async function createEquipment(payload) {
-    const created = await api.createEquipment(payload);
+    const scopedPayload = {
+      ...payload,
+      facilityId: selectedFacilityId(selectedFacility, payload),
+    };
+    const created = await api.createEquipment(scopedPayload);
     setEquipment((current) => [created, ...current]);
   }
 
   async function updateEquipment(equipmentId, payload) {
-    const updated = await api.updateEquipment(equipmentId, payload);
+    const scopedPayload = {
+      ...payload,
+      facilityId: selectedFacilityId(selectedFacility, payload),
+    };
+    const updated = await api.updateEquipment(equipmentId, scopedPayload);
     setEquipment((current) => current.map((item) => (item.id === equipmentId ? updated : item)));
     return updated;
   }
 
   async function createInventoryItem(payload) {
-    const created = await api.createInventoryItem(payload);
+    const scopedPayload = {
+      ...payload,
+      facilityId: selectedFacilityId(selectedFacility, payload),
+    };
+    const created = await api.createInventoryItem(scopedPayload);
     setInventory((current) => [...current, created].sort((a, b) => a.sku.localeCompare(b.sku)));
   }
 
   async function updateInventoryItem(partId, payload) {
-    const updated = await api.updateInventoryItem(partId, payload);
+    const scopedPayload = {
+      ...payload,
+      facilityId: selectedFacilityId(selectedFacility, payload),
+    };
+    const updated = await api.updateInventoryItem(partId, scopedPayload);
     setInventory((current) =>
       current
         .map((item) => (item.id === partId ? updated : item))
@@ -208,22 +238,28 @@ export default function App() {
   }
 
   async function deleteInventoryItem(partId, payload) {
-    await api.deleteInventoryItem(partId, payload);
+    const scopedPayload = {
+      ...payload,
+      facilityId: selectedFacilityId(selectedFacility, payload),
+    };
+    await api.deleteInventoryItem(partId, scopedPayload);
     setInventory((current) => current.filter((item) => item.id !== partId));
   }
 
+  const activeFacilityId = selectedFacilityId(selectedFacility);
+
   async function loadEmployeeDetails(employeeId) {
-    return api.employeeDetails(employeeId, selectedCourse.course_id);
+    return api.employeeDetails(employeeId, activeFacilityId);
   }
 
   async function updateEmployee(employeeId, payload) {
     const updated = await api.updateEmployee(employeeId, {
       ...payload,
-      facilityId: selectedCourse.course_id,
+      facilityId: activeFacilityId,
     });
 
     if (payload.role) {
-      await api.upsertMembership({ employeeId, facilityId: selectedCourse.course_id, role: payload.role });
+      await api.upsertMembership({ employeeId, facilityId: activeFacilityId, role: payload.role });
     }
 
     setUsers((current) => current.map((user) => (
@@ -260,7 +296,7 @@ export default function App() {
   }
 
   const employee = session.employee;
-  const writable = canWriteCourse(selectedCourse);
+  const writable = canWriteFacility(selectedFacility);
 
   function selectView(viewId) {
     setCurrentView(viewId);
@@ -270,11 +306,11 @@ export default function App() {
   const renderView = () => (
     <AppMainContent
       currentView={currentView}
-      selectedCourse={selectedCourse}
+      selectedFacility={selectedFacility}
       isAccountAdmin={isAccountAdmin}
       employee={employee}
       writable={writable}
-      courses={courses}
+      facilities={courses}
       companies={companies}
       users={users}
       equipment={equipment}
@@ -283,14 +319,14 @@ export default function App() {
       dashboardOverview={dashboardOverview}
       timeEntries={timeEntries}
       timeSummary={timeSummary}
-      loadingCourses={loadingCourses}
+      loadingFacilities={loadingFacilities}
       loadingCompanies={loadingCompanies}
       loadingDashboard={loadingDashboard}
       loadingWorkOrders={loadingWorkOrders}
       loadingTime={loadingTime}
       loadingEquipment={loadingEquipment}
       loadingInventory={loadingInventory}
-      courseError={courseError}
+      facilityError={facilityError}
       companiesError={companiesError}
       dashboardError={dashboardError}
       workOrdersError={workOrdersError}
@@ -305,7 +341,7 @@ export default function App() {
       updateEmployee={updateEmployee}
       setEmployee={(updated) => setSession({ ...session, employee: updated })}
       createCompany={createCompany}
-      createCourse={createCourse}
+      createFacility={createFacility}
       createEquipment={createEquipment}
       updateEquipment={updateEquipment}
       createInventoryItem={createInventoryItem}
@@ -319,15 +355,15 @@ export default function App() {
     return (
       <AppSidebar
         employee={employee}
-        selectedCourse={selectedCourse}
-        courses={courses}
-        courseError={courseError}
+        selectedFacility={selectedFacility}
+        facilities={courses}
+        facilityError={facilityError}
         currentView={currentView}
         menuItems={menuItems}
         collapsed={sidebarCollapsed}
         isMobile={isMobile}
         onCloseMobileNav={() => setMobileNavOpen(false)}
-        onCourseChange={setSelectedCourseId}
+        onFacilityChange={setSelectedFacilityId}
         onLogout={handleLogout}
         onProfileImageChange={updateMyProfileImage}
         onSelectView={selectView}
@@ -344,7 +380,7 @@ export default function App() {
         </Button>
         <div className="min-w-0 px-3 text-center">
           <p className="truncate text-sm font-semibold">TurfOp</p>
-          <p className="truncate text-xs text-muted-foreground">{selectedCourse?.name || "Operations"}</p>
+          <p className="truncate text-xs text-muted-foreground">{selectedFacility?.name || "Operations"}</p>
         </div>
         <Button type="button" variant="ghost" size="icon" onClick={handleLogout} aria-label="Sign out">
           <LogOut className="h-4 w-4" />

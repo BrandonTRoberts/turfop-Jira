@@ -154,7 +154,7 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
 
     try {
       await onCreate({
-        courseId: course.course_id,
+        facilityId: course.facility_id || course.course_id,
         sku: form.sku,
         partDescription: form.partDescription,
         quantityOnHand: Number(form.quantityOnHand || 0),
@@ -180,7 +180,7 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
 
     try {
       await onUpdate(selectedItem.id, {
-        courseId: selectedItem.course_id,
+        facilityId: selectedItem.facility_id || selectedItem.course_id,
         sku: editForm.sku,
         partDescription: editForm.partDescription,
         quantityOnHand: Number(editForm.quantityOnHand || 0),
@@ -327,7 +327,7 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
         <div>
           <h2 className="text-3xl font-semibold">Parts Inventory</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Course-scoped inventory for {course.name}.
+            Facility-scoped inventory for {course.name}.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -436,7 +436,7 @@ export default function InventoryPanel({ course, inventory, loading, error, canW
           ) : error ? (
             <div className="p-10 text-center text-red-400">{error}</div>
           ) : filtered.length === 0 ? (
-            <div className="p-10 text-center text-muted-foreground">No inventory items found for this course.</div>
+            <div className="p-10 text-center text-muted-foreground">No inventory items found for this facility.</div>
           ) : (
             <div className="overflow-x-auto">
             <div className="divide-y divide-border md:hidden">

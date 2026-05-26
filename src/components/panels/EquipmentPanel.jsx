@@ -153,7 +153,7 @@ export default function EquipmentPanel({ course, equipment, loading, error, canW
     try {
       await onCreate({
         ...form,
-        courseId: course.course_id,
+        facilityId: course.facility_id || course.course_id,
         vin: "",
         description: "",
         detail: "",
@@ -178,7 +178,7 @@ export default function EquipmentPanel({ course, equipment, loading, error, canW
     try {
       await onUpdate(selectedItem.id, {
         ...editForm,
-        courseId: selectedItem.course_id,
+        facilityId: selectedItem.facility_id || selectedItem.course_id,
         images: editForm.images,
         attachments: editForm.attachments,
         expectedUpdatedAt: selectedItem.updated_at,
@@ -329,7 +329,7 @@ export default function EquipmentPanel({ course, equipment, loading, error, canW
         <div>
           <h2 className="text-3xl font-semibold">Equipment</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Course-scoped equipment for {course.name}. Records from other courses are never loaded into this view.
+            Facility-scoped equipment for {course.name}. Records from other facilities are never loaded into this view.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -441,7 +441,7 @@ export default function EquipmentPanel({ course, equipment, loading, error, canW
           ) : error ? (
             <div className="p-10 text-center text-red-400">{error}</div>
           ) : equipment.length === 0 ? (
-            <div className="p-10 text-center text-muted-foreground">No equipment has been added for this course.</div>
+            <div className="p-10 text-center text-muted-foreground">No equipment has been added for this facility.</div>
           ) : filteredEquipment.length === 0 ? (
             <div className="p-10 text-center text-muted-foreground">No equipment matches your search.</div>
           ) : (

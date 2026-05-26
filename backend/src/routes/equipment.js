@@ -5,11 +5,12 @@ import { canWrite, getRoleForFacility } from '../lib/permissions.js';
 import { persistAttachmentCollection, persistImageCollection } from '../lib/media.js';
 import { handleUnexpectedError } from '../lib/http.js';
 import { validateEquipmentInput } from '../lib/validation.js';
+import { resolveFacilityId } from '../lib/facilityScope.js';
 
 const router = Router();
 
 router.get('/', requireAuth, async (req, res) => {
-  const { facilityId } = req.query;
+  const facilityId = resolveFacilityId({ query: req.query, employee: req.employee });
 
   try {
     const role = await getRoleForFacility(req.employee, facilityId);
@@ -34,7 +35,8 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 router.post('/', requireAuth, async (req, res) => {
-  const { facilityId, name, make, model, assignedArea, vin, serialNumber, description, hours, detail, status, images = [], attachments = [] } = req.body;
+  const { name, make, model, assignedArea, vin, serialNumber, description, hours, detail, status, images = [], attachments = [] } = req.body;
+  const facilityId = resolveFacilityId({ body: req.body, employee: req.employee });
 
   try {
     const validationError = validateEquipmentInput({ facilityId, name, make, model, assignedArea, vin, serialNumber, description, hours, detail, status });
@@ -66,7 +68,8 @@ router.post('/', requireAuth, async (req, res) => {
 
 router.patch('/:equipmentId', requireAuth, async (req, res) => {
   const { equipmentId } = req.params;
-  const { facilityId, name, make, model, assignedArea, vin, serialNumber, description, hours, detail, status, images = [], attachments = [], expectedUpdatedAt } = req.body;
+  const { name, make, model, assignedArea, vin, serialNumber, description, hours, detail, status, images = [], attachments = [], expectedUpdatedAt } = req.body;
+  const facilityId = resolveFacilityId({ body: req.body, employee: req.employee });
 
   try {
     const validationError = validateEquipmentInput({ facilityId, name, make, model, assignedArea, vin, serialNumber, description, hours, detail, status });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,19 +21,15 @@ export default function ServiceTemplatesManager({ open, onOpenChange, facility }
   const [parts, setParts] = useState([]); // { inventoryId, quantity }
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (open && facility) {
-      fetchData();
-    }
-  }, [open, facility]);
+  const fetchData = useCallback(async () => {
+    if (!facility?.facility_id) return;
 
-  const fetchData = async () => {
     setLoading(true);
     setError("");
     try {
       const [tpls, inv] = await Promise.all([
-        api.get(`/service-templates?facilityId=${facility.facility_id}`),
-        api.get(`/parts-inventory?facilityId=${facility.facility_id}`)
+        api.serviceTemplates(facility.facility_id),
+        api.inventory(facility.facility_id),
       ]);
       setTemplates(tpls);
       setInventory(inv);
@@ -42,7 +38,13 @@ export default function ServiceTemplatesManager({ open, onOpenChange, facility }
     } finally {
       setLoading(false);
     }
-  };
+  }, [facility]);
+
+  useEffect(() => {
+    if (open && facility?.facility_id) {
+      fetchData();
+    }
+  }, [open, facility, fetchData]);
 
   const handleCreateTemplate = async (e) => {
     e.preventDefault();
@@ -51,11 +53,11 @@ export default function ServiceTemplatesManager({ open, onOpenChange, facility }
     setSaving(true);
     setError("");
     try {
-      const created = await api.post('/service-templates', {
+      const created = await api.createServiceTemplate({
         facilityId: facility.facility_id,
         name,
         description,
-        parts: parts.filter(p => p.inventoryId && p.quantity > 0)
+        parts: parts.filter((p) => p.inventoryId && p.quantity > 0),
       });
       setTemplates([...templates, created]);
       setView("list");
@@ -72,7 +74,7 @@ export default function ServiceTemplatesManager({ open, onOpenChange, facility }
   const handleDeleteTemplate = async (id) => {
     if (!confirm("Are you sure you want to delete this template?")) return;
     try {
-      await api.delete(`/service-templates/${id}?facilityId=${facility.facility_id}`);
+      await api.deleteServiceTemplate(id, facility.facility_id);
       setTemplates(templates.filter(t => t.id !== id));
     } catch (err) {
       alert("Failed to delete template: " + err.message);

@@ -7,21 +7,23 @@ import { LogOut, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 
 export default function AppSidebar({
   employee,
-  selectedCourse,
-  courses,
-  courseError,
+  selectedFacility,
+  facilities,
+  facilityError,
   currentView,
   menuItems,
   collapsed = false,
   isMobile = false,
   onCloseMobileNav,
-  onCourseChange,
+  onFacilityChange,
   onLogout,
   onProfileImageChange,
   onSelectView,
   onToggleCollapsed,
 }) {
   const effectiveCollapsed = isMobile ? false : collapsed;
+
+  const activeFacilityId = selectedFacility?.facility_id || selectedFacility?.course_id || "";
 
   return (
     <aside className={`flex h-full shrink-0 flex-col border-r border-border bg-card transition-[width] duration-200 ${effectiveCollapsed ? "w-20" : "w-72"} ${isMobile ? "w-80 max-w-[88vw]" : ""}`}>
@@ -76,22 +78,22 @@ export default function AppSidebar({
         {!effectiveCollapsed ? (
           <div className="mt-4 space-y-2">
             <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
-              Course Scope
-              {selectedCourse ? <Badge variant="outline">{selectedCourse.role}</Badge> : null}
+              Facility Scope
+              {selectedFacility ? <Badge variant="outline">{selectedFacility.role}</Badge> : null}
             </div>
-            <Select value={selectedCourse?.course_id || ""} onValueChange={onCourseChange} disabled={courses.length === 0}>
+            <Select value={activeFacilityId} onValueChange={onFacilityChange} disabled={facilities.length === 0}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select course" />
+                <SelectValue placeholder="Select facility" />
               </SelectTrigger>
               <SelectContent>
-                {courses.map((course) => (
-                  <SelectItem key={course.course_id} value={course.course_id}>
-                    {course.company_name ? `${course.company_name} / ${course.name}` : course.name}
+                {facilities.map((facility) => (
+                  <SelectItem key={facility.facility_id || facility.course_id} value={facility.facility_id || facility.course_id}>
+                    {facility.company_name ? `${facility.company_name} / ${facility.name}` : facility.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {courseError ? <p className="text-xs text-red-400">{courseError}</p> : null}
+            {facilityError ? <p className="text-xs text-red-400">{facilityError}</p> : null}
           </div>
         ) : null}
       </div>

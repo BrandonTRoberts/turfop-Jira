@@ -1,32 +1,35 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/services/api";
 
-export function useTimeEntries(selectedCourse) {
+export function useTimeEntries(selectedFacility) {
   const [timeEntries, setTimeEntries] = useState([]);
   const [timeSummary, setTimeSummary] = useState(null);
   const [loadingTime, setLoadingTime] = useState(false);
   const [timeError, setTimeError] = useState("");
 
   const reloadTimeEntries = useCallback(async () => {
-    if (!selectedCourse) return;
-    const timeScope = selectedCourse.role === "admin" ? "course" : "mine";
+    if (!selectedFacility) return;
+    const activeFacilityId = selectedFacility.facility_id || selectedFacility.course_id;
+    if (!activeFacilityId) return;
+    const timeScope = selectedFacility.role === "admin" ? "facility" : "mine";
     const [timePayload, summaryPayload] = await Promise.all([
-      api.timeEntries(selectedCourse.course_id, timeScope),
-      selectedCourse.role === "admin" ? api.timeSummary(selectedCourse.course_id).catch(() => null) : Promise.resolve(null),
+      api.timeEntries(activeFacilityId, timeScope),
+      selectedFacility.role === "admin" ? api.timeSummary(activeFacilityId).catch(() => null) : Promise.resolve(null),
     ]);
     setTimeEntries(timePayload.items || []);
     setTimeSummary(summaryPayload);
-  }, [selectedCourse]);
+  }, [selectedFacility]);
 
   useEffect(() => {
-    if (!selectedCourse?.course_id) return;
+    const activeFacilityId = selectedFacility?.facility_id || selectedFacility?.course_id;
+    if (!activeFacilityId) return;
 
     setLoadingTime(true);
     setTimeError("");
     reloadTimeEntries()
       .catch((error) => setTimeError(error.message))
       .finally(() => setLoadingTime(false));
-  }, [reloadTimeEntries, selectedCourse?.course_id]);
+  }, [reloadTimeEntries, selectedFacility?.facility_id, selectedFacility?.course_id]);
 
   const resetTimeEntries = useCallback(() => {
     setTimeEntries([]);

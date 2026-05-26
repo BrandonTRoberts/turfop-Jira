@@ -39,7 +39,8 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "format:check": "prettier --check .",
-    "validate": "npm run lint && npm run test && npm run build"
+    "validate": "npm run lint && npm run test && npm run build",
+    "smoke:staging": "./scripts/smoke-staging.sh"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",

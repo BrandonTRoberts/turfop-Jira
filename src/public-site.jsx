@@ -5,40 +5,40 @@ import { api } from './services/api';
 import './public-site.css';
 
 const heroStats = [
-  ['Live activity feed', 'Always on'],
-  ['Inventory accuracy', 'Auto-updates'],
-  ['Offline on range', 'Syncs later']
+  ['Operational visibility', 'Real-time'],
+  ['Inventory integrity', 'Continuously updated'],
+  ['Field continuity', 'Offline-first sync']
 ];
 
 const painCards = [
   {
     title: 'Inventory disappears when it lives on paper',
-    body: 'Parts used in work orders automatically deduct from stock. Managers see accurate levels without manual counts.'
+    body: 'Inventory updates in real time as parts are consumed in work orders, reducing reconciliation effort and stock uncertainty.'
   },
   {
     title: 'No one knows what the crew is actually doing',
-    body: 'Live technician activity feed shows who is working on what and their online status. Full audit trail of completed work.'
+    body: 'Give leadership a live view of assignments, progress, and bottlenecks, with complete historical context on every job.'
   },
   {
     title: 'Weak signal on the range breaks updates',
-    body: 'Offline-first mobile app lets technicians complete work orders with notes and photos. Everything syncs when back in coverage.'
+    body: 'Teams continue documenting work in low-coverage areas; updates are securely synchronized when connectivity returns.'
   }
 ];
 
 const featureCards = [
   {
     title: 'Visual Work Order Board',
-    body: 'Drag-and-drop work orders with assignment, comments, photos, parts usage, and a full history of each job.',
+    body: 'Coordinate planning, assignment, and execution in a single operational workspace with comments, photos, parts, and full traceability.',
     lines: ['Hole 7 aeration · In Progress · Mike', 'Sprinkler head repair · High priority · Sarah', 'Mower inspection · Completed · Photo attached']
   },
   {
-    title: 'Course Configuration',
-    body: 'Define your exact layout — holes, sections, greens, flags, bunkers. Work orders and reporting adapt automatically.',
+    title: 'Facility Configuration',
+    body: 'Model each facility’s structure — holes, sections, greens, flags, and bunkers — so workflows and reporting reflect real operations.',
     lines: ['18 holes · 4 fairway sections', 'Greens · 18 flags', 'Bunkers · 42 hazards']
   },
   {
     title: 'Live Technician Feed + Offline Sync',
-    body: 'See what everyone is working on in real time. Technicians work offline on the range and sync when back at the clubhouse.',
+    body: 'Monitor technician progress in real time while preserving continuity with offline capture and automatic synchronization.',
     lines: ['Mike · Aerating greens · Online', 'Sarah · Sprinkler repair · 3 updates queued', 'Last sync · 2 minutes ago']
   }
 ];
@@ -47,7 +47,7 @@ const trustItems = [
   'Role-based permissions for managers, technicians, and admins',
   'Audit log for every work order update, part used, and completion note',
   'Offline sync visibility for queued updates from low-signal areas',
-  'Course-scoped access so teams only see authorized operations data',
+  'Facility-scoped access so teams only see authorized operations data',
   'Traceable inventory changes tied directly to completed work orders',
   'Built by an IT and GRC professional with security in the workflow from day one'
 ];
@@ -56,11 +56,11 @@ const pricingTiers = [
   {
     name: 'Starter',
     price: '$49',
-    cadence: '/ course / month',
+    cadence: '/ facility / month',
     annualPrice: '$470/year when billed annually',
-    fit: 'Single-course operations teams',
-    description: 'Perfect for one golf course that needs accurate inventory, live visibility, and reliable offline updates.',
-    features: ['1 course with full customization', 'Visual work order board', 'Live technician activity feed', 'Inventory auto-deduct', 'Offline-first mobile sync', 'Basic reporting and audit trail'],
+    fit: 'Single-facility operations teams',
+    description: 'Perfect for one golf facility that needs accurate inventory, live visibility, and reliable offline updates.',
+    features: ['1 facility with full customization', 'Visual work order board', 'Live technician activity feed', 'Inventory auto-deduct', 'Offline-first mobile sync', 'Basic reporting and audit trail'],
     cta: 'Start Free Trial',
     href: '/signin'
   },
@@ -69,9 +69,9 @@ const pricingTiers = [
     price: '$99',
     cadence: '/month',
     annualPrice: '$950/year when billed annually',
-    fit: 'Multi-course or growing operations',
-    description: 'For teams managing 2–5 courses that need centralized visibility, advanced reporting, and stronger controls.',
-    features: ['Up to 5 courses', 'Everything in Starter', 'Advanced course configuration', 'Real-time technician status', 'Full audit and compliance reports', 'Priority support'],
+    fit: 'Multi-facility or growing operations',
+    description: 'For teams managing 2–5 facilities that need centralized visibility, advanced reporting, and stronger controls.',
+    features: ['Up to 5 facilities', 'Everything in Starter', 'Advanced facility configuration', 'Real-time technician status', 'Full audit and compliance reports', 'Priority support'],
     cta: 'Start Free Trial',
     href: '/signin',
     featured: true
@@ -83,7 +83,7 @@ const pricingTiers = [
     annualPrice: 'For groups and management companies',
     fit: 'Portfolio operators and large organizations',
     description: 'Custom rollout, integrations, company-level controls, dedicated support, and advanced security workflows.',
-    features: ['Unlimited courses', 'Everything in Growth', 'API and custom modules', 'Advanced security controls', 'Dedicated onboarding and training', 'Enterprise SLA'],
+    features: ['Unlimited facilities', 'Everything in Growth', 'API and custom modules', 'Advanced security controls', 'Dedicated onboarding and training', 'Enterprise SLA'],
     cta: 'Book a Demo',
     href: '/book-demo'
   }
@@ -92,7 +92,7 @@ const pricingTiers = [
 const securityStandards = [
   {
     title: 'Authentication and scoped access',
-    body: 'JWT-based auth with course memberships. Technicians only see their assigned work and the courses they are authorized for.'
+    body: 'JWT-based auth with facility memberships. Technicians only see their assigned work and the facilities they are authorized for.'
   },
   {
     title: 'Offline-first with secure sync',
@@ -132,7 +132,7 @@ function MarketingNav({ activePage }) {
         </span>
         <span>
           <strong>TurfOp</strong>
-          <small>Golf course operations, not golfer software</small>
+          <small>Operational command center for golf facilities</small>
         </span>
       </button>
       <nav className="mk-nav-links" aria-label="Primary">
@@ -205,10 +205,10 @@ function LandingPage() {
     <>
       <section className="mk-hero">
         <div className="mk-hero-copy">
-          <p className="mk-eyebrow">Built for golf course operations</p>
-          <h1>Manage work orders, inventory, and crews — even offline.</h1>
+          <p className="mk-eyebrow">Built for golf facility operations</p>
+          <h1>Unify work orders, inventory, and field execution in one operations platform.</h1>
           <p className="mk-lead">
-            TurfOp gives superintendents and operations managers a visual work order board, live activity feed, automatic inventory updates, full course customization, and reliable offline sync for the range.
+            TurfOp gives superintendents and operations leaders structured oversight, faster coordination, and dependable offline continuity across the entire operation.
           </p>
           <div className="mk-actions">
             <a className="mk-btn mk-btn-primary" href="/signin">Start Free Trial</a>
@@ -219,7 +219,7 @@ function LandingPage() {
             <span>Live technician feed</span>
             <span>Auto-updating inventory</span>
             <span>Offline-first mobile</span>
-            <span>Full course customization</span>
+            <span>Full facility customization</span>
           </div>
         </div>
         <HeroScreens />
@@ -228,7 +228,7 @@ function LandingPage() {
       <section className="mk-section">
         <div className="mk-section-heading">
           <p className="mk-eyebrow">Why teams switch</p>
-          <h2>Clear answers to the problems superintendents and crews deal with every day.</h2>
+          <h2>Built to solve the operational gaps that slow high-performing facilities.</h2>
         </div>
         <div className="mk-card-grid mk-card-grid-three">
           {painCards.map((card) => (
@@ -244,9 +244,9 @@ function LandingPage() {
         <div className="mk-section-heading split">
           <div>
             <p className="mk-eyebrow">Product views</p>
-            <h2>See the workflow your course needs — in seconds.</h2>
+            <h2>See the workflow your facility needs — in seconds.</h2>
           </div>
-          <p className="mk-muted">Visual work orders, live technician status, auto-updating inventory, offline sync, and full course customization.</p>
+          <p className="mk-muted">Visual work orders, live technician status, auto-updating inventory, offline sync, and full facility customization.</p>
         </div>
         <div className="mk-card-grid mk-card-grid-three">
           {featureCards.map((card) => (
@@ -268,9 +268,9 @@ function LandingPage() {
         <div className="mk-trust-card">
           <div>
             <p className="mk-eyebrow">Security built in</p>
-            <h2>Secure, traceable, and ready for operational review.</h2>
+            <h2>Security, traceability, and governance by design.</h2>
             <p className="mk-muted">
-              Built by an IT and GRC professional, TurfOp includes audit trails, permission-based access, offline sync visibility, and operational controls from day one.
+              TurfOp includes role-based access, comprehensive audit trails, offline sync visibility, and controls aligned to operational governance.
             </p>
           </div>
           <ul className="mk-checklist">
@@ -281,8 +281,8 @@ function LandingPage() {
 
       <section className="mk-section mk-cta-band">
         <div>
-          <p className="mk-eyebrow">Ready for your course</p>
-          <h2>Give your operations team one clear place to track work, people, and parts.</h2>
+          <p className="mk-eyebrow">Ready for your facility</p>
+          <h2>Standardize execution with one system for work, teams, and inventory.</h2>
         </div>
         <div className="mk-actions mk-actions-right">
           <a className="mk-btn mk-btn-primary" href="/signin">Start Free Trial</a>
@@ -298,7 +298,7 @@ const comparisonRows = [
   ["Live technician feed", "✓", "✓", "✓"],
   ["Auto-updating inventory", "✓", "✓", "✓"],
   ["Offline-first mobile", "✓", "✓", "✓"],
-  ["Course customization", "✓", "✓", "✓"],
+  ["Facility customization", "✓", "✓", "✓"],
   ["Full audit trail", "✓", "✓", "✓"],
   ["API and custom modules", "—", "—", "✓"],
 ];
@@ -308,8 +308,8 @@ function PricingPage() {
     <>
       <section className="mk-page-hero">
         <p className="mk-eyebrow">Pricing</p>
-        <h1>Simple pricing for golf course operations teams.</h1>
-        <p className="mk-lead">Starter for one course. Growth for 2–5 courses. Enterprise for management companies and portfolios.</p>
+        <h1>Simple pricing for golf facility operations teams.</h1>
+        <p className="mk-lead">Starter for one facility. Growth for 2–5 facilities. Enterprise for management companies and portfolios.</p>
       </section>
       <section className="mk-section">
         <div className="mk-pricing-grid">
@@ -362,7 +362,7 @@ function SecurityPage() {
       <section className="mk-page-hero">
         <p className="mk-eyebrow">Security & GRC</p>
         <h1>Security, permissions, and auditability built in from day one.</h1>
-        <p className="mk-lead">TurfOp uses role-based course scope, bcrypt password hashing, JWT auth, audit logging, offline sync visibility, and backend controls that help courses evaluate and trust operational software.</p>
+        <p className="mk-lead">TurfOp uses role-based facility scope, bcrypt password hashing, JWT auth, audit logging, offline sync visibility, and backend controls that help facilities evaluate and trust operational software.</p>
       </section>
       <section className="mk-section">
         <div className="mk-card-grid mk-card-grid-four">
@@ -383,13 +383,13 @@ function ContactPage() {
     <section className="mk-page-hero mk-contact-hero">
       <div>
         <p className="mk-eyebrow">Tailored demo</p>
-        <h1>See how TurfOp fits your course operations.</h1>
-        <p className="mk-lead">We will tailor the walkthrough to your course layout, team workflow, inventory needs, and offline use cases.</p>
+        <h1>See how TurfOp fits your facility operations.</h1>
+        <p className="mk-lead">We will tailor the walkthrough to your facility layout, team workflow, inventory needs, and offline use cases.</p>
       </div>
       <div className="mk-card">
         <h3>What we will cover</h3>
         <ul className="mk-checklist">
-          <li>Configure your course layout, staff roles, and inventory rules</li>
+          <li>Configure your facility layout, staff roles, and inventory rules</li>
           <li>Walk through live work orders, technician activity, and offline sync</li>
           <li>Build a rollout plan your operations team can actually use</li>
         </ul>
@@ -402,10 +402,74 @@ function ContactPage() {
   );
 };
 
+function PrivacyPage() {
+  return (
+    <>
+      <section className="mk-page-hero">
+        <p className="mk-eyebrow">Privacy</p>
+        <h1>Privacy policy for TurfOp</h1>
+        <p className="mk-lead">We collect only the data required to run facility operations, secure user access, and support service delivery.</p>
+      </section>
+      <section className="mk-section">
+        <div className="mk-card-grid mk-card-grid-two">
+          <article className="mk-card">
+            <h3>Data we collect</h3>
+            <p>Account profile fields, facility memberships, work order records, inventory activity, and audit log events used for traceability.</p>
+          </article>
+          <article className="mk-card">
+            <h3>How data is used</h3>
+            <p>To authenticate users, apply role-based access, process operational workflows, maintain auditability, and provide customer support.</p>
+          </article>
+          <article className="mk-card">
+            <h3>Data protection controls</h3>
+            <p>TurfOp uses encrypted transport, session controls, permissions by role and facility, and logging controls aligned with GRC workflows.</p>
+          </article>
+          <article className="mk-card">
+            <h3>Your options</h3>
+            <p>For account updates or privacy requests, contact your organization admin or email <a href="mailto:sales@turfop.com">sales@turfop.com</a>.</p>
+          </article>
+        </div>
+      </section>
+    </>
+  );
+};
+
+function TermsPage() {
+  return (
+    <>
+      <section className="mk-page-hero">
+        <p className="mk-eyebrow">Terms</p>
+        <h1>Terms of use for TurfOp</h1>
+        <p className="mk-lead">Use of TurfOp requires authorized business access, responsible account security, and lawful use of the platform.</p>
+      </section>
+      <section className="mk-section">
+        <div className="mk-card-grid mk-card-grid-two">
+          <article className="mk-card">
+            <h3>Authorized access</h3>
+            <p>Only approved team members may use TurfOp. Organizations are responsible for managing role assignments and account lifecycle actions.</p>
+          </article>
+          <article className="mk-card">
+            <h3>Account security</h3>
+            <p>Users must maintain credential confidentiality and report suspected compromise promptly to their organization administrator.</p>
+          </article>
+          <article className="mk-card">
+            <h3>Operational integrity</h3>
+            <p>Submitted operational data should be accurate and lawful. Misuse, abuse, or unauthorized access attempts are prohibited.</p>
+          </article>
+          <article className="mk-card">
+            <h3>Support</h3>
+            <p>For legal, privacy, or security questions, contact <a href="mailto:sales@turfop.com">sales@turfop.com</a>.</p>
+          </article>
+        </div>
+      </section>
+    </>
+  );
+};
+
 function SignInPage() {
   const params = new URLSearchParams(window.location.search);
   const inviteToken = params.get('token') || '';
-  const courseId = params.get('courseId') || '';
+  const facilityId = params.get('facilityId') || params.get('courseId') || '';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -478,7 +542,7 @@ function SignInPage() {
     setLoading(true);
 
     try {
-      await api.requestPasswordReset({ email, facilityId: courseId });
+      await api.requestPasswordReset({ email, facilityId });
       setSuccess('Check your email for a password reset link. If the account exists, the reset instructions are on the way.');
     } catch (err) {
       setError(err.message || 'Could not request a password reset right now.');
@@ -569,7 +633,7 @@ function SignInPage() {
     formContent = (
       <>
         <h2>Sign in to TurfOp</h2>
-        <p>Use your employee account to access your courses and operations data.</p>
+        <p>Use your employee account to access your facilities and operations data.</p>
         <form className="mk-signin-form" onSubmit={handleLoginSubmit}>
           <label>
             Email
@@ -615,7 +679,7 @@ function SignInPage() {
         <p className="mk-eyebrow">Operations hub</p>
         <h3>Track work, parts, and crew activity from one secure dashboard.</h3>
         <ul className="mk-checklist">
-          <li>Course-scoped access for every employee</li>
+          <li>Facility-scoped access for every employee</li>
           <li>Audit trail for work order and inventory changes</li>
           <li>Offline updates sync when coverage returns</li>
         </ul>
@@ -638,6 +702,8 @@ function PublicSite() {
   if (activePage === 'pricing') content = <PricingPage />;
   else if (activePage === 'security') content = <SecurityPage />;
   else if (activePage === 'contact') content = <ContactPage />;
+  else if (activePage === 'privacy') content = <PrivacyPage />;
+  else if (activePage === 'terms') content = <TermsPage />;
   else if (activePage === 'signin') content = <SignInPage />;
   else content = <LandingPage />;
 
@@ -646,6 +712,11 @@ function PublicSite() {
       <div className="mk-container">
         <MarketingNav activePage={activePage} />
         {content}
+        <footer className="mk-signin-help" style={{ marginTop: '2rem', textAlign: 'center' }}>
+          <button type="button" className="mk-link-button" onClick={() => navigate('/privacy')}>Privacy</button>
+          <span> · </span>
+          <button type="button" className="mk-link-button" onClick={() => navigate('/terms')}>Terms</button>
+        </footer>
       </div>
     </div>
   );

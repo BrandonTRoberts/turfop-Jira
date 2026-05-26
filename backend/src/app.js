@@ -13,8 +13,34 @@ import auditLogsRouter from './routes/auditLogs.js';
 import timeEntriesRouter from './routes/timeEntries.js';
 import companiesRouter from './routes/companies.js';
 import dashboardRouter from './routes/dashboard.js';
+import serviceTemplatesRouter from './routes/serviceTemplates.js';
 import { UPLOADS_DIR } from './lib/media.js';
 import { env } from './config/env.js';
+import { csrfCookieProtection } from './lib/csrf.js';
+
+function buildContentSecurityPolicy() {
+  const connectSrc = ["'self'", ...env.allowedCorsOrigins];
+
+  if (!env.isProduction) {
+    connectSrc.push('ws://localhost:*', 'ws://127.0.0.1:*');
+  }
+
+  return {
+    directives: {
+      defaultSrc: ["'none'"],
+      baseUri: ["'self'"],
+      frameAncestors: ["'none'"],
+      objectSrc: ["'none'"],
+      imgSrc: ["'self'", 'data:', 'blob:'],
+      mediaSrc: ["'self'", 'data:', 'blob:'],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      connectSrc,
+      formAction: ["'self'"],
+      upgradeInsecureRequests: env.isProduction ? [] : null
+    }
+  };
+}
 
 function buildCorsOptions() {
   return {
@@ -40,10 +66,16 @@ export function createApp() {
   const app = express();
 
   app.use(helmet({
-    crossOriginResourcePolicy: { policy: 'cross-origin' }
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    referrerPolicy: { policy: 'no-referrer' },
+    hsts: env.isProduction
+      ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+      : false,
+    contentSecurityPolicy: buildContentSecurityPolicy()
   }));
   app.use(cors(buildCorsOptions()));
   app.use(express.json({ limit: '10mb' }));
+  app.use(csrfCookieProtection);
   app.use('/uploads', express.static(UPLOADS_DIR, {
     fallthrough: false,
     setHeaders(res) {
@@ -71,6 +103,7 @@ export function createApp() {
   app.use('/time-entries', timeEntriesRouter);
   app.use('/companies', companiesRouter);
   app.use('/dashboard', dashboardRouter);
+  app.use('/service-templates', serviceTemplatesRouter);
 
   app.use((error, _req, res, _next) => {
     if (error?.message === 'CORS origin denied') {

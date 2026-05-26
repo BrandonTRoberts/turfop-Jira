@@ -5,12 +5,13 @@ import { canWrite, getRoleForFacility, isAdmin } from '../lib/permissions.js';
 import { persistAttachmentCollection, persistImageCollection } from '../lib/media.js';
 import { handleUnexpectedError } from '../lib/http.js';
 import { validatePartsInventoryInput } from '../lib/validation.js';
+import { resolveFacilityId } from '../lib/facilityScope.js';
 
 const router = Router();
 
 // Company-wide inventory search ("global inventory" across all facilities in the same company)
 router.get('/company', requireAuth, async (req, res) => {
-  const { facilityId = '' } = req.query;
+  const facilityId = resolveFacilityId({ query: req.query, employee: req.employee }) || '';
 
   try {
     let scopedCompanyId = req.employee?.company_id || null;
@@ -62,7 +63,7 @@ router.get('/company', requireAuth, async (req, res) => {
 });
 
 router.get('/', requireAuth, async (req, res) => {
-  const { facilityId } = req.query;
+  const facilityId = resolveFacilityId({ query: req.query, employee: req.employee });
 
   try {
     const role = await getRoleForFacility(req.employee, facilityId);
@@ -98,7 +99,8 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 router.post('/', requireAuth, async (req, res) => {
-  const { facilityId, sku, partDescription, quantityOnHand, unitCost, reorderUrl, images = [], attachments = [] } = req.body;
+  const { sku, partDescription, quantityOnHand, unitCost, reorderUrl, images = [], attachments = [] } = req.body;
+  const facilityId = resolveFacilityId({ body: req.body, employee: req.employee });
 
   try {
     const validationError = validatePartsInventoryInput({ facilityId, sku, partDescription, quantityOnHand, unitCost, reorderUrl });
@@ -130,7 +132,8 @@ router.post('/', requireAuth, async (req, res) => {
 
 router.patch('/:partId', requireAuth, async (req, res) => {
   const { partId } = req.params;
-  const { facilityId, sku, partDescription, quantityOnHand, unitCost, reorderUrl, images = [], attachments = [], expectedUpdatedAt } = req.body;
+  const { sku, partDescription, quantityOnHand, unitCost, reorderUrl, images = [], attachments = [], expectedUpdatedAt } = req.body;
+  const facilityId = resolveFacilityId({ body: req.body, employee: req.employee });
 
   try {
     const validationError = validatePartsInventoryInput({ facilityId, sku, partDescription, quantityOnHand, unitCost, reorderUrl });

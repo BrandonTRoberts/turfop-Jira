@@ -78,7 +78,7 @@ describe("IssueBoard", () => {
     expect(screen.queryByText("Fix greens mower hydraulic leak")).not.toBeInTheDocument();
   });
 
-  it("creates a work order with the current course scope", async () => {
+  it("creates a work order with the current facility scope", async () => {
     const user = userEvent.setup();
     const onCreate = vi.fn().mockResolvedValue({
       ...workOrders[0],
@@ -94,7 +94,7 @@ describe("IssueBoard", () => {
     await user.click(screen.getByRole("button", { name: /create issue/i }));
 
     expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({
-      courseId: "course-1",
+      facilityId: "course-1",
       title: "Replace bunker rake",
       detail: "Broken handle by 12 green.",
       status: "Open",
@@ -117,7 +117,7 @@ describe("IssueBoard", () => {
     await user.click(screen.getByRole("button", { name: /save changes/i }));
 
     expect(onUpdate).toHaveBeenCalledWith("order-open-1", expect.objectContaining({
-      courseId: "course-1",
+      facilityId: "course-1",
       title: "Fix greens mower hydraulic hose",
       expectedUpdatedAt: "2026-05-21T12:00:00.000Z",
     }));

@@ -10,7 +10,7 @@ describe('DashboardView', () => {
     render(
       <DashboardView
         employee={baseEmployee}
-        selectedCourse={baseCourse}
+        selectedFacility={baseCourse}
         loading={false}
         error=""
         overview={{
@@ -43,7 +43,7 @@ describe('DashboardView', () => {
     render(
       <DashboardView
         employee={baseEmployee}
-        selectedCourse={baseCourse}
+        selectedFacility={baseCourse}
         loading={false}
         error=""
         overview={{ summary: { pendingApprovals: 2 }, rollups: { workOrdersByCourse: [] } }}
@@ -60,12 +60,12 @@ describe('DashboardView', () => {
 
   it('shows loading and error states', () => {
     const { rerender } = render(
-      <DashboardView employee={baseEmployee} selectedCourse={baseCourse} loading error="" overview={null} />,
+      <DashboardView employee={baseEmployee} selectedFacility={baseCourse} loading error="" overview={null} />,
     );
 
     expect(screen.getByText('Loading dashboard')).toBeInTheDocument();
 
-    rerender(<DashboardView employee={baseEmployee} selectedCourse={baseCourse} loading={false} error="Dashboard failed" overview={null} />);
+    rerender(<DashboardView employee={baseEmployee} selectedFacility={baseCourse} loading={false} error="Dashboard failed" overview={null} />);
 
     expect(screen.getByText('Dashboard failed')).toBeInTheDocument();
   });

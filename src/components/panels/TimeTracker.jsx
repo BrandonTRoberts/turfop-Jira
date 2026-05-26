@@ -55,7 +55,7 @@ export default function TimeTracker({ course, entries, summary, activeEntry, loa
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
           <h2 className="text-2xl font-semibold sm:text-3xl">Time Tracking</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Clock activity for {course.name} is stored by course and employee.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Clock activity for {course.name} is stored by facility and employee.</p>
         </div>
         <div className="flex items-center gap-3">
           {canAdmin && (
@@ -84,7 +84,7 @@ export default function TimeTracker({ course, entries, summary, activeEntry, loa
             <p className="text-2xl font-semibold sm:text-3xl">{format(new Date(activeEntry.clock_in_at), "MMM d, h:mm a")}</p>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No active shift for this course.</p>
+            <p className="text-sm text-muted-foreground">No active shift for this facility.</p>
           )}
           <Input placeholder="Optional note" value={note} onChange={(event) => setNote(event.target.value)} />
           <Button onClick={activeEntry ? handleClockOut : handleClockIn} disabled={saving}>

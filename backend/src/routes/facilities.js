@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { query } from '../lib/db.js';
 import { requireAuth } from '../lib/requireAuth.js';
-import { getMembershipsForEmployee, getRoleForCourse, isAdmin, isCompanySuperUser, isGlobalSuperUser } from '../lib/permissions.js';
-import { validateCourseCreateInput, validateCourseSettingsInput } from '../lib/validation.js';
+import { getMembershipsForEmployee, getRoleForFacility, isAdmin, isCompanySuperUser, isGlobalSuperUser } from '../lib/permissions.js';
+import { validateCourseCreateInput as validateFacilityCreateInput, validateCourseSettingsInput as validateFacilitySettingsInput } from '../lib/validation.js';
 import { handleUnexpectedError } from '../lib/http.js';
 
 const router = Router();
@@ -48,7 +48,7 @@ router.post('/', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Cannot create facilities outside your company' });
     }
 
-    const validationError = validateCourseCreateInput({ companyId, name, region, superintendentName });
+    const validationError = validateFacilityCreateInput({ companyId, name, region, superintendentName });
     if (validationError) {
       return res.status(400).json({ error: validationError });
     }
@@ -90,12 +90,12 @@ router.patch('/:facilityId', requireAuth, async (req, res) => {
   const { name, region, superintendentName, courseAreas } = req.body;
 
   try {
-    const currentRole = await getRoleForCourse(req.employee, facilityId);
+    const currentRole = await getRoleForFacility(req.employee, facilityId);
     if (!isAdmin(currentRole)) {
       return res.status(403).json({ error: 'Admin access required for this facility' });
     }
 
-    const validationError = validateCourseSettingsInput({ name, region, superintendentName, courseAreas });
+    const validationError = validateFacilitySettingsInput({ name, region, superintendentName, courseAreas });
     if (validationError) {
       return res.status(400).json({ error: validationError });
     }

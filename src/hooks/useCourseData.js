@@ -5,35 +5,35 @@ export function canUseAccountAdmin(employee) {
   return employee?.company_role === "platform_admin" || employee?.company_role === "company_super_user";
 }
 
-export function useCourseData({ employeeRole, currentView, onAdminViewRevoked }) {
-  const [courses, setCourses] = useState([]);
+export function useFacilityData({ employeeRole, currentView, onAdminViewRevoked }) {
+  const [facilities, setFacilities] = useState([]);
   const [companies, setCompanies] = useState([]);
-  const [selectedCourseId, setSelectedCourseId] = useState("");
-  const [loadingCourses, setLoadingCourses] = useState(false);
+  const [selectedFacilityId, setSelectedFacilityId] = useState("");
+  const [loadingFacilities, setLoadingFacilities] = useState(false);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
-  const [courseError, setCourseError] = useState("");
+  const [facilityError, setFacilityError] = useState("");
   const [companiesError, setCompaniesError] = useState("");
 
-  const selectedCourse = useMemo(
-    () => courses.find((course) => course.course_id === selectedCourseId) || courses[0] || null,
-    [courses, selectedCourseId],
+  const selectedFacility = useMemo(
+    () => facilities.find((facility) => (facility.facility_id || facility.course_id) === selectedFacilityId) || facilities[0] || null,
+    [facilities, selectedFacilityId],
   );
 
-  const loadCourses = useCallback(async () => {
-    setLoadingCourses(true);
-    setCourseError("");
+  const loadFacilities = useCallback(async () => {
+    setLoadingFacilities(true);
+    setFacilityError("");
 
     try {
-      const nextCourses = await api.courses();
-      setCourses(nextCourses);
-      setSelectedCourseId((current) => {
-        if (nextCourses.some((course) => course.course_id === current)) return current;
-        return nextCourses[0]?.course_id || "";
+      const nextFacilities = await api.facilities();
+      setFacilities(nextFacilities);
+      setSelectedFacilityId((current) => {
+        if (nextFacilities.some((facility) => (facility.facility_id || facility.course_id) === current)) return current;
+        return nextFacilities[0]?.facility_id || nextFacilities[0]?.course_id || "";
       });
     } catch (error) {
-      setCourseError(error.message);
+      setFacilityError(error.message);
     } finally {
-      setLoadingCourses(false);
+      setLoadingFacilities(false);
     }
   }, []);
 
@@ -63,25 +63,35 @@ export function useCourseData({ employeeRole, currentView, onAdminViewRevoked })
     }
   }, [currentView, employeeRole, onAdminViewRevoked]);
 
-  const resetCourseData = useCallback(() => {
-    setCourses([]);
+  const resetFacilityData = useCallback(() => {
+    setFacilities([]);
     setCompanies([]);
-    setSelectedCourseId("");
+    setSelectedFacilityId("");
   }, []);
 
   return {
-    courses,
+    facilities,
+    courses: facilities,
     companies,
-    selectedCourse,
-    selectedCourseId,
-    setSelectedCourseId,
-    loadingCourses,
+    selectedFacility,
+    selectedCourse: selectedFacility,
+    selectedFacilityId,
+    selectedCourseId: selectedFacilityId,
+    setSelectedFacilityId,
+    setSelectedCourseId: setSelectedFacilityId,
+    loadingFacilities,
+    loadingCourses: loadingFacilities,
     loadingCompanies,
-    courseError,
+    facilityError,
+    courseError: facilityError,
     companiesError,
     setCompanies,
-    loadCourses,
+    loadFacilities,
+    loadCourses: loadFacilities,
     loadCompanies,
-    resetCourseData,
+    resetFacilityData,
+    resetCourseData: resetFacilityData,
   };
 }
+
+export const useCourseData = useFacilityData;

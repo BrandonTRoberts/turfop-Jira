@@ -45,7 +45,7 @@ function statusIcon(status) {
 
 function buildUpdatePayload(ticket, draft) {
   return {
-    courseId: ticket.course_id,
+    facilityId: ticket.facility_id || ticket.course_id,
     title: draft.title,
     detail: draft.detail,
     status: draft.status,
@@ -190,7 +190,7 @@ export default function IssueBoard({ course, workOrders, users = [], equipment =
 
     try {
       const created = await onCreate({
-        courseId: course.course_id,
+        facilityId: course.facility_id || course.course_id,
         title: form.title,
         detail: form.detail,
         status: form.status,
@@ -265,7 +265,7 @@ export default function IssueBoard({ course, workOrders, users = [], equipment =
     setDetailError("");
     try {
       const activity = await onComment(selectedTicket.id, {
-        courseId: selectedTicket.course_id,
+        facilityId: selectedTicket.facility_id || selectedTicket.course_id,
         comment: detailDraft.comment,
       });
       setSelectedTicket({

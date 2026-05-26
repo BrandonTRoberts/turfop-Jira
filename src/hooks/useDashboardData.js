@@ -6,6 +6,7 @@ function mapDirectoryRows(rows) {
     id: row.id,
     name: row.full_name || row.email || "Unnamed user",
     email: row.email,
+    facilityId: row.facility_id || row.course_id,
     courseId: row.course_id,
     role: row.role || "read_only",
     status: row.must_change_password ? "Invited" : "Active",
@@ -14,7 +15,7 @@ function mapDirectoryRows(rows) {
   }));
 }
 
-export function useDashboardData(selectedCourse) {
+export function useDashboardData(selectedFacility) {
   const [equipment, setEquipment] = useState([]);
   const [inventory, setInventory] = useState([]);
   const [users, setUsers] = useState([]);
@@ -31,11 +32,12 @@ export function useDashboardData(selectedCourse) {
   const [dashboardError, setDashboardError] = useState("");
 
   useEffect(() => {
-    if (!selectedCourse?.course_id) return;
+    const activeFacilityId = selectedFacility?.facility_id || selectedFacility?.course_id;
+    if (!activeFacilityId) return;
 
     setLoadingDashboard(true);
     setDashboardError("");
-    api.dashboardOverview(selectedCourse.course_id)
+    api.dashboardOverview(activeFacilityId)
       .then(setDashboardOverview)
       .catch((error) => {
         setDashboardOverview(null);
@@ -45,20 +47,20 @@ export function useDashboardData(selectedCourse) {
 
     setLoadingEquipment(true);
     setEquipmentError("");
-    api.equipment(selectedCourse.course_id)
+    api.equipment(activeFacilityId)
       .then(setEquipment)
       .catch((error) => setEquipmentError(error.message))
       .finally(() => setLoadingEquipment(false));
 
     setLoadingInventory(true);
     setInventoryError("");
-    api.inventory(selectedCourse.course_id)
+    api.inventory(activeFacilityId)
       .then(setInventory)
       .catch((error) => setInventoryError(error.message))
       .finally(() => setLoadingInventory(false));
 
     setUsersError("");
-    api.courseDirectory(selectedCourse.course_id)
+    api.facilityDirectory(activeFacilityId)
       .then((rows) => setUsers(mapDirectoryRows(rows)))
       .catch((error) => {
         setUsers([]);
@@ -67,11 +69,11 @@ export function useDashboardData(selectedCourse) {
 
     setLoadingWorkOrders(true);
     setWorkOrdersError("");
-    api.workOrders(selectedCourse.course_id)
+    api.workOrders(activeFacilityId)
       .then(setWorkOrders)
       .catch((error) => setWorkOrdersError(error.message))
       .finally(() => setLoadingWorkOrders(false));
-  }, [selectedCourse?.course_id]);
+  }, [selectedFacility?.facility_id, selectedFacility?.course_id]);
 
   function resetDashboardData() {
     setEquipment([]);

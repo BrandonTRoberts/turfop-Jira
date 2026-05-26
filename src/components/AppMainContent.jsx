@@ -17,11 +17,11 @@ import { mapDirectoryRows } from "@/hooks/useDashboardData";
  */
 export default function AppMainContent({
   currentView,
-  selectedCourse,
+  selectedFacility,
   isAccountAdmin,
   employee,
   writable,
-  courses,
+  facilities,
   companies,
   users,
   equipment,
@@ -30,14 +30,14 @@ export default function AppMainContent({
   dashboardOverview,
   timeEntries,
   timeSummary,
-  loadingCourses,
+  loadingFacilities,
   loadingCompanies,
   loadingDashboard,
   loadingWorkOrders,
   loadingTime,
   loadingEquipment,
   loadingInventory,
-  courseError,
+  facilityError,
   companiesError,
   dashboardError,
   workOrdersError,
@@ -52,7 +52,7 @@ export default function AppMainContent({
   updateEmployee,
   setEmployee,
   onSelectView,
-  createCourse,
+  createFacility,
   createCompany,
   createEquipment,
   updateEquipment,
@@ -65,31 +65,33 @@ export default function AppMainContent({
       <AdminPanel
         employee={employee}
         companies={companies}
-        courses={courses}
-        loading={loadingCompanies || loadingCourses}
-        error={companiesError || courseError}
+        facilities={facilities}
+        loading={loadingCompanies || loadingFacilities}
+        error={companiesError || facilityError}
         onCreateCompany={createCompany}
-        onCreateCourse={createCourse}
+        onCreateFacility={createFacility}
       />
     );
   }
 
-  if (!selectedCourse) {
+  if (!selectedFacility) {
     return (
       <Card>
         <CardContent className="p-10 text-center text-muted-foreground">
-          {loadingCourses ? "Loading courses..." : courseError || "No courses are assigned to this account."}
+          {loadingFacilities ? "Loading facilities..." : facilityError || "No facilities are assigned to this account."}
         </CardContent>
       </Card>
     );
   }
+
+  const activeFacilityId = selectedFacility.facility_id || selectedFacility.course_id || selectedFacility.id;
 
   switch (currentView) {
     case "dashboard":
       return (
         <DashboardView
           employee={employee}
-          selectedCourse={selectedCourse}
+          selectedFacility={selectedFacility}
           overview={dashboardOverview}
           loading={loadingDashboard}
           error={dashboardError}
@@ -102,7 +104,7 @@ export default function AppMainContent({
     case "issues":
       return (
         <IssueBoard
-          course={selectedCourse}
+          course={selectedFacility}
           workOrders={workOrders}
           users={users}
           equipment={equipment}
@@ -141,34 +143,34 @@ export default function AppMainContent({
         <div className="space-y-4">
           {usersError ? <p className="text-sm text-red-400">{usersError}</p> : null}
           <UsersPanel
-            business={{ name: selectedCourse.name }}
+            business={{ name: selectedFacility.name }}
             users={users}
-              canAdmin={selectedCourse.role === "admin"}
+              canAdmin={selectedFacility.role === "admin"}
               onLoadDetails={loadEmployeeDetails}
               onUpdate={updateEmployee}
               onInvite={async (invite) => {
                 await api.inviteEmployee({
-                  facilityId: selectedCourse.course_id,
+                  facilityId: activeFacilityId,
                   email: invite.email,
                   fullName: invite.fullName,
                   role: invite.role,
                   hourlyRate: invite.hourlyRate ? Number(invite.hourlyRate) : null,
                   profileImage: invite.profileImage,
                 });
-                const rows = await api.courseDirectory(selectedCourse.course_id);
+                const rows = await api.facilityDirectory(activeFacilityId);
                 setUsers(mapDirectoryRows(rows));
               }}
               onRoleChange={async (employeeId, role) => {
-                await api.upsertMembership({ employeeId, facilityId: selectedCourse.course_id, role });
+                await api.upsertMembership({ employeeId, facilityId: activeFacilityId, role });
                 setUsers((current) =>
                   current.map((user) => (user.id === employeeId ? { ...user, role } : user))
                 );
               }}
               onResendInvite={async (employeeId) => {
-                await api.resendInvite(employeeId, selectedCourse.course_id);
+                await api.resendInvite(employeeId, activeFacilityId);
               }}
               onSendResetPassword={async (employeeId) => {
-                await api.sendResetPassword(employeeId, selectedCourse.course_id);
+                await api.sendResetPassword(employeeId, activeFacilityId);
               }}
             />
         </div>
@@ -177,19 +179,19 @@ export default function AppMainContent({
     case "time":
       return (
         <TimeTracker
-          course={selectedCourse}
+          course={selectedFacility}
           entries={timeEntries}
           summary={timeSummary}
           activeEntry={timeEntries.find((entry) => !entry.clock_out_at && entry.employee_id === employee.id) || null}
           loading={loadingTime}
           error={timeError}
-          canAdmin={selectedCourse.role === "admin"}
+          canAdmin={selectedFacility.role === "admin"}
           onClockIn={async (note) => {
-            await api.clockIn({ courseId: selectedCourse.course_id, note });
+            await api.clockIn({ facilityId: activeFacilityId, note });
             await reloadTimeEntries();
           }}
           onClockOut={async (note) => {
-            await api.clockOut({ courseId: selectedCourse.course_id, note });
+            await api.clockOut({ facilityId: activeFacilityId, note });
             await reloadTimeEntries();
           }}
         />
@@ -198,7 +200,7 @@ export default function AppMainContent({
     case "equipment":
       return (
         <EquipmentPanel
-          course={selectedCourse}
+          course={selectedFacility}
           equipment={equipment}
           loading={loadingEquipment}
           error={equipmentError}
@@ -211,7 +213,7 @@ export default function AppMainContent({
     case "inventory":
       return (
         <InventoryPanel
-          course={selectedCourse}
+          course={selectedFacility}
           inventory={inventory}
           loading={loadingInventory}
           error={inventoryError}
@@ -223,7 +225,7 @@ export default function AppMainContent({
       );
 
     case "company-inventory":
-      return <CompanyInventoryPanel facility={selectedCourse} />;
+      return <CompanyInventoryPanel facility={selectedFacility} />;
 
     case "profile":
       return (

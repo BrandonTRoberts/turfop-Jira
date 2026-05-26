@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query, connect } from '../lib/db.js';
 import { requireAuth } from '../lib/requireAuth.js';
-import { getRoleForCourse, canWrite } from '../lib/permissions.js';
+import { getRoleForFacility, canWrite } from '../lib/permissions.js';
 import { handleUnexpectedError } from '../lib/http.js';
 
 const router = Router();
@@ -9,7 +9,7 @@ const router = Router();
 router.get('/', requireAuth, async (req, res) => {
   const { facilityId } = req.query;
   try {
-    const role = await getRoleForCourse(req.employee, facilityId);
+    const role = await getRoleForFacility(req.employee, facilityId);
     if (!role) return res.status(403).json({ error: 'No access' });
 
     const templatesRes = await query('select * from service_templates where facility_id = $1 order by name asc', [facilityId]);
@@ -36,7 +36,7 @@ router.get('/', requireAuth, async (req, res) => {
 router.post('/', requireAuth, async (req, res) => {
   const { facilityId, name, description, parts = [] } = req.body;
   try {
-    const role = await getRoleForCourse(req.employee, facilityId);
+    const role = await getRoleForFacility(req.employee, facilityId);
     if (!canWrite(role)) return res.status(403).json({ error: 'Write access denied' });
 
     const client = await connect();
@@ -74,7 +74,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
   const { facilityId } = req.query;
   try {
-    const role = await getRoleForCourse(req.employee, facilityId);
+    const role = await getRoleForFacility(req.employee, facilityId);
     if (!canWrite(role)) return res.status(403).json({ error: 'Write access denied' });
     
     // Deletes cascaded

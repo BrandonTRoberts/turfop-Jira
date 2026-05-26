@@ -9,17 +9,17 @@ import { Building2, Loader2, MapPinned, ShieldCheck } from "lucide-react";
 function adminRoleLabel(role) {
   if (role === "platform_admin") return "Platform Admin";
   if (role === "company_super_user") return "Company Admin";
-  return "Course Admin";
+  return "Facility Admin";
 }
 
 export default function AdminPanel({
   employee,
   companies,
-  courses,
+  facilities,
   loading,
   error,
   onCreateCompany,
-  onCreateCourse,
+  onCreateFacility,
 }) {
   const isPlatformAdmin = employee?.company_role === "platform_admin";
   const [companyName, setCompanyName] = useState("");
@@ -37,24 +37,24 @@ export default function AdminPanel({
     if (companies.length > 0) return companies;
 
     const companyMap = new Map();
-    courses.forEach((course) => {
-      if (course.company_id && !companyMap.has(course.company_id)) {
-        companyMap.set(course.company_id, {
-          id: course.company_id,
-          name: course.company_name || "Assigned company",
+    facilities.forEach((facility) => {
+      if (facility.company_id && !companyMap.has(facility.company_id)) {
+        companyMap.set(facility.company_id, {
+          id: facility.company_id,
+          name: facility.company_name || "Assigned company",
         });
       }
     });
 
     return Array.from(companyMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [companies, courses]);
+  }, [companies, facilities]);
 
-  const coursesByCompany = useMemo(() => {
+  const facilitiesByCompany = useMemo(() => {
     return visibleCompanies.map((company) => ({
       ...company,
-      courses: courses.filter((course) => course.company_id === company.id),
+      facilities: facilities.filter((facility) => facility.company_id === company.id),
     }));
-  }, [courses, visibleCompanies]);
+  }, [facilities, visibleCompanies]);
 
   async function handleCreateCompany(event) {
     event.preventDefault();
@@ -72,13 +72,13 @@ export default function AdminPanel({
     }
   }
 
-  async function handleCreateCourse(event) {
+  async function handleCreateFacility(event) {
     event.preventDefault();
     setFormError("");
     setSubmittingCourse(true);
 
     try {
-      await onCreateCourse({
+      await onCreateFacility({
         companyId: courseForm.companyId,
         name: courseForm.name.trim(),
         region: courseForm.region.trim() || null,
@@ -108,7 +108,7 @@ export default function AdminPanel({
           </Badge>
         </div>
         <p className="mt-3 text-muted-foreground">
-          Manage the companies and courses available to this account.
+          Manage the companies and facilities available to this account.
         </p>
       </div>
 
@@ -129,9 +129,9 @@ export default function AdminPanel({
           <CardContent className="p-5">
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <MapPinned className="h-4 w-4" />
-              Courses
+              Facilities
             </p>
-            <p className="mt-2 text-4xl font-semibold">{courses.length}</p>
+            <p className="mt-2 text-4xl font-semibold">{facilities.length}</p>
           </CardContent>
         </Card>
         <Card>
@@ -169,10 +169,10 @@ export default function AdminPanel({
 
           <Card>
             <CardHeader>
-              <CardTitle>Create Course</CardTitle>
+              <CardTitle>Create Facility</CardTitle>
             </CardHeader>
             <CardContent>
-              <form className="space-y-3" onSubmit={handleCreateCourse}>
+              <form className="space-y-3" onSubmit={handleCreateFacility}>
                 <Select
                   value={courseForm.companyId}
                   onValueChange={(companyId) => setCourseForm((current) => ({ ...current, companyId }))}
@@ -207,7 +207,7 @@ export default function AdminPanel({
                 />
                 <Button type="submit" className="w-full" disabled={submittingCourse || !courseForm.companyId}>
                   {submittingCourse ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Create course
+                  Create facility
                 </Button>
               </form>
             </CardContent>
@@ -225,24 +225,24 @@ export default function AdminPanel({
                 Loading admin scope
               </div>
             ) : null}
-            {coursesByCompany.map((company) => (
+            {facilitiesByCompany.map((company) => (
               <div key={company.id} className="rounded-lg border border-border bg-muted/30 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="font-semibold">{company.name}</p>
-                    <p className="text-sm text-muted-foreground">{company.courses.length} courses</p>
+                    <p className="text-sm text-muted-foreground">{company.facilities.length} facilities</p>
                   </div>
                   {isPlatformAdmin ? <Badge>Platform scope</Badge> : <Badge variant="outline">Company scope</Badge>}
                 </div>
                 <div className="mt-4 space-y-2">
-                  {company.courses.map((course) => (
-                    <div key={course.course_id} className="flex items-center justify-between rounded-md bg-background px-3 py-2 text-sm">
-                      <span>{course.name}</span>
-                      <Badge variant="outline">{course.role}</Badge>
+                  {company.facilities.map((facility) => (
+                    <div key={facility.facility_id || facility.course_id || facility.id} className="flex items-center justify-between rounded-md bg-background px-3 py-2 text-sm">
+                      <span>{facility.name}</span>
+                      <Badge variant="outline">{facility.role}</Badge>
                     </div>
                   ))}
-                  {company.courses.length === 0 ? (
-                    <p className="rounded-md bg-background px-3 py-2 text-sm text-muted-foreground">No courses yet.</p>
+                  {company.facilities.length === 0 ? (
+                    <p className="rounded-md bg-background px-3 py-2 text-sm text-muted-foreground">No facilities yet.</p>
                   ) : null}
                 </div>
               </div>

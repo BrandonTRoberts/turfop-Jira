@@ -10,21 +10,21 @@ const baseProps = {
     email: "jamie@example.com",
     profile_image_url: "",
   },
-  selectedCourse: {
-    course_id: "course-1",
+  selectedFacility: {
+    facility_id: "facility-1",
     name: "North Course",
     company_name: "TurfOp Demo",
     role: "admin",
   },
-  courses: [
+  facilities: [
     {
-      course_id: "course-1",
+      facility_id: "facility-1",
       name: "North Course",
       company_name: "TurfOp Demo",
       role: "admin",
     },
   ],
-  courseError: "",
+  facilityError: "",
   currentView: "dashboard",
   menuItems: [
     { id: "dashboard", label: "Dashboard", icon: BarChart3 },
@@ -33,7 +33,7 @@ const baseProps = {
   collapsed: false,
   isMobile: false,
   onCloseMobileNav: vi.fn(),
-  onCourseChange: vi.fn(),
+  onFacilityChange: vi.fn(),
   onLogout: vi.fn(),
   onProfileImageChange: vi.fn(),
   onSelectView: vi.fn(),
@@ -41,7 +41,7 @@ const baseProps = {
 };
 
 describe("AppSidebar", () => {
-  it("renders employee, course scope, and available navigation items", () => {
+  it("renders employee, facility scope, and available navigation items", () => {
     render(<AppSidebar {...baseProps} />);
 
     expect(screen.getByText("TurfOp")).toBeInTheDocument();

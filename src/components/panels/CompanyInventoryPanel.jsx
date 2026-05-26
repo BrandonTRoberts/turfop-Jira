@@ -15,11 +15,14 @@ export default function CompanyInventoryPanel({ facility }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const activeFacilityId = facility?.facility_id || facility?.course_id || "";
+
   useEffect(() => {
     async function load() {
       try {
         setLoading(true);
-        const data = await api.companyInventory(facility?.facility_id || facility?.course_id || "");
+        setError("");
+        const data = await api.companyInventory(activeFacilityId);
         setInventory(data);
       } catch (err) {
         setError(err.message || "Failed to load company inventory.");
@@ -28,7 +31,7 @@ export default function CompanyInventoryPanel({ facility }) {
       }
     }
     load();
-  }, [facility?.facility_id, facility?.course_id]);
+  }, [activeFacilityId]);
 
   const facilityOptions = useMemo(() => {
     const map = new Map();
@@ -46,19 +49,25 @@ export default function CompanyInventoryPanel({ facility }) {
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    
+    const tokens = query.split(/\s+/).filter(Boolean);
+
     return inventory.filter((item) => {
       if (selectedFacilityId !== "all" && item.facility_id !== selectedFacilityId) {
         return false;
       }
 
-      if (!query) return true;
+      if (tokens.length === 0) return true;
 
-      return (
-        (item.sku && item.sku.toLowerCase().includes(query)) ||
-        (item.part_description && item.part_description.toLowerCase().includes(query)) ||
-        (item.facility_name && item.facility_name.toLowerCase().includes(query))
-      );
+      const haystack = [
+        item.sku,
+        item.part_description,
+        item.facility_name,
+        item.quantity_on_hand,
+      ]
+        .map((value) => String(value ?? "").toLowerCase())
+        .join(" ");
+
+      return tokens.every((token) => haystack.includes(token));
     });
   }, [inventory, search, selectedFacilityId]);
 
@@ -164,7 +173,9 @@ export default function CompanyInventoryPanel({ facility }) {
                 <TableRow>
                   <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
                     <Box className="mx-auto h-8 w-8 text-muted-foreground/50 mb-2" />
-                    No parts found matching your search.
+                    {inventory.length === 0
+                      ? "No company inventory records found yet."
+                      : "No parts match your current filters/search."}
                   </TableCell>
                 </TableRow>
               )}

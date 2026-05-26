@@ -34,7 +34,7 @@ export function statusIcon(status) {
 
 export function buildUpdatePayload(ticket, draft) {
   return {
-    courseId: ticket.course_id,
+    facilityId: ticket.facility_id || ticket.course_id,
     title: draft.title,
     detail: draft.detail,
     status: draft.status,

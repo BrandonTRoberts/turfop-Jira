@@ -48,7 +48,7 @@ function MetricCard({ title, value, helper, icon: Icon, tone = 'default', onClic
 
 export default function DashboardView({ 
   employee, 
-  selectedCourse, 
+  selectedFacility, 
   overview, 
   loading, 
   error,
@@ -57,7 +57,7 @@ export default function DashboardView({
   onSelectView,
 }) {
   const summary = overview?.summary || {};
-  const workOrdersByCourse = overview?.rollups?.workOrdersByCourse || [];
+  const workOrdersByFacility = overview?.rollups?.workOrdersByFacility || overview?.rollups?.workOrdersByCourse || [];
 
   return (
     <div className="space-y-6">
@@ -65,11 +65,11 @@ export default function DashboardView({
         <div>
           <h1 className="text-3xl font-light sm:text-4xl">TurfOp Operations</h1>
           <p className="mt-3 text-muted-foreground">
-            Signed in as {employee.full_name || employee.email}. Active course scope is {selectedCourse.name}.
+            Signed in as {employee.full_name || employee.email}. Active facility scope is {selectedFacility.name}.
           </p>
         </div>
         <Badge variant="outline" className="w-fit">
-          {selectedCourse.company_name ? `${selectedCourse.company_name} / ${selectedCourse.name}` : selectedCourse.name}
+          {selectedFacility.company_name ? `${selectedFacility.company_name} / ${selectedFacility.name}` : selectedFacility.name}
         </Badge>
       </div>
 
@@ -148,21 +148,21 @@ export default function DashboardView({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Course rollup</CardTitle>
+              <CardTitle className="text-base">Facility rollup</CardTitle>
             </CardHeader>
             <CardContent>
-              {workOrdersByCourse.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No course rollup data is available yet.</p>
+              {workOrdersByFacility.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No facility rollup data is available yet.</p>
               ) : (
                 <div className="space-y-3">
-                  {workOrdersByCourse.map((course) => (
-                    <div key={course.course_id || course.name} className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between">
+                  {workOrdersByFacility.map((facility) => (
+                    <div key={facility.facility_id || facility.course_id || facility.name} className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <p className="font-medium">{course.name}</p>
-                        <p className="text-xs text-muted-foreground">{formatMetric(course.completed_this_week)} completed this week</p>
+                        <p className="font-medium">{facility.name}</p>
+                        <p className="text-xs text-muted-foreground">{formatMetric(facility.completed_this_week)} completed this week</p>
                       </div>
-                      <Badge variant={numberValue(course.open_work_orders) > 0 ? 'secondary' : 'outline'}>
-                        {formatMetric(course.open_work_orders)} open
+                      <Badge variant={numberValue(facility.open_work_orders) > 0 ? 'secondary' : 'outline'}>
+                        {formatMetric(facility.open_work_orders)} open
                       </Badge>
                     </div>
                   ))}
@@ -173,7 +173,7 @@ export default function DashboardView({
 
           {/* Technician Activity Feed - Added for buyer requirement */}
           <TechnicianActivityFeed 
-            course={selectedCourse}
+            course={selectedFacility}
             users={users}
             workOrders={workOrders}
             onRefresh={() => window.location.reload()} 

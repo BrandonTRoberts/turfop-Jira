@@ -1,27 +1,9 @@
 import { appConfig } from "@/config/appConfig";
-
-const TOKEN_KEY = "turfop.authToken";
-
-export function getStoredToken() {
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-export function storeToken(token) {
-  if (token) {
-    localStorage.setItem(TOKEN_KEY, token);
-  }
-}
-
-export function clearStoredToken() {
-  localStorage.removeItem(TOKEN_KEY);
-}
-
-async function request(path, { method = "GET", body, token = getStoredToken() } = {}) {
+async function request(path, { method = "GET", body } = {}) {
   const response = await fetch(`${appConfig.backend.apiBaseUrl}${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     credentials: "include",
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -44,8 +26,8 @@ function asFacilityId(value) {
 }
 
 function withFacilityId(payload = {}) {
-  const facilityId = payload.facilityId || payload.courseId || payload.course_id || null;
-  const { courseId, course_id, ...rest } = payload;
+  const facilityId = payload.facilityId || payload.facility_id || payload.courseId || payload.course_id || payload.id || null;
+  const { facility_id: _facility_id, courseId: _courseId, course_id: _course_id, ...rest } = payload;
   return {
     ...rest,
     facilityId,
@@ -54,16 +36,13 @@ function withFacilityId(payload = {}) {
 
 export const api = {
   async login({ email, password }) {
-    const payload = await request("/auth/login", { method: "POST", body: { email, password }, token: null });
-    storeToken(payload.token);
-    return payload;
+    return request("/auth/login", { method: "POST", body: { email, password } });
   },
 
   async acceptInvite({ token, password }) {
     return request("/auth/invitations/accept", {
       method: "POST",
       body: { token: token?.trim(), password },
-      token: null,
     });
   },
 
@@ -71,7 +50,6 @@ export const api = {
     return request("/auth/invitations/request-reset", {
       method: "POST",
       body: { email, facilityId: facilityId || null },
-      token: null,
     });
   },
 
@@ -80,11 +58,7 @@ export const api = {
   },
 
   async logout() {
-    try {
-      await request("/auth/logout", { method: "POST" });
-    } finally {
-      clearStoredToken();
-    }
+    return request("/auth/logout", { method: "POST" });
   },
 
   async updateProfile(payload) {
@@ -103,10 +77,12 @@ export const api = {
 
   async courses() {
     const facilities = await request("/facilities");
-    // Backward-compatibility for course-scoped UI while backend pivots to facilities
+    // Backward-compatibility for course-scoped UI while backend pivots to facilities.
+    // IMPORTANT: prefer facility-native IDs first so downstream validators receive real facility UUIDs.
     return (facilities || []).map((f) => ({
       ...f,
-      course_id: f.course_id || f.facility_id || f.id,
+      course_id: f.facility_id || f.id || f.course_id,
+      legacy_course_id: f.course_id || null,
       name: f.name || f.facility_name,
     }));
   },
@@ -125,8 +101,12 @@ export const api = {
     return request("/companies", { method: "POST", body: payload });
   },
 
-  async createCourse(payload) {
+  async createFacility(payload) {
     return request("/facilities", { method: "POST", body: payload });
+  },
+
+  async createCourse(payload) {
+    return api.createFacility(payload);
   },
 
   async equipment(courseId) {
@@ -135,11 +115,11 @@ export const api = {
   },
 
   async createEquipment(payload) {
-    return request("/equipment", { method: "POST", body: payload });
+    return request("/equipment", { method: "POST", body: withFacilityId(payload) });
   },
 
   async updateEquipment(equipmentId, payload) {
-    return request(`/equipment/${encodeURIComponent(equipmentId)}`, { method: "PATCH", body: payload });
+    return request(`/equipment/${encodeURIComponent(equipmentId)}`, { method: "PATCH", body: withFacilityId(payload) });
   },
 
   async inventory(courseId) {
@@ -153,21 +133,41 @@ export const api = {
     return request(`/parts-inventory/company${queryString}`);
   },
 
+  async serviceTemplates(courseId) {
+    const facilityId = asFacilityId(courseId);
+    const queryString = facilityId ? `?facilityId=${encodeURIComponent(facilityId)}` : "";
+    return request(`/service-templates${queryString}`);
+  },
+
+  async createServiceTemplate(payload) {
+    return request("/service-templates", { method: "POST", body: withFacilityId(payload) });
+  },
+
+  async deleteServiceTemplate(templateId, facilityId) {
+    const scopedFacilityId = asFacilityId(facilityId);
+    const queryString = scopedFacilityId ? `?facilityId=${encodeURIComponent(scopedFacilityId)}` : "";
+    return request(`/service-templates/${encodeURIComponent(templateId)}${queryString}`, { method: "DELETE" });
+  },
+
   async createInventoryItem(payload) {
-    return request("/parts-inventory", { method: "POST", body: payload });
+    return request("/parts-inventory", { method: "POST", body: withFacilityId(payload) });
   },
 
   async updateInventoryItem(partId, payload) {
-    return request(`/parts-inventory/${encodeURIComponent(partId)}`, { method: "PATCH", body: payload });
+    return request(`/parts-inventory/${encodeURIComponent(partId)}`, { method: "PATCH", body: withFacilityId(payload) });
   },
 
   async deleteInventoryItem(partId, payload = {}) {
-    return request(`/parts-inventory/${encodeURIComponent(partId)}`, { method: "DELETE", body: payload });
+    return request(`/parts-inventory/${encodeURIComponent(partId)}`, { method: "DELETE", body: withFacilityId(payload) });
+  },
+
+  async facilityDirectory(facilityId) {
+    const scopedFacilityId = asFacilityId(facilityId);
+    return request(`/employees/directory?facilityId=${encodeURIComponent(scopedFacilityId)}`);
   },
 
   async courseDirectory(courseId) {
-    const facilityId = asFacilityId(courseId);
-    return request(`/employees/directory?facilityId=${encodeURIComponent(facilityId)}`);
+    return api.facilityDirectory(courseId);
   },
 
   async employeeDetails(employeeId, facilityId) {
