@@ -1,21 +1,23 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/services/api";
 
-export function useSessionBootstrap({ loadCourses, resetCourseData, resetDashboardData, resetTimeEntries }) {
+export function useSessionBootstrap({ loadCourses, loadFacilities, resetCourseData, resetDashboardData, resetTimeEntries }) {
   const [session, setSession] = useState(null);
   const [booting, setBooting] = useState(true);
+
+  const loadAssignedFacilities = loadCourses || loadFacilities;
 
   const hydrateFromToken = useCallback(async () => {
     try {
       const nextSession = await api.me();
       setSession(nextSession);
-      await loadCourses();
+      await loadAssignedFacilities?.();
     } catch {
       setSession(null);
     } finally {
       setBooting(false);
     }
-  }, [loadCourses]);
+  }, [loadAssignedFacilities]);
 
   useEffect(() => {
     hydrateFromToken();
@@ -23,7 +25,7 @@ export function useSessionBootstrap({ loadCourses, resetCourseData, resetDashboa
 
   async function handleLogin(nextSession) {
     setSession(nextSession);
-    await loadCourses();
+    await loadAssignedFacilities?.();
   }
 
   async function handleLogout() {
