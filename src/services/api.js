@@ -15,7 +15,16 @@ async function request(path, { method = "GET", body } = {}) {
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload.error || "Request failed");
+    const backendError = payload.error || "Request failed";
+    const requestDescriptor = `${method} ${path}`;
+    // Temporary high-signal debugging for facilityId contract drift issues.
+    console.error(`[API ERROR] ${requestDescriptor}`, {
+      status: response.status,
+      backendError,
+      requestBody: body,
+      responsePayload: payload,
+    });
+    throw new Error(`${backendError} (${requestDescriptor})`);
   }
 
   return payload;
