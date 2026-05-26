@@ -105,9 +105,19 @@ export function createApp() {
   app.use('/dashboard', dashboardRouter);
   app.use('/service-templates', serviceTemplatesRouter);
 
-  app.use((error, _req, res, _next) => {
+  app.use((error, req, res, _next) => {
     if (error?.message === 'CORS origin denied') {
       return res.status(403).json({ error: 'Origin not allowed' });
+    }
+
+    const statusCode = Number(error?.statusCode || error?.status || 500);
+
+    if (statusCode === 404) {
+      if (req.path.startsWith('/uploads/')) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+
+      return res.status(404).json({ error: 'Not found' });
     }
 
     console.error(error);
