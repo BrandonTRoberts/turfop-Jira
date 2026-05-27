@@ -55,36 +55,36 @@ const trustItems = [
 const pricingTiers = [
   {
     name: 'Starter',
-    price: '$49',
+    price: '$99',
     cadence: '/ facility / month',
-    annualPrice: '$470/year when billed annually',
-    fit: 'Single-facility operations teams',
-    description: 'Perfect for one golf facility that needs accurate inventory, live visibility, and reliable offline updates.',
-    features: ['1 facility with full customization', 'Visual work order board', 'Live technician activity feed', 'Inventory auto-deduct', 'Offline-first mobile sync', 'Basic reporting and audit trail'],
-    cta: 'Start Free Trial',
+    annualPrice: '$1,188/year',
+    fit: 'Small teams getting organized',
+    description: 'Best for smaller operations that need clear equipment records and dependable inventory tracking.',
+    features: ['Unlimited users', 'Unlimited work orders', 'Equipment records and maintenance history', 'Parts and inventory tracking', 'Photo-based issue reporting', 'Offline-friendly mobile workflows'],
+    cta: 'Start 14-Day Pro Trial',
     href: '/signin'
   },
   {
-    name: 'Growth',
-    price: '$99',
-    cadence: '/month',
-    annualPrice: '$950/year when billed annually',
-    fit: 'Multi-facility or growing operations',
-    description: 'For teams managing 2–5 facilities that need centralized visibility, advanced reporting, and stronger controls.',
-    features: ['Up to 5 facilities', 'Everything in Starter', 'Advanced facility configuration', 'Real-time technician status', 'Full audit and compliance reports', 'Priority support'],
-    cta: 'Start Free Trial',
-    href: '/signin',
+    name: 'Pro',
+    price: '$249',
+    cadence: '/ facility / month',
+    annualPrice: '$2,988/year (save $612/year)',
+    fit: 'Private clubs and daily-fee 18-hole operations',
+    description: 'Our most popular plan for teams that need tighter control, preventive scheduling, and stronger reporting.',
+    features: ['Everything in Starter', 'Equipment health dashboard', 'Preventive maintenance scheduler', 'Inventory usage logs and low-stock alerts', 'Recurring work automation', 'Advanced operational reporting'],
+    cta: 'Book a Demo',
+    href: '/book-demo',
     featured: true
   },
   {
     name: 'Enterprise',
-    price: 'Custom',
-    cadence: '',
-    annualPrice: 'For groups and management companies',
-    fit: 'Portfolio operators and large organizations',
-    description: 'Custom rollout, integrations, company-level controls, dedicated support, and advanced security workflows.',
-    features: ['Unlimited facilities', 'Everything in Growth', 'API and custom modules', 'Advanced security controls', 'Dedicated onboarding and training', 'Enterprise SLA'],
-    cta: 'Book a Demo',
+    price: '$399',
+    cadence: '/ facility / month + $99/extra site',
+    annualPrice: 'Custom annual terms available',
+    fit: 'Management companies and multi-site portfolios',
+    description: 'Built for organizations that require portfolio visibility, enterprise access controls, and integration support.',
+    features: ['Everything in Pro', 'Multi-site roll-up reporting', 'API access', 'SSO support', 'Dedicated success manager', 'Custom integrations'],
+    cta: 'Talk to Sales',
     href: '/book-demo'
   }
 ];
@@ -294,13 +294,13 @@ function LandingPage() {
 };
 
 const comparisonRows = [
-  ["Visual work order board", "✓", "✓", "✓"],
-  ["Live technician feed", "✓", "✓", "✓"],
-  ["Auto-updating inventory", "✓", "✓", "✓"],
-  ["Offline-first mobile", "✓", "✓", "✓"],
-  ["Facility customization", "✓", "✓", "✓"],
-  ["Full audit trail", "✓", "✓", "✓"],
-  ["API and custom modules", "—", "—", "✓"],
+  ["Unlimited users", "✓", "✓", "✓"],
+  ["Unlimited work orders", "✓", "✓", "✓"],
+  ["Equipment records + maintenance history", "✓", "✓", "✓"],
+  ["Parts + inventory tracking", "✓", "✓", "✓"],
+  ["Preventive maintenance scheduler", "—", "✓", "✓"],
+  ["Advanced operational reporting", "—", "✓", "✓"],
+  ["API + SSO", "—", "—", "✓"],
 ];
 
 function PricingPage() {
@@ -308,8 +308,8 @@ function PricingPage() {
     <>
       <section className="mk-page-hero">
         <p className="mk-eyebrow">Pricing</p>
-        <h1>Simple pricing for golf facility operations teams.</h1>
-        <p className="mk-lead">Starter for one facility. Growth for 2–5 facilities. Enterprise for management companies and portfolios.</p>
+        <h1>Simple pricing for equipment and inventory operations.</h1>
+        <p className="mk-lead">Per-facility pricing with unlimited users so your whole team can run in one system without per-seat surprises.</p>
       </section>
       <section className="mk-section">
         <div className="mk-pricing-grid">
@@ -338,7 +338,7 @@ function PricingPage() {
             <div className="mk-compare-row mk-compare-head">
               <strong>Feature</strong>
               <strong>Starter</strong>
-              <strong>Growth</strong>
+              <strong>Pro</strong>
               <strong>Enterprise</strong>
             </div>
             {comparisonRows.map(([feature, starter, growth, enterprise]) => (
