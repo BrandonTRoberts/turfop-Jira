@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { query } from '../lib/db.js';
+import { connect, query } from '../lib/db.js';
 import { requireAuth } from '../lib/requireAuth.js';
 import { getMembershipsForEmployee, getRoleForFacility, isAdmin, isCompanySuperUser, isGlobalSuperUser } from '../lib/permissions.js';
 import { validateCourseCreateInput as validateFacilityCreateInput, validateCourseSettingsInput as validateFacilitySettingsInput } from '../lib/validation.js';
@@ -127,12 +127,53 @@ router.delete('/:facilityId', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Only Platform Admins can remove facilities.' });
     }
 
-    const result = await query('delete from facilities where id = $1 returning id', [facilityId]);
-    if (!result.rows.length) {
-      return res.status(404).json({ error: 'Facility not found' });
-    }
+    const client = await connect();
+    try {
+      await client.query('begin');
 
-    return res.status(204).send();
+      const facilityResult = await client.query('select id, company_id from facilities where id = $1 limit 1', [facilityId]);
+      const facility = facilityResult.rows[0];
+      if (!facility) {
+        await client.query('rollback');
+        return res.status(404).json({ error: 'Facility not found' });
+      }
+
+      const candidateEmployeesResult = await client.query(
+        `
+          select distinct fm.employee_id
+          from facility_memberships fm
+          where fm.facility_id = $1
+        `,
+        [facilityId]
+      );
+      const candidateEmployeeIds = candidateEmployeesResult.rows.map((row) => row.employee_id);
+
+      await client.query('delete from facilities where id = $1', [facilityId]);
+
+      if (candidateEmployeeIds.length) {
+        await client.query(
+          `
+            delete from employees e
+            where e.id = any($1::uuid[])
+              and coalesce(e.company_role, '') <> 'platform_admin'
+              and not exists (
+                select 1
+                from facility_memberships fm
+                where fm.employee_id = e.id
+              )
+          `,
+          [candidateEmployeeIds]
+        );
+      }
+
+      await client.query('commit');
+      return res.status(204).send();
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
   } catch (error) {
     if (error?.code === '23503') {
       return res.status(409).json({ error: 'Cannot delete facility while dependent records exist. Remove related data first.' });

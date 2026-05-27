@@ -103,7 +103,7 @@ export default function AdminPanel({
 
   async function handleDeleteCompany(company) {
     if (!onDeleteCompany) return;
-    const confirmed = window.confirm(`Delete business "${company.name}"?\n\nThis will remove all users in that business. Facilities must already be deleted.`);
+    const confirmed = window.confirm(`Delete business "${company.name}"?\n\nThis will permanently remove that business, all facilities, users, equipment, and inventory.`);
     if (!confirmed) return;
 
     setDeletingCompanyId(company.id);
@@ -119,7 +119,7 @@ export default function AdminPanel({
 
   async function handleDeleteFacility(facility) {
     if (!onDeleteFacility) return;
-    const confirmed = window.confirm(`Delete facility "${facility.name}"? This only works when dependent records are removed first.`);
+    const confirmed = window.confirm(`Delete facility "${facility.name}"?\n\nThis will remove facility users (if they are not in other facilities), equipment, inventory, and facility records.`);
     if (!confirmed) return;
 
     const facilityId = facility.facility_id || facility.id || facility.course_id;

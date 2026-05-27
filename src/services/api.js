@@ -110,9 +110,8 @@ export const api = {
     return request("/companies", { method: "POST", body: payload });
   },
 
-  async deleteCompany(companyId, options = {}) {
-    const queryString = options.force ? "?force=true" : "";
-    return request(`/companies/${encodeURIComponent(companyId)}${queryString}`, { method: "DELETE" });
+  async deleteCompany(companyId) {
+    return request(`/companies/${encodeURIComponent(companyId)}`, { method: "DELETE" });
   },
 
   async createFacility(payload) {

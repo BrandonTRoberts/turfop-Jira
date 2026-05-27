@@ -71,7 +71,6 @@ router.post('/', requireAuth, async (req, res) => {
 
 router.delete('/:companyId', requireAuth, async (req, res) => {
   const { companyId } = req.params;
-  const force = String(req.query?.force || '').toLowerCase() === 'true';
 
   try {
     if (!isGlobalSuperUser(req.employee)) {
@@ -89,34 +88,10 @@ router.delete('/:companyId', requireAuth, async (req, res) => {
         return res.status(404).json({ error: 'Business not found' });
       }
 
-      const facilitiesCountResult = await client.query('select count(*)::int as count from facilities where company_id = $1', [companyId]);
-      const usersCountResult = await client.query('select count(*)::int as count from employees where company_id = $1', [companyId]);
-      const facilitiesCount = Number(facilitiesCountResult.rows[0]?.count || 0);
-      const usersCount = Number(usersCountResult.rows[0]?.count || 0);
-
-      if (facilitiesCount > 0) {
-        await client.query('rollback');
-        return res.status(409).json({
-          error: `Cannot delete business while facilities still exist (${facilitiesCount}). Remove facilities first.`,
-          facilitiesCount,
-          usersCount,
-        });
-      }
-
-      if (usersCount > 0 && !force) {
-        await client.query('rollback');
-        return res.status(409).json({
-          error: `Business still has ${usersCount} user account(s). Retry with force=true to remove users and delete the business.`,
-          facilitiesCount,
-          usersCount,
-        });
-      }
-
-      if (usersCount > 0 && force) {
-        await client.query('delete from employees where company_id = $1', [companyId]);
-      }
-
+      await client.query('delete from facilities where company_id = $1', [companyId]);
+      await client.query('delete from employees where company_id = $1 and coalesce(company_role, \'\') <> \'platform_admin\'', [companyId]);
       await client.query('delete from companies where id = $1', [companyId]);
+
       await client.query('commit');
       return res.status(204).send();
     } catch (error) {
@@ -127,7 +102,7 @@ router.delete('/:companyId', requireAuth, async (req, res) => {
     }
   } catch (error) {
     if (error?.code === '23503') {
-      return res.status(409).json({ error: 'Cannot delete business while dependent records still exist. Remove facilities first, then retry with force delete for users if needed.' });
+      return res.status(409).json({ error: 'Cannot delete business while dependent records still exist.' });
     }
     return handleUnexpectedError(res, error);
   }
