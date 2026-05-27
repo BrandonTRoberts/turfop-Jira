@@ -61,6 +61,7 @@ export default function CsvImportPanel({ facility, canWrite }) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [confirmFacilityScope, setConfirmFacilityScope] = useState(false);
 
   async function parseSpreadsheetFile(file) {
     const lowerName = (file?.name || '').toLowerCase();
@@ -193,6 +194,10 @@ export default function CsvImportPanel({ facility, canWrite }) {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">Bulk import inventory or equipment for the currently selected facility. Upload CSV/XLS/XLSX/ODS or paste CSV text.</p>
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
+          <p className="font-semibold">Import scope warning</p>
+          <p>All imported rows will be assigned to the currently selected facility: <span className="font-semibold">{facility?.name || 'Selected Facility'}</span>.</p>
+        </div>
         <Select value={entityType} onValueChange={setEntityType}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="inventory">Inventory</SelectItem><SelectItem value="equipment">Equipment</SelectItem></SelectContent></Select>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setCsvText(entityType === 'inventory' ? inventoryTemplate : equipmentTemplate)}>Load sample template</Button>
@@ -218,9 +223,17 @@ export default function CsvImportPanel({ facility, canWrite }) {
           />
         </label>
         <Input value={csvText} onChange={(e)=>setCsvText(e.target.value)} placeholder="Paste CSV content here" />
+        <label className="flex items-center gap-2 text-xs text-amber-800">
+          <input
+            type="checkbox"
+            checked={confirmFacilityScope}
+            onChange={(event) => setConfirmFacilityScope(event.target.checked)}
+          />
+          I confirm I want to import all rows into {facility?.name || 'the selected facility'}.
+        </label>
         <div className="flex gap-2">
           <Button onClick={runPreview} disabled={uploadingFile || !csvText.trim()}>Preview</Button>
-          <Button onClick={runImport} disabled={uploadingFile || !csvText.trim()}>Import</Button>
+          <Button onClick={runImport} disabled={uploadingFile || !csvText.trim() || !confirmFacilityScope}>Import</Button>
           <Button variant="outline" onClick={downloadErrorCsv} disabled={!((preview?.rowErrors || []).length || (preview?.importErrors || []).length)}>
             Download error CSV
           </Button>
