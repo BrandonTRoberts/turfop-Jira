@@ -63,5 +63,7 @@ export const env = {
   appBaseUrl,
   allowPublicRegistration: parseBoolean(process.env.ALLOW_PUBLIC_REGISTRATION, false),
   allowManualTokenPreview: parseBoolean(process.env.ALLOW_MANUAL_TOKEN_PREVIEW, false),
+  oneSignalAppId: process.env.ONESIGNAL_APP_ID || '',
+  oneSignalApiKey: process.env.ONESIGNAL_API_KEY || '',
   allowedCorsOrigins
 };

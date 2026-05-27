@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import AppMainContent from "./AppMainContent";
 import AppSidebar from "./AppSidebar";
 import { api } from "@/services/api";
@@ -10,8 +10,10 @@ import { useTimeEntries } from "@/hooks/useTimeEntries";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { BarChart3, Clock, LayoutGrid, Loader2, LogOut, Menu, Package, ShieldCheck, Users, Wrench } from "lucide-react";
+import { BarChart3, Clock, LayoutGrid, Loader2, LogOut, Menu, Package, Settings, ShieldCheck, Users, Wrench } from "lucide-react";
 import { readFilesAsDataUrls } from "@/lib/files";
+import NotificationBell from "@/components/common/NotificationBell";
+import { setupPushNotifications } from "@/lib/pushNotifications";
 
 function canWriteFacility(facility) {
   return facility?.role === "admin" || facility?.role === "read_write";
@@ -77,6 +79,13 @@ function LoginScreen({ onLogin }) {
 
 export default function App() {
   const [currentView, setCurrentView] = useState("issues");
+  const [notificationTarget, setNotificationTarget] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ticket = params.get("ticket");
+    const facility = params.get("facility");
+    if (!ticket) return null;
+    return { ticketId: ticket, facilityId: facility || null };
+  });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.localStorage.getItem("turfop-sidebar-collapsed") === "true");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -155,15 +164,23 @@ export default function App() {
     }
   }, [currentView, employeeRole, isAccountAdmin, loadCompanies, setCompanies]);
 
+  useEffect(() => {
+    if (!session?.employee?.id) return;
+    setupPushNotifications({ employeeId: session.employee.id }).catch(() => {});
+  }, [session?.employee?.id]);
+
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: BarChart3 },
     { id: "issues", label: "Issues Board", icon: LayoutGrid },
     { id: "users", label: "Team Members", icon: Users },
+    { id: "templates", label: "Templates", icon: LayoutGrid },
     { id: "time", label: "Time Tracking", icon: Clock },
     { id: "equipment", label: "Equipment", icon: Wrench },
     { id: "inventory", label: "Inventory", icon: Package },
     ...(isAccountAdmin ? [{ id: "company-inventory", label: "Company Inventory", icon: Package }] : []),
+    ...(isAccountAdmin ? [{ id: "time-clock-approval", label: "Time Clock Approval", icon: Clock }] : []),
     ...(isAccountAdmin ? [{ id: "admin", label: "Admin", icon: ShieldCheck }] : []),
+    { id: "profile", label: "Settings", icon: Settings },
   ];
 
   async function createCompany(payload) {
@@ -282,6 +299,14 @@ export default function App() {
     };
   }
 
+  async function upsertEmployeeMembership(employeeId, facilityId, role) {
+    await api.upsertMembership({ employeeId, facilityId, role });
+  }
+
+  async function removeEmployeeMembership(employeeId, facilityId) {
+    await api.removeMembership(employeeId, facilityId);
+  }
+
   if (booting) {
     return (
       <div className="flex min-h-screen items-center justify-center gap-2 bg-background text-muted-foreground">
@@ -302,6 +327,17 @@ export default function App() {
     setCurrentView(viewId);
     setMobileNavOpen(false);
   }
+
+  const handleOpenNotificationTicket = useCallback((notification) => {
+    const facilityId = notification?.facility_id || notification?.payload?.facilityId || null;
+    const ticketId = notification?.work_order_id || notification?.payload?.workOrderId || null;
+    if (!ticketId) return;
+    if (facilityId) {
+      setSelectedFacilityId(facilityId);
+    }
+    setNotificationTarget({ ticketId, facilityId });
+    setCurrentView("issues");
+  }, [setSelectedFacilityId]);
 
   const renderView = () => (
     <AppMainContent
@@ -347,7 +383,11 @@ export default function App() {
       createInventoryItem={createInventoryItem}
       updateInventoryItem={updateInventoryItem}
       deleteInventoryItem={deleteInventoryItem}
+      onUpsertMembership={upsertEmployeeMembership}
+      onRemoveMembership={removeEmployeeMembership}
       onSelectView={selectView}
+      notificationTarget={notificationTarget}
+      onHandledNotificationTarget={() => setNotificationTarget(null)}
     />
   );
 
@@ -382,9 +422,12 @@ export default function App() {
           <p className="truncate text-sm font-semibold">TurfOp</p>
           <p className="truncate text-xs text-muted-foreground">{selectedFacility?.name || "Operations"}</p>
         </div>
-        <Button type="button" variant="ghost" size="icon" onClick={handleLogout} aria-label="Sign out">
-          <LogOut className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <NotificationBell onOpenTicket={handleOpenNotificationTicket} />
+          <Button type="button" variant="ghost" size="icon" onClick={handleLogout} aria-label="Sign out">
+            <LogOut className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {mobileNavOpen ? (
@@ -406,6 +449,9 @@ export default function App() {
       </div>
 
       <main className="min-w-0 flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
+        <div className="mb-4 hidden items-center justify-end lg:flex">
+          <NotificationBell onOpenTicket={handleOpenNotificationTicket} />
+        </div>
         {renderView()}
       </main>
     </div>

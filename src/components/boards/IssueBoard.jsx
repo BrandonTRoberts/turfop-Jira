@@ -133,7 +133,7 @@ function BoardColumn({ status, tickets, workOrders, canWrite, onMoveTicket, onOp
 }
 
 
-export default function IssueBoard({ course, workOrders, users = [], equipment = [], inventory = [], loading, error, canWrite, onCreate, onUpdate, onComment }) {
+export default function IssueBoard({ course, workOrders, users = [], equipment = [], inventory = [], loading, error, canWrite, onCreate, onUpdate, onComment, notificationTarget = null, onHandledNotificationTarget }) {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [detailDraft, setDetailDraft] = useState(emptyTicket);
   const [createOpen, setCreateOpen] = useState(false);
@@ -164,6 +164,15 @@ export default function IssueBoard({ course, workOrders, users = [], equipment =
       attachments: [],
     });
   }, [selectedTicket]);
+
+  useEffect(() => {
+    if (!notificationTarget?.ticketId) return;
+    const match = workOrders.find((ticket) => String(ticket.id) === String(notificationTarget.ticketId));
+    if (match) {
+      setSelectedTicket(match);
+      onHandledNotificationTarget?.();
+    }
+  }, [notificationTarget, onHandledNotificationTarget, workOrders]);
 
   const filteredTickets = useMemo(() => {
     const needle = query.trim().toLowerCase();

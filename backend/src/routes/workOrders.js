@@ -5,6 +5,7 @@ import { canWrite, getRoleForFacility, isAdmin } from '../lib/permissions.js';
 import { persistAttachmentCollection, persistImageCollection } from '../lib/media.js';
 import { handleUnexpectedError } from '../lib/http.js';
 import { validateWorkOrderStatus, validateWorkOrderTransition } from '../lib/workOrderWorkflow.js';
+import { createAssignmentNotification } from '../lib/notifications.js';
 
 const router = Router();
 
@@ -124,6 +125,58 @@ function buildChangedFields(existing, next) {
   return comparisons
     .filter(([, before, after]) => String(before ?? '') !== String(after ?? ''))
     .map(([field]) => field);
+}
+
+async function findEmployeeByAssignee(client, { facilityId, assigneeName }) {
+  if (!assigneeName) return null;
+  const name = String(assigneeName).trim();
+  if (!name) return null;
+
+  const exact = await client.query(
+    `
+      select e.id, e.full_name, e.email
+      from employees e
+      join facility_memberships fm on fm.employee_id = e.id
+      where fm.facility_id = $1
+        and lower(coalesce(e.full_name, '')) = lower($2)
+      limit 1
+    `,
+    [facilityId, name]
+  );
+  if (exact.rows[0]) return exact.rows[0];
+
+  const loose = await client.query(
+    `
+      select e.id, e.full_name, e.email
+      from employees e
+      join facility_memberships fm on fm.employee_id = e.id
+      where fm.facility_id = $1
+        and (lower(coalesce(e.full_name, '')) like lower($2) or lower(e.email) like lower($2))
+      limit 1
+    `,
+    [facilityId, `%${name}%`]
+  );
+  return loose.rows[0] || null;
+}
+
+async function maybeNotifyAssignee({ client, actorEmployee, facilityId, workOrderId, title, detail, assignee, dueAt, requiredTools = [], checklist = [] }) {
+  const recipient = await findEmployeeByAssignee(client, { facilityId, assigneeName: assignee });
+  if (!recipient?.id || recipient.id === actorEmployee.id) {
+    return;
+  }
+
+  await createAssignmentNotification({
+    employeeId: recipient.id,
+    facilityId,
+    workOrderId,
+    ticketTitle: title,
+    detail,
+    requiredTools,
+    checklist,
+    dueAt,
+    assignedByEmployeeId: actorEmployee.id,
+    assignedByName: actorEmployee.full_name || actorEmployee.email || 'TurfOp'
+  });
 }
 
 async function restorePartInventory(client, workOrderId) {
@@ -343,10 +396,30 @@ router.post('/', requireAuth, async (req, res) => {
           title,
           assignee: assignee || null,
           technicianEmployeeId: costs.technicianEmployeeId,
-          partUsageCount: partUsages.length
-          , equipmentId: equipmentId || null
+          partUsageCount: partUsages.length,
+          equipmentId: equipmentId || null
         }
       });
+
+      if (assignee) {
+        try {
+          await maybeNotifyAssignee({
+            client,
+            actorEmployee: req.employee,
+            facilityId,
+            workOrderId: workOrder.id,
+            title,
+            detail,
+            assignee,
+            dueAt,
+            requiredTools: [],
+            checklist: []
+          });
+        } catch (notificationError) {
+          console.warn('Assignment notification failed during create', notificationError);
+        }
+      }
+
       await client.query('commit');
 
       res.status(201).json(await hydrateWorkOrderRow(client, updateTotals.rows[0], canSeeFinancials));
@@ -456,6 +529,26 @@ router.patch('/:workOrderId', requireAuth, async (req, res) => {
         completedWorkNotes,
         completedAt
       });
+
+      const assigneeChanged = String(workOrder.assignee || '') !== String(assignee || '');
+      if (assigneeChanged && assignee) {
+        try {
+          await maybeNotifyAssignee({
+            client,
+            actorEmployee: req.employee,
+            facilityId,
+            workOrderId,
+            title,
+            detail,
+            assignee,
+            dueAt,
+            requiredTools: [],
+            checklist: []
+          });
+        } catch (notificationError) {
+          console.warn('Assignment notification failed during update', notificationError);
+        }
+      }
       if (transition.fromStatus !== transition.toStatus) {
         await logWorkOrderActivity(client, {
           workOrderId,

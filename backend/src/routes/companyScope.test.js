@@ -109,7 +109,7 @@ test('platform admin can create a company', async () => {
   assert.equal(response.body.name, 'Augusta Operations');
 });
 
-test('company super user can create a facility for their own company', async () => {
+test('company super user cannot create a facility (platform-admin only)', async () => {
   setDbTestOverrides({
     queryImpl: async (text, params) => {
       if (text.includes('from employees') && text.includes('where id = $1')) {
@@ -153,13 +153,8 @@ test('company super user can create a facility for their own company', async () 
       ]
     });
 
-  assert.equal(response.status, 201);
-  assert.equal(response.body.company_name, 'Augusta Operations');
-  assert.equal(response.body.name, 'Augusta National');
-  assert.equal(response.body.region, 'Georgia');
-  assert.equal(response.body.superintendent_name, 'Riley Grounds');
-  assert.equal(response.body.course_areas_config.length, 2);
-  assert.equal(response.body.course_areas_config[1].trackedCount, 36);
+  assert.equal(response.status, 403);
+  assert.equal(response.body.error, 'Only Platform Admins can add new facilities or businesses. Contact support or your account manager to expand your account.');
 });
 
 test('company super user cannot create a facility for another company', async () => {
@@ -185,7 +180,7 @@ test('company super user cannot create a facility for another company', async ()
     });
 
   assert.equal(response.status, 403);
-  assert.equal(response.body.error, 'Cannot create facilities outside your company');
+  assert.equal(response.body.error, 'Only Platform Admins can add new facilities or businesses. Contact support or your account manager to expand your account.');
 });
 
 test('facility admin can update facility settings and area tracking', async () => {

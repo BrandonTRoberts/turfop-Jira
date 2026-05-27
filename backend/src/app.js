@@ -14,6 +14,8 @@ import timeEntriesRouter from './routes/timeEntries.js';
 import companiesRouter from './routes/companies.js';
 import dashboardRouter from './routes/dashboard.js';
 import serviceTemplatesRouter from './routes/serviceTemplates.js';
+import adminOpsRouter from './routes/adminOps.js';
+import notificationsRouter from './routes/notifications.js';
 import { UPLOADS_DIR } from './lib/media.js';
 import { env } from './config/env.js';
 import { csrfCookieProtection } from './lib/csrf.js';
@@ -104,6 +106,8 @@ export function createApp() {
   app.use('/companies', companiesRouter);
   app.use('/dashboard', dashboardRouter);
   app.use('/service-templates', serviceTemplatesRouter);
+  app.use('/admin-ops', adminOpsRouter);
+  app.use('/notifications', notificationsRouter);
 
   app.use((error, req, res, _next) => {
     if (error?.message === 'CORS origin denied') {

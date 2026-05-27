@@ -165,51 +165,68 @@ export default function AdminPanel({
                 </form>
               </CardContent>
             </Card>
-          ) : null}
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Business Creation Restricted</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="rounded-md border border-amber-400/40 bg-amber-400/10 p-3 text-sm text-muted-foreground">
+                  Only Platform Admins can add new facilities or businesses. Contact support or your account manager to expand your account.
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
               <CardTitle>Create Facility</CardTitle>
             </CardHeader>
             <CardContent>
-              <form className="space-y-3" onSubmit={handleCreateFacility}>
-                <Select
-                  value={courseForm.companyId}
-                  onValueChange={(companyId) => setCourseForm((current) => ({ ...current, companyId }))}
-                  disabled={visibleCompanies.length === 0}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select company" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {visibleCompanies.map((company) => (
-                      <SelectItem key={company.id} value={company.id}>
-                        {company.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  placeholder="Course name"
-                  value={courseForm.name}
-                  onChange={(event) => setCourseForm((current) => ({ ...current, name: event.target.value }))}
-                  required
-                />
-                <Input
-                  placeholder="Region"
-                  value={courseForm.region}
-                  onChange={(event) => setCourseForm((current) => ({ ...current, region: event.target.value }))}
-                />
-                <Input
-                  placeholder="Superintendent"
-                  value={courseForm.superintendentName}
-                  onChange={(event) => setCourseForm((current) => ({ ...current, superintendentName: event.target.value }))}
-                />
-                <Button type="submit" className="w-full" disabled={submittingCourse || !courseForm.companyId}>
-                  {submittingCourse ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Create facility
-                </Button>
-              </form>
+              {isPlatformAdmin ? (
+                <form className="space-y-3" onSubmit={handleCreateFacility}>
+                  <Select
+                    value={courseForm.companyId}
+                    onValueChange={(companyId) => setCourseForm((current) => ({ ...current, companyId }))}
+                    disabled={visibleCompanies.length === 0}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select company" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {visibleCompanies.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    placeholder="Course name"
+                    value={courseForm.name}
+                    onChange={(event) => setCourseForm((current) => ({ ...current, name: event.target.value }))}
+                    required
+                  />
+                  <Input
+                    placeholder="Region"
+                    value={courseForm.region}
+                    onChange={(event) => setCourseForm((current) => ({ ...current, region: event.target.value }))}
+                  />
+                  <Input
+                    placeholder="Superintendent"
+                    value={courseForm.superintendentName}
+                    onChange={(event) => setCourseForm((current) => ({ ...current, superintendentName: event.target.value }))}
+                  />
+                  <Button type="submit" className="w-full" disabled={submittingCourse || !courseForm.companyId}>
+                    {submittingCourse ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Create facility
+                  </Button>
+                </form>
+              ) : (
+                <p className="rounded-md border border-amber-400/40 bg-amber-400/10 p-3 text-sm text-muted-foreground">
+                  Only Platform Admins can add new facilities or businesses. Contact support or your account manager to expand your account.
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>

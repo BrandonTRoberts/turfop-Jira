@@ -251,4 +251,76 @@ export const api = {
   async upsertMembership(payload) {
     return request("/employees/memberships", { method: "POST", body: withFacilityId(payload) });
   },
+
+  async removeMembership(employeeId, facilityId) {
+    const scopedFacilityId = asFacilityId(facilityId);
+    return request(`/employees/${encodeURIComponent(employeeId)}/memberships/${encodeURIComponent(scopedFacilityId)}`, { method: "DELETE" });
+  },
+
+  async updateServiceTemplate(templateId, payload) {
+    return request(`/service-templates/${encodeURIComponent(templateId)}`, { method: "PATCH", body: withFacilityId(payload) });
+  },
+
+  async facilityLocations(facilityId) {
+    return request(`/facilities/${encodeURIComponent(facilityId)}/locations`);
+  },
+
+  async createFacilityLocation(facilityId, payload) {
+    return request(`/facilities/${encodeURIComponent(facilityId)}/locations`, { method: "POST", body: payload });
+  },
+
+  async updateFacilityLocation(facilityId, locationId, payload) {
+    return request(`/facilities/${encodeURIComponent(facilityId)}/locations/${encodeURIComponent(locationId)}`, { method: "PATCH", body: payload });
+  },
+
+  async deleteFacilityLocation(facilityId, locationId) {
+    return request(`/facilities/${encodeURIComponent(facilityId)}/locations/${encodeURIComponent(locationId)}`, { method: "DELETE" });
+  },
+
+  async previewCsvImport(payload) {
+    return request('/admin-ops/import-csv/preview', { method: 'POST', body: withFacilityId(payload) });
+  },
+
+  async commitCsvImport(payload) {
+    return request('/admin-ops/import-csv/commit', { method: 'POST', body: withFacilityId(payload) });
+  },
+
+  async timeClockApproval(facilityId, filters = {}) {
+    const params = new URLSearchParams({ facilityId, ...filters });
+    return request(`/admin-ops/time-clock-approval?${params.toString()}`);
+  },
+
+  async updateTimeClockApproval(entryId, payload) {
+    return request(`/admin-ops/time-clock-approval/${encodeURIComponent(entryId)}`, { method: 'PATCH', body: withFacilityId(payload) });
+  },
+
+  async notifications({ limit = 30, unreadOnly = false } = {}) {
+    const params = new URLSearchParams({ limit: String(limit), unreadOnly: String(Boolean(unreadOnly)) });
+    return request(`/notifications?${params.toString()}`);
+  },
+
+  async markNotificationsRead(notificationIds) {
+    return request('/notifications/mark-read', { method: 'POST', body: { notificationIds } });
+  },
+
+  async markAllNotificationsRead() {
+    return request('/notifications/mark-all-read', { method: 'POST' });
+  },
+
+  async notificationPreferences() {
+    return request('/notifications/preferences');
+  },
+
+  async updateNotificationPreferences(payload) {
+    return request('/notifications/preferences', { method: 'PATCH', body: payload });
+  },
+
+  async registerNotificationDevice(payload) {
+    return request('/notifications/devices/register', { method: 'POST', body: payload });
+  },
+
+  async unregisterNotificationDevice(provider, deviceToken) {
+    return request(`/notifications/devices/${encodeURIComponent(provider)}/${encodeURIComponent(deviceToken)}`, { method: 'DELETE' });
+  },
+
 };

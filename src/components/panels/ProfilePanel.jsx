@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ImagePlus, Loader2, Save } from "lucide-react";
 import { getUploadUrl, readFilesAsDataUrls } from "@/lib/files";
+import { api } from "@/services/api";
 
 export default function ProfilePanel({ employee, onUpdateProfile }) {
   const [fullName, setFullName] = useState(employee?.full_name || "");
@@ -28,6 +29,29 @@ export default function ProfilePanel({ employee, onUpdateProfile }) {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
+
+  const [notificationPrefs, setNotificationPrefs] = useState({
+    notifications_enabled: true,
+    assignment_notifications_enabled: true,
+    push_enabled: true,
+  });
+  const [notificationLoading, setNotificationLoading] = useState(true);
+  const [notificationSaving, setNotificationSaving] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState("");
+
+  useEffect(() => {
+    async function loadPrefs() {
+      try {
+        const prefs = await api.notificationPreferences();
+        setNotificationPrefs(prefs);
+      } catch {
+        setNotificationMessage("Could not load notification preferences.");
+      } finally {
+        setNotificationLoading(false);
+      }
+    }
+    loadPrefs();
+  }, []);
 
   async function handleImageChange(fileList) {
     if (!fileList || fileList.length === 0) return;
@@ -97,6 +121,24 @@ export default function ProfilePanel({ employee, onUpdateProfile }) {
       setPasswordError(err.message || "Failed to update password.");
     } finally {
       setPasswordSaving(false);
+    }
+  }
+
+  async function saveNotificationPrefs(nextPrefs) {
+    setNotificationSaving(true);
+    setNotificationMessage("");
+    try {
+      const updated = await api.updateNotificationPreferences({
+        notificationsEnabled: nextPrefs.notifications_enabled,
+        assignmentNotificationsEnabled: nextPrefs.assignment_notifications_enabled,
+        pushEnabled: nextPrefs.push_enabled,
+      });
+      setNotificationPrefs(updated);
+      setNotificationMessage("Notification preferences saved.");
+    } catch (err) {
+      setNotificationMessage(err.message || "Failed to save notification preferences.");
+    } finally {
+      setNotificationSaving(false);
     }
   }
 
@@ -189,6 +231,57 @@ export default function ProfilePanel({ employee, onUpdateProfile }) {
                 Save Changes
               </Button>
             </form>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-lg">Notifications</CardTitle>
+            <CardDescription>Control assignment alerts across mobile and web. Push delivery requires device permission.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-xs text-muted-foreground">Tip: Keep assignment notifications on so field techs never miss new tickets.</p>
+            <label className="flex items-center justify-between rounded-md border border-border p-3">
+              <span className="text-sm">Enable all notifications</span>
+              <input
+                type="checkbox"
+                checked={Boolean(notificationPrefs.notifications_enabled)}
+                disabled={notificationLoading || notificationSaving}
+                onChange={(event) => {
+                  const next = { ...notificationPrefs, notifications_enabled: event.target.checked };
+                  setNotificationPrefs(next);
+                  saveNotificationPrefs(next);
+                }}
+              />
+            </label>
+            <label className="flex items-center justify-between rounded-md border border-border p-3">
+              <span className="text-sm">Assignment notifications</span>
+              <input
+                type="checkbox"
+                checked={Boolean(notificationPrefs.assignment_notifications_enabled)}
+                disabled={notificationLoading || notificationSaving || !notificationPrefs.notifications_enabled}
+                onChange={(event) => {
+                  const next = { ...notificationPrefs, assignment_notifications_enabled: event.target.checked };
+                  setNotificationPrefs(next);
+                  saveNotificationPrefs(next);
+                }}
+              />
+            </label>
+            <label className="flex items-center justify-between rounded-md border border-border p-3">
+              <span className="text-sm">Push notifications (mobile/web)</span>
+              <input
+                type="checkbox"
+                checked={Boolean(notificationPrefs.push_enabled)}
+                disabled={notificationLoading || notificationSaving || !notificationPrefs.notifications_enabled}
+                onChange={(event) => {
+                  const next = { ...notificationPrefs, push_enabled: event.target.checked };
+                  setNotificationPrefs(next);
+                  saveNotificationPrefs(next);
+                }}
+              />
+            </label>
+            {notificationSaving ? <p className="text-xs text-muted-foreground">Saving notification preferences...</p> : null}
+            {notificationMessage ? <p className="text-xs text-muted-foreground">{notificationMessage}</p> : null}
           </CardContent>
         </Card>
 

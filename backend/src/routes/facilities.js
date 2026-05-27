@@ -40,12 +40,8 @@ router.post('/', requireAuth, async (req, res) => {
   const { companyId, name, region, superintendentName, courseAreas } = req.body;
 
   try {
-    if (!isGlobalSuperUser(req.employee) && !isCompanySuperUser(req.employee)) {
-      return res.status(403).json({ error: 'Company or platform admin access required' });
-    }
-
-    if (isCompanySuperUser(req.employee) && req.employee.company_id !== companyId) {
-      return res.status(403).json({ error: 'Cannot create facilities outside your company' });
+    if (!isGlobalSuperUser(req.employee)) {
+      return res.status(403).json({ error: 'Only Platform Admins can add new facilities or businesses. Contact support or your account manager to expand your account.' });
     }
 
     const validationError = validateFacilityCreateInput({ companyId, name, region, superintendentName });
@@ -118,6 +114,59 @@ router.patch('/:facilityId', requireAuth, async (req, res) => {
     }
 
     return res.json(result.rows[0]);
+  } catch (error) {
+    return handleUnexpectedError(res, error);
+  }
+});
+
+
+
+router.get('/:facilityId/locations', requireAuth, async (req, res) => {
+  const { facilityId } = req.params;
+  try {
+    const role = await getRoleForFacility(req.employee, facilityId);
+    if (!role) return res.status(403).json({ error: 'No access to this facility' });
+    const result = await query('select * from facility_locations where facility_id=$1 and is_archived=false order by name asc', [facilityId]);
+    return res.json(result.rows);
+  } catch (error) {
+    return handleUnexpectedError(res, error);
+  }
+});
+
+router.post('/:facilityId/locations', requireAuth, async (req, res) => {
+  const { facilityId } = req.params;
+  const { name, locationType = 'section', notes = '' } = req.body;
+  try {
+    const role = await getRoleForFacility(req.employee, facilityId);
+    if (!isAdmin(role)) return res.status(403).json({ error: 'Admin access required for this facility' });
+    const result = await query('insert into facility_locations (facility_id, name, location_type, notes, created_by_employee_id, updated_by_employee_id) values ($1,$2,$3,$4,$5,$5) returning *', [facilityId, name, locationType, notes || null, req.employee.id]);
+    return res.status(201).json(result.rows[0]);
+  } catch (error) {
+    return handleUnexpectedError(res, error);
+  }
+});
+
+router.patch('/:facilityId/locations/:locationId', requireAuth, async (req, res) => {
+  const { facilityId, locationId } = req.params;
+  const { name, locationType = 'section', notes = '', isArchived = false } = req.body;
+  try {
+    const role = await getRoleForFacility(req.employee, facilityId);
+    if (!isAdmin(role)) return res.status(403).json({ error: 'Admin access required for this facility' });
+    const result = await query('update facility_locations set name=$3, location_type=$4, notes=$5, is_archived=$6, updated_by_employee_id=$7, updated_at=now() where id=$1 and facility_id=$2 returning *', [locationId, facilityId, name, locationType, notes || null, isArchived, req.employee.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Location not found' });
+    return res.json(result.rows[0]);
+  } catch (error) {
+    return handleUnexpectedError(res, error);
+  }
+});
+
+router.delete('/:facilityId/locations/:locationId', requireAuth, async (req, res) => {
+  const { facilityId, locationId } = req.params;
+  try {
+    const role = await getRoleForFacility(req.employee, facilityId);
+    if (!isAdmin(role)) return res.status(403).json({ error: 'Admin access required for this facility' });
+    await query('delete from facility_locations where id=$1 and facility_id=$2', [locationId, facilityId]);
+    return res.status(204).send();
   } catch (error) {
     return handleUnexpectedError(res, error);
   }

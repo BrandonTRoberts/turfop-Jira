@@ -8,6 +8,9 @@ import InventoryPanel from "./panels/InventoryPanel";
 import CompanyInventoryPanel from "./panels/CompanyInventoryPanel";
 import ProfilePanel from "./panels/ProfilePanel";
 import AdminPanel from "./panels/AdminPanel";
+import ServiceTemplatesManager from "./panels/ServiceTemplatesManager";
+import TimeClockApprovalPanel from "./panels/TimeClockApprovalPanel";
+import CsvImportPanel from "./panels/CsvImportPanel";
 import { api } from "@/services/api";
 import { mapDirectoryRows } from "@/hooks/useDashboardData";
 
@@ -59,6 +62,10 @@ export default function AppMainContent({
   createInventoryItem,
   updateInventoryItem,
   deleteInventoryItem,
+  onUpsertMembership,
+  onRemoveMembership,
+  notificationTarget,
+  onHandledNotificationTarget,
 }) {
   if (currentView === "admin" && isAccountAdmin) {
     return (
@@ -135,8 +142,16 @@ export default function AppMainContent({
             );
             return activity;
           }}
+          notificationTarget={notificationTarget}
+          onHandledNotificationTarget={onHandledNotificationTarget}
         />
       );
+
+    case "templates":
+      return <ServiceTemplatesManager course={selectedFacility} inventory={inventory} canWrite={selectedFacility.role === "admin"} />;
+
+    case "time-clock-approval":
+      return <TimeClockApprovalPanel facility={selectedFacility} canAdmin={selectedFacility.role === "admin"} />;
 
     case "users":
       return (
@@ -145,34 +160,38 @@ export default function AppMainContent({
           <UsersPanel
             business={{ name: selectedFacility.name }}
             users={users}
-              canAdmin={selectedFacility.role === "admin"}
-              onLoadDetails={loadEmployeeDetails}
-              onUpdate={updateEmployee}
-              onInvite={async (invite) => {
-                await api.inviteEmployee({
-                  facilityId: activeFacilityId,
-                  email: invite.email,
-                  fullName: invite.fullName,
-                  role: invite.role,
-                  hourlyRate: invite.hourlyRate ? Number(invite.hourlyRate) : null,
-                  profileImage: invite.profileImage,
-                });
-                const rows = await api.facilityDirectory(activeFacilityId);
-                setUsers(mapDirectoryRows(rows));
-              }}
-              onRoleChange={async (employeeId, role) => {
-                await api.upsertMembership({ employeeId, facilityId: activeFacilityId, role });
-                setUsers((current) =>
-                  current.map((user) => (user.id === employeeId ? { ...user, role } : user))
-                );
-              }}
-              onResendInvite={async (employeeId) => {
-                await api.resendInvite(employeeId, activeFacilityId);
-              }}
-              onSendResetPassword={async (employeeId) => {
-                await api.sendResetPassword(employeeId, activeFacilityId);
-              }}
-            />
+            facilities={facilities}
+            activeFacilityId={activeFacilityId}
+            canAdmin={selectedFacility.role === "admin"}
+            onLoadDetails={loadEmployeeDetails}
+            onUpdate={updateEmployee}
+            onInvite={async (invite) => {
+              await api.inviteEmployee({
+                facilityId: activeFacilityId,
+                email: invite.email,
+                fullName: invite.fullName,
+                role: invite.role,
+                hourlyRate: invite.hourlyRate ? Number(invite.hourlyRate) : null,
+                profileImage: invite.profileImage,
+              });
+              const rows = await api.facilityDirectory(activeFacilityId);
+              setUsers(mapDirectoryRows(rows));
+            }}
+            onRoleChange={async (employeeId, role) => {
+              await api.upsertMembership({ employeeId, facilityId: activeFacilityId, role });
+              setUsers((current) =>
+                current.map((user) => (user.id === employeeId ? { ...user, role } : user))
+              );
+            }}
+            onUpsertMembership={onUpsertMembership}
+            onRemoveMembership={onRemoveMembership}
+            onResendInvite={async (employeeId) => {
+              await api.resendInvite(employeeId, activeFacilityId);
+            }}
+            onSendResetPassword={async (employeeId) => {
+              await api.sendResetPassword(employeeId, activeFacilityId);
+            }}
+          />
         </div>
       );
 
@@ -199,6 +218,8 @@ export default function AppMainContent({
 
     case "equipment":
       return (
+        <div className="space-y-4">
+        <CsvImportPanel facility={selectedFacility} canWrite={selectedFacility.role === "admin"} />
         <EquipmentPanel
           course={selectedFacility}
           equipment={equipment}
@@ -208,10 +229,13 @@ export default function AppMainContent({
           onCreate={createEquipment}
           onUpdate={updateEquipment}
         />
+        </div>
       );
 
     case "inventory":
       return (
+        <div className="space-y-4">
+        <CsvImportPanel facility={selectedFacility} canWrite={selectedFacility.role === "admin"} />
         <InventoryPanel
           course={selectedFacility}
           inventory={inventory}
@@ -222,6 +246,7 @@ export default function AppMainContent({
           onUpdate={updateInventoryItem}
           onDelete={deleteInventoryItem}
         />
+        </div>
       );
 
     case "company-inventory":

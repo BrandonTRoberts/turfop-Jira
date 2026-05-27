@@ -46,7 +46,7 @@ router.post('/', requireAuth, async (req, res) => {
 
   try {
     if (!isGlobalSuperUser(req.employee)) {
-      return res.status(403).json({ error: 'Platform admin access required' });
+      return res.status(403).json({ error: 'Only Platform Admins can add new facilities or businesses. Contact support or your account manager to expand your account.' });
     }
 
     const validationError = validateCompanyInput({ name });

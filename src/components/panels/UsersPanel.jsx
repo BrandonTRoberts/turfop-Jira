@@ -27,7 +27,7 @@ function toEditForm(user) {
   };
 }
 
-export default function UsersPanel({ business, users, canAdmin, onInvite, onRoleChange, onLoadDetails, onUpdate, onResendInvite, onSendResetPassword }) {
+export default function UsersPanel({ business, users, facilities = [], activeFacilityId, canAdmin, onInvite, onRoleChange, onLoadDetails, onUpdate, onUpsertMembership, onRemoveMembership, onResendInvite, onSendResetPassword }) {
   const [search, setSearch] = useState("");
   const [invite, setInvite] = useState(emptyInvite);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -44,6 +44,21 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
   const [resetPasswordSuccess, setResetPasswordSuccess] = useState("");
   const [sendingResend, setSendingResend] = useState(false);
   const [sendingReset, setSendingReset] = useState(false);
+  const [membershipFacilityId, setMembershipFacilityId] = useState(activeFacilityId || "");
+  const [membershipRole, setMembershipRole] = useState("read_only");
+  const [membershipSaving, setMembershipSaving] = useState(false);
+  const [membershipError, setMembershipError] = useState("");
+  const [membershipSuccess, setMembershipSuccess] = useState("");
+  const [membershipBusyFacilityId, setMembershipBusyFacilityId] = useState("");
+  const [toasts, setToasts] = useState([]);
+
+  function showToast(type, message) {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    setToasts((current) => [...current, { id, type, message }]);
+    window.setTimeout(() => {
+      setToasts((current) => current.filter((toast) => toast.id !== id));
+    }, 4500);
+  }
 
   const filtered = users.filter((user) =>
     [user.name, user.email, user.role, user.status].some((value) =>
@@ -60,9 +75,13 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
     try {
       await onInvite(invite);
       setInvite(emptyInvite);
-      setInviteSuccess("Invite sent. The user has been added and emailed a password setup link.");
+      const message = "Invite sent. The user has been added and emailed a password setup link.";
+      setInviteSuccess(message);
+      showToast("success", message);
     } catch (inviteError) {
-      setError(inviteError.message);
+      const message = inviteError.message;
+      setError(message);
+      showToast("error", message);
     } finally {
       setSaving(false);
     }
@@ -72,6 +91,10 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
     setSelectedUser(user);
     setEditForm(toEditForm(user));
     setEditError("");
+    setMembershipError("");
+    setMembershipSuccess("");
+    setMembershipFacilityId(activeFacilityId || "");
+    setMembershipRole("read_only");
 
     if (!canAdmin || !onLoadDetails) {
       return;
@@ -93,6 +116,7 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
       setEditForm(toEditForm(merged));
     } catch (detailError) {
       setEditError(detailError.message);
+      showToast("error", detailError.message);
     } finally {
       setLoadingDetail(false);
     }
@@ -105,9 +129,13 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
     setSendingResend(true);
     try {
       await onResendInvite(selectedUser.id);
-      setResendInviteSuccess("Invite sent successfully!");
+      const message = "Invite sent successfully!";
+      setResendInviteSuccess(message);
+      showToast("success", message);
     } catch (err) {
-      setResendInviteError(err.message || "Failed to resend invite.");
+      const message = err.message || "Failed to resend invite.";
+      setResendInviteError(message);
+      showToast("error", message);
     } finally {
       setSendingResend(false);
     }
@@ -120,11 +148,73 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
     setSendingReset(true);
     try {
       await onSendResetPassword(selectedUser.id);
-      setResetPasswordSuccess("Password reset link sent successfully!");
+      const message = "Password reset link sent successfully!";
+      setResetPasswordSuccess(message);
+      showToast("success", message);
     } catch (err) {
-      setResetPasswordError(err.message || "Failed to send password reset link.");
+      const message = err.message || "Failed to send password reset link.";
+      setResetPasswordError(message);
+      showToast("error", message);
     } finally {
       setSendingReset(false);
+    }
+  }
+
+  async function handleAddMembership() {
+    if (!selectedUser || !membershipFacilityId || !onUpsertMembership) return;
+    setMembershipSaving(true);
+    setMembershipBusyFacilityId(membershipFacilityId);
+    setMembershipError("");
+    setMembershipSuccess("");
+    try {
+      await onUpsertMembership(selectedUser.id, membershipFacilityId, membershipRole);
+      const facility = facilities.find((item) => (item.facility_id || item.id) === membershipFacilityId);
+      setSelectedUser((current) => {
+        const memberships = current?.memberships || [];
+        const existing = memberships.find((m) => m.facility_id === membershipFacilityId);
+        const nextMemberships = existing
+          ? memberships.map((m) => (m.facility_id === membershipFacilityId ? { ...m, role: membershipRole } : m))
+          : [...memberships, { facility_id: membershipFacilityId, role: membershipRole, name: facility?.name || "Facility" }];
+        return { ...current, memberships: nextMemberships };
+      });
+      setMembershipSuccess(`Membership saved for ${facility?.name || "selected facility"}.`);
+      showToast("success", `Membership saved for ${facility?.name || "selected facility"}.`);
+    } catch (err) {
+      const message = err.message || "Failed to update membership.";
+      setMembershipError(message);
+      showToast("error", message);
+    } finally {
+      setMembershipSaving(false);
+      setMembershipBusyFacilityId("");
+    }
+  }
+
+  async function handleRemoveMembership(facilityId) {
+    if (!selectedUser || !facilityId || !onRemoveMembership) return;
+    const membership = (selectedUser.memberships || []).find((item) => item.facility_id === facilityId);
+    const membershipName = membership?.name || membership?.facility_name || "this facility";
+    const confirmed = window.confirm(`Remove ${selectedUser.name} from ${membershipName}?`);
+    if (!confirmed) return;
+
+    setMembershipSaving(true);
+    setMembershipBusyFacilityId(facilityId);
+    setMembershipError("");
+    setMembershipSuccess("");
+    try {
+      await onRemoveMembership(selectedUser.id, facilityId);
+      setSelectedUser((current) => ({
+        ...current,
+        memberships: (current?.memberships || []).filter((currentMembership) => currentMembership.facility_id !== facilityId),
+      }));
+      setMembershipSuccess(`Removed access to ${membershipName}.`);
+      showToast("success", `Removed access to ${membershipName}.`);
+    } catch (err) {
+      const message = err.message || "Failed to remove membership.";
+      setMembershipError(message);
+      showToast("error", message);
+    } finally {
+      setMembershipSaving(false);
+      setMembershipBusyFacilityId("");
     }
   }
 
@@ -159,8 +249,10 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
       };
       setSelectedUser(nextUser);
       setEditForm(toEditForm(nextUser));
+      showToast("success", "User profile updated successfully.");
     } catch (updateError) {
       setEditError(updateError.message);
+      showToast("error", updateError.message);
     } finally {
       setSavingEdit(false);
     }
@@ -169,6 +261,18 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
   if (selectedUser) {
     return (
       <div className="space-y-6">
+        <div className="pointer-events-none fixed right-4 top-4 z-50 flex w-full max-w-sm flex-col gap-2">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className={`pointer-events-auto rounded-md border px-3 py-2 text-sm shadow-lg ${toast.type === "success" ? "border-emerald-600/40 bg-emerald-950/90 text-emerald-100" : "border-red-600/40 bg-red-950/90 text-red-100"}`}
+              role="status"
+              aria-live="polite"
+            >
+              {toast.message}
+            </div>
+          ))}
+        </div>
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
             <Button type="button" variant="ghost" className="mb-3 px-0" onClick={() => setSelectedUser(null)}>
@@ -273,6 +377,101 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
               </CardContent>
             </Card>
 
+            {canAdmin ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Facility Access</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {(selectedUser.memberships || []).length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No facility memberships assigned yet.</p>
+                  ) : (
+                    (selectedUser.memberships || []).map((membership) => (
+                      <div key={membership.facility_id} className="flex items-center gap-2">
+                        <Badge variant="outline" className="min-w-[140px] justify-center">{membership.name || membership.facility_name || membership.facility_id}</Badge>
+                        <Select
+                          value={membership.role || "read_only"}
+                          onValueChange={async (role) => {
+                            setMembershipSaving(true);
+                            setMembershipBusyFacilityId(membership.facility_id);
+                            setMembershipError("");
+                            setMembershipSuccess("");
+                            try {
+                              await onUpsertMembership(selectedUser.id, membership.facility_id, role);
+                              setSelectedUser((current) => ({
+                                ...current,
+                                memberships: (current?.memberships || []).map((item) => (
+                                  item.facility_id === membership.facility_id ? { ...item, role } : item
+                                )),
+                              }));
+                              const membershipName = membership?.name || membership?.facility_name || "facility";
+                              setMembershipSuccess(`Updated role in ${membershipName}.`);
+                              showToast("success", `Updated role in ${membershipName}.`);
+                            } catch (err) {
+                              const message = err.message || "Failed to update membership.";
+                              setMembershipError(message);
+                              showToast("error", message);
+                            } finally {
+                              setMembershipSaving(false);
+                              setMembershipBusyFacilityId("");
+                            }
+                          }}
+                          disabled={membershipSaving}
+                        >
+                          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="read_write">Read/write</SelectItem>
+                            <SelectItem value="read_only">Read-only</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="text-red-500 hover:text-red-600"
+                          onClick={() => handleRemoveMembership(membership.facility_id)}
+                          disabled={membershipSaving || (selectedUser.memberships || []).length <= 1}
+                        >
+                          {membershipSaving && membershipBusyFacilityId === membership.facility_id ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Working...
+                            </>
+                          ) : (
+                            "Remove"
+                          )}
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_150px_auto]">
+                    <Select value={membershipFacilityId} onValueChange={setMembershipFacilityId} disabled={membershipSaving}>
+                      <SelectTrigger><SelectValue placeholder="Select facility" /></SelectTrigger>
+                      <SelectContent>
+                        {facilities.map((facility) => {
+                          const id = facility.facility_id || facility.id;
+                          return <SelectItem key={id} value={id}>{facility.name}</SelectItem>;
+                        })}
+                      </SelectContent>
+                    </Select>
+                    <Select value={membershipRole} onValueChange={setMembershipRole} disabled={membershipSaving}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="read_write">Read/write</SelectItem>
+                        <SelectItem value="read_only">Read-only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button type="button" onClick={handleAddMembership} disabled={membershipSaving || !membershipFacilityId}>
+                      {membershipSaving && membershipBusyFacilityId === membershipFacilityId ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add / Update"}
+                    </Button>
+                  </div>
+                  {membershipError ? <p className="text-sm text-red-400">{membershipError}</p> : null}
+                  {membershipSuccess ? <p className="text-sm text-emerald-400">{membershipSuccess}</p> : null}
+                </CardContent>
+              </Card>
+            ) : null}
+
             {canAdmin && (
               <Card>
                 <CardHeader>
@@ -310,6 +509,18 @@ export default function UsersPanel({ business, users, canAdmin, onInvite, onRole
 
   return (
     <div className="space-y-6">
+      <div className="pointer-events-none fixed right-4 top-4 z-50 flex w-full max-w-sm flex-col gap-2">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`pointer-events-auto rounded-md border px-3 py-2 text-sm shadow-lg ${toast.type === "success" ? "border-emerald-600/40 bg-emerald-950/90 text-emerald-100" : "border-red-600/40 bg-red-950/90 text-red-100"}`}
+            role="status"
+            aria-live="polite"
+          >
+            {toast.message}
+          </div>
+        ))}
+      </div>
       <div>
         <h2 className="text-3xl font-semibold">Team Members</h2>
         <p className="mt-2 text-sm text-muted-foreground">
