@@ -328,7 +328,7 @@ export default function App() {
     setMobileNavOpen(false);
   }
 
-  const handleOpenNotificationTicket = useCallback((notification) => {
+  function handleOpenNotificationTicket(notification) {
     const facilityId = notification?.facility_id || notification?.payload?.facilityId || null;
     const ticketId = notification?.work_order_id || notification?.payload?.workOrderId || null;
     if (!ticketId) return;
@@ -337,7 +337,7 @@ export default function App() {
     }
     setNotificationTarget({ ticketId, facilityId });
     setCurrentView("issues");
-  }, [setSelectedFacilityId]);
+  }
 
   const renderView = () => (
     <AppMainContent
