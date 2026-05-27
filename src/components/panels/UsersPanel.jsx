@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,9 +51,10 @@ export default function UsersPanel({ business, users, facilities = [], activeFac
   const [membershipSuccess, setMembershipSuccess] = useState("");
   const [membershipBusyFacilityId, setMembershipBusyFacilityId] = useState("");
   const [toasts, setToasts] = useState([]);
+  const toastIdRef = useRef(0);
 
   function showToast(type, message) {
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const id = `toast-${toastIdRef.current++}`;
     setToasts((current) => [...current, { id, type, message }]);
     window.setTimeout(() => {
       setToasts((current) => current.filter((toast) => toast.id !== id));

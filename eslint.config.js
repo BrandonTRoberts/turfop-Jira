@@ -42,6 +42,14 @@ export default [
     },
   },
   {
+    files: ['public/OneSignalSDKWorker.js', 'public/OneSignalSDKUpdaterWorker.js'],
+    languageOptions: {
+      globals: {
+        ...globals.serviceworker,
+      },
+    },
+  },
+  {
     files: ['src/components/ui/**/*.{js,jsx}'],
     rules: {
       // shadcn-style primitive files intentionally export component variants/helpers alongside components.
