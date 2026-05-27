@@ -16,6 +16,46 @@ export default function CsvImportPanel({ facility, canWrite }) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [createFacilities, setCreateFacilities] = useState(true);
+  const [uploadingFile, setUploadingFile] = useState(false);
+
+  async function parseSpreadsheetFile(file) {
+    const lowerName = (file?.name || '').toLowerCase();
+    if (lowerName.endsWith('.csv')) {
+      return file.text();
+    }
+
+    if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) {
+      const XLSX = await import('xlsx');
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const firstSheetName = workbook.SheetNames?.[0];
+      if (!firstSheetName) {
+        throw new Error('Spreadsheet has no sheets.');
+      }
+      const worksheet = workbook.Sheets[firstSheetName];
+      return XLSX.utils.sheet_to_csv(worksheet, { blankrows: false });
+    }
+
+    throw new Error('Unsupported file type. Use .csv, .xlsx, or .xls.');
+  }
+
+  async function handleFile(file) {
+    if (!file) return;
+    setError('');
+    setMessage('');
+    setPreview(null);
+    setUploadingFile(true);
+
+    try {
+      const parsedCsvText = await parseSpreadsheetFile(file);
+      setCsvText(parsedCsvText);
+      setMessage(`Loaded ${file.name}. Ready for preview/import.`);
+    } catch (err) {
+      setError(err.message || 'Failed to read file.');
+    } finally {
+      setUploadingFile(false);
+    }
+  }
 
   async function runPreview() {
     setError('');
@@ -48,14 +88,32 @@ export default function CsvImportPanel({ facility, canWrite }) {
         <CardTitle>Import CSV</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">Bulk import inventory or equipment. Include a facility column to map cross-facility records.</p>
+        <p className="text-sm text-muted-foreground">Bulk import inventory or equipment. Upload CSV/XLSX or paste CSV text. Include a facility column to map cross-facility records.</p>
         <Select value={entityType} onValueChange={setEntityType}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="inventory">Inventory</SelectItem><SelectItem value="equipment">Equipment</SelectItem></SelectContent></Select>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setCsvText(entityType === 'inventory' ? inventoryTemplate : equipmentTemplate)}>Load sample template</Button>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={createFacilities} onChange={(e)=>setCreateFacilities(e.target.checked)} /> Auto-create missing facilities</label>
         </div>
+        <label
+          className="flex cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-border bg-muted/20 p-4 text-center text-sm text-muted-foreground hover:bg-muted/30"
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => {
+            event.preventDefault();
+            handleFile(event.dataTransfer?.files?.[0]);
+          }}
+        >
+          <span className="font-medium text-foreground">Drop CSV/XLSX here or click to upload</span>
+          <span className="text-xs">Supported: .csv, .xlsx, .xls</span>
+          <input
+            className="hidden"
+            type="file"
+            accept=".csv,.xlsx,.xls"
+            onChange={(event) => handleFile(event.target.files?.[0])}
+          />
+        </label>
         <Input value={csvText} onChange={(e)=>setCsvText(e.target.value)} placeholder="Paste CSV content here" />
-        <div className="flex gap-2"><Button onClick={runPreview}>Preview</Button><Button onClick={runImport}>Import</Button></div>
+        <div className="flex gap-2"><Button onClick={runPreview} disabled={uploadingFile || !csvText.trim()}>Preview</Button><Button onClick={runImport} disabled={uploadingFile || !csvText.trim()}>Import</Button></div>
+        {uploadingFile ? <p className="text-sm text-muted-foreground">Reading file…</p> : null}
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
         {message ? <p className="text-sm text-emerald-600">{message}</p> : null}
         {preview ? (
