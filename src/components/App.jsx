@@ -196,7 +196,7 @@ export default function App() {
   }
 
   async function deleteCompany(companyId) {
-    await api.deleteCompany(companyId);
+    await api.deleteCompany(companyId, { force: true });
     await loadCompanies(employeeRole);
     await loadFacilities();
   }

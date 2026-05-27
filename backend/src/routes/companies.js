@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { query } from '../lib/db.js';
+import { connect, query } from '../lib/db.js';
 import { requireAuth } from '../lib/requireAuth.js';
 import { isCompanySuperUser, isGlobalSuperUser } from '../lib/permissions.js';
 import { validateCompanyInput } from '../lib/validation.js';
@@ -71,21 +71,63 @@ router.post('/', requireAuth, async (req, res) => {
 
 router.delete('/:companyId', requireAuth, async (req, res) => {
   const { companyId } = req.params;
+  const force = String(req.query?.force || '').toLowerCase() === 'true';
 
   try {
     if (!isGlobalSuperUser(req.employee)) {
       return res.status(403).json({ error: 'Only Platform Admins can remove businesses.' });
     }
 
-    const result = await query('delete from companies where id = $1 returning id', [companyId]);
-    if (!result.rows.length) {
-      return res.status(404).json({ error: 'Business not found' });
-    }
+    const client = await connect();
+    try {
+      await client.query('begin');
 
-    return res.status(204).send();
+      const companyResult = await client.query('select id, name from companies where id = $1 limit 1', [companyId]);
+      const company = companyResult.rows[0];
+      if (!company) {
+        await client.query('rollback');
+        return res.status(404).json({ error: 'Business not found' });
+      }
+
+      const facilitiesCountResult = await client.query('select count(*)::int as count from facilities where company_id = $1', [companyId]);
+      const usersCountResult = await client.query('select count(*)::int as count from employees where company_id = $1', [companyId]);
+      const facilitiesCount = Number(facilitiesCountResult.rows[0]?.count || 0);
+      const usersCount = Number(usersCountResult.rows[0]?.count || 0);
+
+      if (facilitiesCount > 0) {
+        await client.query('rollback');
+        return res.status(409).json({
+          error: `Cannot delete business while facilities still exist (${facilitiesCount}). Remove facilities first.`,
+          facilitiesCount,
+          usersCount,
+        });
+      }
+
+      if (usersCount > 0 && !force) {
+        await client.query('rollback');
+        return res.status(409).json({
+          error: `Business still has ${usersCount} user account(s). Retry with force=true to remove users and delete the business.`,
+          facilitiesCount,
+          usersCount,
+        });
+      }
+
+      if (usersCount > 0 && force) {
+        await client.query('delete from employees where company_id = $1', [companyId]);
+      }
+
+      await client.query('delete from companies where id = $1', [companyId]);
+      await client.query('commit');
+      return res.status(204).send();
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
   } catch (error) {
     if (error?.code === '23503') {
-      return res.status(409).json({ error: 'Cannot delete business while facilities or users still exist. Remove those first.' });
+      return res.status(409).json({ error: 'Cannot delete business while dependent records still exist. Remove facilities first, then retry with force delete for users if needed.' });
     }
     return handleUnexpectedError(res, error);
   }

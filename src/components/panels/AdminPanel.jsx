@@ -103,7 +103,7 @@ export default function AdminPanel({
 
   async function handleDeleteCompany(company) {
     if (!onDeleteCompany) return;
-    const confirmed = window.confirm(`Delete business "${company.name}"? This only works when it has no facilities or users.`);
+    const confirmed = window.confirm(`Delete business "${company.name}"?\n\nThis will remove all users in that business. Facilities must already be deleted.`);
     if (!confirmed) return;
 
     setDeletingCompanyId(company.id);
