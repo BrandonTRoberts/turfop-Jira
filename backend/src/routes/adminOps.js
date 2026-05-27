@@ -50,6 +50,26 @@ function parseCSV(csvText = '') {
   return { headers, data };
 }
 
+function validateImportRow(entityType, row) {
+  const issues = [];
+
+  if (entityType === 'equipment') {
+    if (!row.name) issues.push('Name required');
+    if (!row.status) issues.push('Status required');
+  } else {
+    if (!row.sku) issues.push('SKU required');
+    if (!row.part_description) issues.push('part_description required');
+    if (row.quantity_on_hand === '' || Number.isNaN(Number(row.quantity_on_hand))) {
+      issues.push('quantity_on_hand must be numeric');
+    }
+    if (row.unit_cost !== '' && Number.isNaN(Number(row.unit_cost))) {
+      issues.push('unit_cost must be numeric');
+    }
+  }
+
+  return issues;
+}
+
 async function ensureAdminForFacility(req, facilityId) {
   const role = await getRoleForFacility(req.employee, facilityId);
   if (!isAdmin(role)) {
@@ -72,8 +92,16 @@ router.post('/import-csv/preview', requireAuth, async (req, res) => {
     const errors = [];
     if (missing.length) errors.push(`Missing required columns: ${missing.join(', ')}`);
 
+    const rowErrors = [];
+    for (const [idx, row] of parsed.data.entries()) {
+      const issues = validateImportRow(entityType, row);
+      if (issues.length) {
+        rowErrors.push({ line: idx + 2, error: issues.join('; ') });
+      }
+    }
+
     const preview = parsed.data.slice(0, 25).map((row, idx) => ({ line: idx + 2, ...row }));
-    res.json({ headers: parsed.headers, rowCount: parsed.data.length, errors, preview });
+    res.json({ headers: parsed.headers, rowCount: parsed.data.length, errors, rowErrors, preview });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });
     handleUnexpectedError(res, err);
@@ -111,11 +139,15 @@ router.post('/import-csv/commit', requireAuth, async (req, res) => {
         errors.push({ line: idx + 2, error: `Unknown facility: ${row.facility}` });
         continue;
       }
+      const issues = validateImportRow(entityType, row);
+      if (issues.length) {
+        errors.push({ line: idx + 2, error: issues.join('; ') });
+        continue;
+      }
+
       if (entityType === 'equipment') {
-        if (!row.name) { errors.push({ line: idx + 2, error: 'Name required' }); continue; }
         await client.query('insert into equipment (facility_id, name, make, model, assigned_area, status, detail) values ($1,$2,$3,$4,$5,$6,$7)', [targetFacilityId, row.name, row.make || null, row.model || null, row.assigned_area || null, row.status || 'Scheduled', row.detail || null]);
       } else {
-        if (!row.sku || !row.part_description) { errors.push({ line: idx + 2, error: 'SKU and part_description required' }); continue; }
         await client.query('insert into parts_inventory (facility_id, sku, part_description, quantity_on_hand, unit_cost, reorder_url) values ($1,$2,$3,$4,$5,$6) on conflict (facility_id,sku) do update set part_description=excluded.part_description, quantity_on_hand=excluded.quantity_on_hand, unit_cost=excluded.unit_cost, reorder_url=excluded.reorder_url', [targetFacilityId, row.sku, row.part_description, Number(row.quantity_on_hand || 0), Number(row.unit_cost || 0), row.reorder_url || null]);
       }
       inserted += 1;

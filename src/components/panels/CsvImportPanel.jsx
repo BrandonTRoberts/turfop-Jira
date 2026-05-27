@@ -191,7 +191,35 @@ export default function CsvImportPanel({ facility, canWrite }) {
         {message ? <p className="text-sm text-emerald-600">{message}</p> : null}
         {preview ? (
           <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">Rows: {preview.rowCount} | Errors: {(preview.errors || []).length}</p>
+            <p className="text-xs text-muted-foreground">Rows: {preview.rowCount} | Header errors: {(preview.errors || []).length} | Row errors: {(preview.rowErrors || []).length}</p>
+            {(preview.errors || []).length ? (
+              <div className="rounded-md border border-red-300 bg-red-50 p-2 text-xs text-red-700">
+                <p className="font-medium">Header validation issues</p>
+                <ul className="list-disc pl-4">
+                  {preview.errors.map((item, index) => (<li key={`header-error-${index}`}>{item}</li>))}
+                </ul>
+              </div>
+            ) : null}
+            {(preview.rowErrors || []).length ? (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
+                <p className="font-medium">Row validation issues (first 25)</p>
+                <ul className="list-disc pl-4">
+                  {preview.rowErrors.slice(0, 25).map((item, index) => (
+                    <li key={`row-error-${index}`}>Line {item.line}: {item.error}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {(preview.importErrors || []).length ? (
+              <div className="rounded-md border border-red-300 bg-red-50 p-2 text-xs text-red-700">
+                <p className="font-medium">Import errors</p>
+                <ul className="list-disc pl-4">
+                  {preview.importErrors.slice(0, 25).map((item, index) => (
+                    <li key={`import-error-${index}`}>Line {item.line}: {item.error}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             <Table><TableHeader><TableRow>{(preview.headers || []).map((h)=><TableHead key={h}>{h}</TableHead>)}</TableRow></TableHeader><TableBody>{(preview.preview || []).map((r,i)=><TableRow key={i}>{(preview.headers || []).map((h)=><TableCell key={h}>{String(r[h]||'')}</TableCell>)}</TableRow>)}</TableBody></Table>
           </div>
         ) : null}
