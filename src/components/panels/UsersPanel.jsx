@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ArrowLeft, ImagePlus, Loader2, Save, UserPlus } from "lucide-react";
 import { getUploadUrl, readFilesAsDataUrls } from "@/lib/files";
 
-const emptyInvite = { fullName: "", email: "", role: "read_write", hourlyRate: "", profileImage: null };
+const emptyInvite = { fullName: "", email: "", role: "read_write", hourlyRate: "", profileImage: null, companyRole: "standard_user" };
 
 function toEditForm(user) {
   return {
@@ -24,10 +24,11 @@ function toEditForm(user) {
     state: user?.state || "",
     postalCode: user?.postal_code || "",
     profileImage: user?.profile_image_url || user?.profileImageUrl || null,
+    companyRole: user?.company_role || "standard_user",
   };
 }
 
-export default function UsersPanel({ business, users, facilities = [], activeFacilityId, canAdmin, onInvite, onRoleChange, onLoadDetails, onUpdate, onUpsertMembership, onRemoveMembership, onDeleteUser, onResendInvite, onSendResetPassword }) {
+export default function UsersPanel({ business, users, facilities = [], activeFacilityId, canAdmin, isPlatformAdmin = false, currentEmployeeId = null, onInvite, onRoleChange, onLoadDetails, onUpdate, onUpsertMembership, onRemoveMembership, onDeleteUser, onResendInvite, onSendResetPassword, onTransferPlatformAdmin }) {
   const [search, setSearch] = useState("");
   const [invite, setInvite] = useState(emptyInvite);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -44,6 +45,9 @@ export default function UsersPanel({ business, users, facilities = [], activeFac
   const [resetPasswordSuccess, setResetPasswordSuccess] = useState("");
   const [sendingResend, setSendingResend] = useState(false);
   const [sendingReset, setSendingReset] = useState(false);
+  const [transferringPlatformAdmin, setTransferringPlatformAdmin] = useState(false);
+  const [transferPlatformAdminError, setTransferPlatformAdminError] = useState("");
+  const [transferPlatformAdminSuccess, setTransferPlatformAdminSuccess] = useState("");
   const [deletingUser, setDeletingUser] = useState(false);
   const [membershipFacilityId, setMembershipFacilityId] = useState(activeFacilityId || "");
   const [membershipRole, setMembershipRole] = useState("read_only");
@@ -182,6 +186,32 @@ export default function UsersPanel({ business, users, facilities = [], activeFac
     }
   }
 
+  async function handleTransferPlatformAdmin() {
+    if (!selectedUser || !onTransferPlatformAdmin) return;
+
+    const targetEmail = selectedUser.email || '';
+    const confirmationEmail = window.prompt(`Type ${targetEmail} to confirm Platform Admin transfer:`);
+    if (!confirmationEmail) return;
+
+    setTransferPlatformAdminError("");
+    setTransferPlatformAdminSuccess("");
+    setTransferringPlatformAdmin(true);
+    try {
+      await onTransferPlatformAdmin(selectedUser.id, confirmationEmail.trim());
+      const message = `Platform Admin access transferred to ${selectedUser.name}. You may need to sign in again.`;
+      setTransferPlatformAdminSuccess(message);
+      showToast("success", message);
+      setEditForm((current) => ({ ...current, companyRole: "platform_admin" }));
+      setSelectedUser((current) => current ? { ...current, company_role: "platform_admin" } : current);
+    } catch (err) {
+      const message = err.message || "Failed to transfer Platform Admin access.";
+      setTransferPlatformAdminError(message);
+      showToast("error", message);
+    } finally {
+      setTransferringPlatformAdmin(false);
+    }
+  }
+
   async function handleAddMembership() {
     if (!selectedUser || !membershipFacilityId || !onUpsertMembership) return;
     setMembershipSaving(true);
@@ -244,6 +274,15 @@ export default function UsersPanel({ business, users, facilities = [], activeFac
     event.preventDefault();
     if (!selectedUser) return;
 
+    const previousCompanyRole = selectedUser.company_role || "standard_user";
+    const nextCompanyRole = editForm.companyRole || "standard_user";
+    if (isPlatformAdmin && selectedUser.id === currentEmployeeId && previousCompanyRole !== nextCompanyRole) {
+      const message = "For safety, you cannot change your own company-level role from this screen.";
+      setEditError(message);
+      showToast("error", message);
+      return;
+    }
+
     setSavingEdit(true);
     setEditError("");
 
@@ -260,12 +299,14 @@ export default function UsersPanel({ business, users, facilities = [], activeFac
         state: editForm.state,
         postalCode: editForm.postalCode,
         profileImage: editForm.profileImage,
+        companyRole: editForm.companyRole === "standard_user" ? null : editForm.companyRole,
       });
       const nextUser = {
         ...selectedUser,
         ...updated,
         name: updated.full_name || updated.email || selectedUser.name,
         role: editForm.role,
+        company_role: updated.company_role,
         status: updated.must_change_password ? "Invited" : "Active",
         profileImageUrl: updated.profile_image_url,
       };
@@ -335,6 +376,18 @@ export default function UsersPanel({ business, users, facilities = [], activeFac
                       <SelectItem value="read_only">Read-only</SelectItem>
                     </SelectContent>
                   </Select>
+                  {isPlatformAdmin ? (
+                    <Select value={editForm.companyRole} onValueChange={(companyRole) => setEditForm({ ...editForm, companyRole })} disabled={!canAdmin || selectedUser.id === currentEmployeeId}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="standard_user">Standard user</SelectItem>
+                        <SelectItem value="company_super_user">Company super admin</SelectItem>
+                        <SelectItem value="platform_admin">Platform admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : null}
                   <Input type="number" min="0" step="0.01" placeholder="Hourly rate" value={editForm.hourlyRate} onChange={(event) => setEditForm({ ...editForm, hourlyRate: event.target.value })} disabled={!canAdmin} />
                   <Input placeholder="Phone" value={editForm.phone} onChange={(event) => setEditForm({ ...editForm, phone: event.target.value })} disabled={!canAdmin} />
                   <Input placeholder="Address line 1" value={editForm.addressLine1} onChange={(event) => setEditForm({ ...editForm, addressLine1: event.target.value })} disabled={!canAdmin} />
@@ -520,6 +573,22 @@ export default function UsersPanel({ business, users, facilities = [], activeFac
                       {resetPasswordSuccess && <p className="text-sm text-emerald-400">{resetPasswordSuccess}</p>}
                     </>
                   )}
+                  {isPlatformAdmin && selectedUser.id !== currentEmployeeId ? (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={handleTransferPlatformAdmin}
+                        disabled={transferringPlatformAdmin || selectedUser.company_role === "platform_admin"}
+                      >
+                        {transferringPlatformAdmin ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Transfer Platform Admin to This User
+                      </Button>
+                      {transferPlatformAdminError ? <p className="text-sm text-red-400">{transferPlatformAdminError}</p> : null}
+                      {transferPlatformAdminSuccess ? <p className="text-sm text-emerald-400">{transferPlatformAdminSuccess}</p> : null}
+                    </>
+                  ) : null}
                   <Button type="button" variant="destructive" className="w-full" onClick={handleDeleteUser} disabled={deletingUser}>
                     {deletingUser ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Remove User Account
@@ -571,6 +640,15 @@ export default function UsersPanel({ business, users, facilities = [], activeFac
                   <SelectItem value="read_only">Read-only</SelectItem>
                 </SelectContent>
               </Select>
+              {isPlatformAdmin ? (
+                <Select value={invite.companyRole} onValueChange={(companyRole) => setInvite({ ...invite, companyRole })} disabled={saving}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="standard_user">Standard user</SelectItem>
+                    <SelectItem value="company_super_user">Company super admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : null}
               <Button type="submit" disabled={saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}Invite</Button>
               <label className={`flex h-8 items-center justify-center rounded-lg border border-input px-2.5 text-sm text-foreground ${saving ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-muted"}`}>
                 Photo

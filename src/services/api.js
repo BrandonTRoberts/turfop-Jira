@@ -282,6 +282,14 @@ export const api = {
     return request(`/employees/${encodeURIComponent(employeeId)}?facilityId=${encodeURIComponent(scopedFacilityId)}`, { method: "DELETE" });
   },
 
+  async transferPlatformAdmin({ targetEmployeeId, facilityId, confirmationEmail }) {
+    const scopedFacilityId = asFacilityId(facilityId);
+    return request('/employees/transfer-platform-admin', {
+      method: 'POST',
+      body: { targetEmployeeId, facilityId: scopedFacilityId, confirmationEmail },
+    });
+  },
+
   async updateServiceTemplate(templateId, payload) {
     return request(`/service-templates/${encodeURIComponent(templateId)}`, { method: "PATCH", body: withFacilityId(payload) });
   },

@@ -109,7 +109,7 @@ function buildAccountStatus(employee) {
 }
 
 router.post('/', requireAuth, async (req, res) => {
-  const { email, fullName, facilityId, role, hourlyRate, profileImage } = req.body;
+  const { email, fullName, facilityId, role, hourlyRate, profileImage, companyRole } = req.body;
 
   try {
     const validationError = validateEmployeeInviteInput({ email, fullName, facilityId, role, hourlyRate });
@@ -126,6 +126,21 @@ router.post('/', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Admin access required for this facility' });
     }
 
+    const allowedCompanyRoles = new Set([null, undefined, '', 'company_super_user', 'platform_admin']);
+    if (!allowedCompanyRoles.has(companyRole)) {
+      return res.status(400).json({ error: 'Invalid companyRole value' });
+    }
+
+    if (companyRole === 'platform_admin' && req.employee.company_role !== 'platform_admin') {
+      return res.status(403).json({ error: 'Only platform admins can assign platform admin access.' });
+    }
+
+    if (companyRole === 'company_super_user' && req.employee.company_role !== 'platform_admin') {
+      return res.status(403).json({ error: 'Only platform admins can assign company super user access.' });
+    }
+
+    const normalizedCompanyRole = companyRole || null;
+
     const client = await connect();
 
     try {
@@ -140,11 +155,11 @@ router.post('/', requireAuth, async (req, res) => {
       const profileImageUrl = await persistSingleImage(profileImage, { entityType: 'profiles' });
       const employeeResult = await client.query(
         `
-          insert into employees (company_id, email, full_name, password_hash, must_change_password, hourly_rate, profile_image_url)
-          values ($1, $2, $3, null, true, $4, $5)
-          returning id, company_id, email, full_name, hourly_rate, profile_image_url, created_at, must_change_password, password_hash
+          insert into employees (company_id, email, full_name, password_hash, must_change_password, hourly_rate, profile_image_url, company_role)
+          values ($1, $2, $3, null, true, $4, $5, $6)
+          returning id, company_id, email, full_name, hourly_rate, profile_image_url, created_at, must_change_password, password_hash, company_role
         `,
-        [course.company_id, normalizeEmail(email), fullName.trim(), hourlyRate ?? null, profileImageUrl]
+        [course.company_id, normalizeEmail(email), fullName.trim(), hourlyRate ?? null, profileImageUrl, normalizedCompanyRole]
       );
 
       const employee = employeeResult.rows[0];
@@ -627,7 +642,7 @@ router.get('/:employeeId', requireAuth, async (req, res) => {
 
     const result = await query(
       `
-        select e.id, e.email, e.full_name, e.hourly_rate, e.profile_image_url, e.phone, e.address_line_1, e.address_line_2, e.city, e.state, e.postal_code, e.created_at, e.must_change_password, e.password_hash
+        select e.id, e.email, e.full_name, e.hourly_rate, e.profile_image_url, e.phone, e.address_line_1, e.address_line_2, e.city, e.state, e.postal_code, e.created_at, e.must_change_password, e.password_hash, e.company_role
         from employees e
         left join facility_memberships fm on fm.employee_id = e.id and fm.facility_id = $2
         where e.id = $1
@@ -670,7 +685,7 @@ router.get('/:employeeId', requireAuth, async (req, res) => {
 
 router.patch('/:employeeId', requireAuth, async (req, res) => {
   const { employeeId } = req.params;
-  const { facilityId, email, fullName, hourlyRate, phone, addressLine1, addressLine2, city, state, postalCode, profileImage } = req.body;
+  const { facilityId, email, fullName, hourlyRate, phone, addressLine1, addressLine2, city, state, postalCode, profileImage, companyRole } = req.body;
 
   try {
     const validationError = validateAdminEmployeeProfileInput({ email, fullName, hourlyRate, phone, addressLine1, addressLine2, city, state, postalCode });
@@ -682,6 +697,21 @@ router.patch('/:employeeId', requireAuth, async (req, res) => {
     if (!isAdmin(currentRole)) {
       return res.status(403).json({ error: 'Admin access required for this facility' });
     }
+
+    const allowedCompanyRoles = new Set([null, undefined, '', 'company_super_user', 'platform_admin']);
+    if (!allowedCompanyRoles.has(companyRole)) {
+      return res.status(400).json({ error: 'Invalid companyRole value' });
+    }
+
+    if (employeeId === req.employee.id && companyRole !== undefined) {
+      return res.status(400).json({ error: 'You cannot change your own company-level role from this screen.' });
+    }
+
+    if ((companyRole === 'platform_admin' || companyRole === 'company_super_user') && req.employee.company_role !== 'platform_admin') {
+      return res.status(403).json({ error: 'Only platform admins can assign company-level admin access.' });
+    }
+
+    const normalizedCompanyRole = companyRole || null;
 
     const client = await connect();
     try {
@@ -711,19 +741,20 @@ router.patch('/:employeeId', requireAuth, async (req, res) => {
               city = $8,
               state = $9,
               postal_code = $10,
-              profile_image_url = $11
+              profile_image_url = $11,
+              company_role = $12
           where id = $1
             and (
-              company_id = $12
+              company_id = $13
               or exists (
                 select 1
-                from facility_memberships cm
-                where fm.employee_id = employees.id and fm.facility_id = $13
+                from facility_memberships fm
+                where fm.employee_id = employees.id and fm.facility_id = $14
               )
             )
-          returning id, email, full_name, hourly_rate, profile_image_url, phone, address_line_1, address_line_2, city, state, postal_code, created_at, must_change_password, password_hash
+          returning id, email, full_name, hourly_rate, profile_image_url, phone, address_line_1, address_line_2, city, state, postal_code, created_at, must_change_password, password_hash, company_role
         `,
-        [employeeId, normalizeEmail(email), fullName.trim(), hourlyRate ?? null, phone?.trim() || null, addressLine1?.trim() || null, addressLine2?.trim() || null, city?.trim() || null, state?.trim() || null, postalCode?.trim() || null, profileImageUrl, course.company_id, facilityId]
+        [employeeId, normalizeEmail(email), fullName.trim(), hourlyRate ?? null, phone?.trim() || null, addressLine1?.trim() || null, addressLine2?.trim() || null, city?.trim() || null, state?.trim() || null, postalCode?.trim() || null, profileImageUrl, normalizedCompanyRole, course.company_id, facilityId]
       );
 
       await logAuditEvent({
@@ -748,6 +779,103 @@ router.patch('/:employeeId', requireAuth, async (req, res) => {
       return res.status(409).json({ error: 'An employee with that email already exists' });
     }
 
+    return handleUnexpectedError(res, error);
+  }
+});
+
+router.post('/transfer-platform-admin', requireAuth, async (req, res) => {
+  const { targetEmployeeId, facilityId, confirmationEmail } = req.body;
+
+  try {
+    if (!targetEmployeeId || !facilityId || !confirmationEmail) {
+      return res.status(400).json({ error: 'targetEmployeeId, facilityId, and confirmationEmail are required' });
+    }
+
+    const currentRole = await getRoleForFacility(req.employee, facilityId);
+    if (!isAdmin(currentRole)) {
+      return res.status(403).json({ error: 'Admin access required for this facility' });
+    }
+
+    if (req.employee.company_role !== 'platform_admin') {
+      return res.status(403).json({ error: 'Only platform admins can transfer platform admin access.' });
+    }
+
+    if (targetEmployeeId === req.employee.id) {
+      return res.status(400).json({ error: 'Select another user to transfer platform admin access.' });
+    }
+
+    const client = await connect();
+    try {
+      await client.query('begin');
+
+      const course = await loadCourse(client, facilityId);
+      if (!course) {
+        await client.query('rollback');
+        return res.status(404).json({ error: 'Facility not found' });
+      }
+
+      const targetEmployee = await ensureEmployeeInCompany(client, course.company_id, targetEmployeeId);
+      if (!targetEmployee) {
+        await client.query('rollback');
+        return res.status(404).json({ error: 'Target employee not found in this company.' });
+      }
+
+      if (normalizeEmail(confirmationEmail) !== normalizeEmail(targetEmployee.email)) {
+        await client.query('rollback');
+        return res.status(400).json({ error: 'Confirmation email did not match the selected user.' });
+      }
+
+      await client.query(
+        `
+          update employees
+          set company_role = null
+          where id = $1
+        `,
+        [req.employee.id]
+      );
+
+      const promotedResult = await client.query(
+        `
+          update employees
+          set company_role = 'platform_admin'
+          where id = $1
+          returning id, email, full_name, company_role
+        `,
+        [targetEmployeeId]
+      );
+
+      await client.query(
+        `
+          insert into audit_logs (actor_employee_id, action, facility_id, target_employee_id, detail)
+          values ($1, $2, $3, $4, $5)
+        `,
+        [
+          req.employee.id,
+          'employee.platform_admin.transfer',
+          facilityId,
+          targetEmployeeId,
+          {
+            fromEmployeeId: req.employee.id,
+            fromEmail: req.employee.email,
+            toEmployeeId: targetEmployeeId,
+            toEmail: targetEmployee.email
+          }
+        ]
+      );
+
+      await client.query('commit');
+
+      return res.json({
+        ok: true,
+        transferredTo: promotedResult.rows[0] || null
+      });
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
     return handleUnexpectedError(res, error);
   }
 });

@@ -170,6 +170,8 @@ export default function AppMainContent({
             canAdmin={selectedFacility.role === "admin"}
             onLoadDetails={loadEmployeeDetails}
             onUpdate={updateEmployee}
+            isPlatformAdmin={employee?.company_role === "platform_admin"}
+            currentEmployeeId={employee?.id || null}
             onInvite={async (invite) => {
               await api.inviteEmployee({
                 facilityId: activeFacilityId,
@@ -178,6 +180,7 @@ export default function AppMainContent({
                 role: invite.role,
                 hourlyRate: invite.hourlyRate ? Number(invite.hourlyRate) : null,
                 profileImage: invite.profileImage,
+                companyRole: invite.companyRole === "standard_user" ? null : invite.companyRole,
               });
               const rows = await api.facilityDirectory(activeFacilityId);
               setUsers(mapDirectoryRows(rows));
@@ -196,6 +199,11 @@ export default function AppMainContent({
             }}
             onSendResetPassword={async (employeeId) => {
               await api.sendResetPassword(employeeId, activeFacilityId);
+            }}
+            onTransferPlatformAdmin={async (targetEmployeeId, confirmationEmail) => {
+              await api.transferPlatformAdmin({ targetEmployeeId, facilityId: activeFacilityId, confirmationEmail });
+              const rows = await api.facilityDirectory(activeFacilityId);
+              setUsers(mapDirectoryRows(rows));
             }}
           />
         </div>
