@@ -57,6 +57,8 @@ export default function AppMainContent({
   onSelectView,
   createFacility,
   createCompany,
+  deleteCompany,
+  deleteFacility,
   createEquipment,
   updateEquipment,
   createInventoryItem,
@@ -64,6 +66,7 @@ export default function AppMainContent({
   deleteInventoryItem,
   onUpsertMembership,
   onRemoveMembership,
+  onDeleteUser,
   notificationTarget,
   onHandledNotificationTarget,
 }) {
@@ -77,6 +80,8 @@ export default function AppMainContent({
         error={companiesError || facilityError}
         onCreateCompany={createCompany}
         onCreateFacility={createFacility}
+        onDeleteCompany={deleteCompany}
+        onDeleteFacility={deleteFacility}
       />
     );
   }
@@ -185,6 +190,7 @@ export default function AppMainContent({
             }}
             onUpsertMembership={onUpsertMembership}
             onRemoveMembership={onRemoveMembership}
+            onDeleteUser={onDeleteUser}
             onResendInvite={async (employeeId) => {
               await api.resendInvite(employeeId, activeFacilityId);
             }}

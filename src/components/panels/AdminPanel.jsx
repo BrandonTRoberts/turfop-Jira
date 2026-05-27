@@ -20,6 +20,8 @@ export default function AdminPanel({
   error,
   onCreateCompany,
   onCreateFacility,
+  onDeleteCompany,
+  onDeleteFacility,
 }) {
   const isPlatformAdmin = employee?.company_role === "platform_admin";
   const [companyName, setCompanyName] = useState("");
@@ -31,6 +33,8 @@ export default function AdminPanel({
   });
   const [submittingCompany, setSubmittingCompany] = useState(false);
   const [submittingCourse, setSubmittingCourse] = useState(false);
+  const [deletingCompanyId, setDeletingCompanyId] = useState("");
+  const [deletingFacilityId, setDeletingFacilityId] = useState("");
   const [formError, setFormError] = useState("");
 
   const visibleCompanies = useMemo(() => {
@@ -94,6 +98,39 @@ export default function AdminPanel({
       setFormError(createError.message);
     } finally {
       setSubmittingCourse(false);
+    }
+  }
+
+  async function handleDeleteCompany(company) {
+    if (!onDeleteCompany) return;
+    const confirmed = window.confirm(`Delete business "${company.name}"? This only works when it has no facilities or users.`);
+    if (!confirmed) return;
+
+    setDeletingCompanyId(company.id);
+    setFormError("");
+    try {
+      await onDeleteCompany(company.id);
+    } catch (deleteError) {
+      setFormError(deleteError.message || "Failed to delete business.");
+    } finally {
+      setDeletingCompanyId("");
+    }
+  }
+
+  async function handleDeleteFacility(facility) {
+    if (!onDeleteFacility) return;
+    const confirmed = window.confirm(`Delete facility "${facility.name}"? This only works when dependent records are removed first.`);
+    if (!confirmed) return;
+
+    const facilityId = facility.facility_id || facility.id || facility.course_id;
+    setDeletingFacilityId(facilityId);
+    setFormError("");
+    try {
+      await onDeleteFacility(facilityId);
+    } catch (deleteError) {
+      setFormError(deleteError.message || "Failed to delete facility.");
+    } finally {
+      setDeletingFacilityId("");
     }
   }
 
@@ -249,13 +286,41 @@ export default function AdminPanel({
                     <p className="font-semibold">{company.name}</p>
                     <p className="text-sm text-muted-foreground">{company.facilities.length} facilities</p>
                   </div>
-                  {isPlatformAdmin ? <Badge>Platform scope</Badge> : <Badge variant="outline">Company scope</Badge>}
+                  <div className="flex items-center gap-2">
+                    {isPlatformAdmin ? <Badge>Platform scope</Badge> : <Badge variant="outline">Company scope</Badge>}
+                    {isPlatformAdmin ? (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteCompany(company)}
+                        disabled={deletingCompanyId === company.id}
+                      >
+                        {deletingCompanyId === company.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                        Delete business
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="mt-4 space-y-2">
                   {company.facilities.map((facility) => (
                     <div key={facility.facility_id || facility.course_id || facility.id} className="flex items-center justify-between rounded-md bg-background px-3 py-2 text-sm">
                       <span>{facility.name}</span>
-                      <Badge variant="outline">{facility.role}</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{facility.role}</Badge>
+                        {isPlatformAdmin ? (
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeleteFacility(facility)}
+                            disabled={deletingFacilityId === (facility.facility_id || facility.id || facility.course_id)}
+                          >
+                            {deletingFacilityId === (facility.facility_id || facility.id || facility.course_id) ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                            Delete facility
+                          </Button>
+                        ) : null}
+                      </div>
                     </div>
                   ))}
                   {company.facilities.length === 0 ? (

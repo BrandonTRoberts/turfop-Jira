@@ -195,6 +195,17 @@ export default function App() {
     return created;
   }
 
+  async function deleteCompany(companyId) {
+    await api.deleteCompany(companyId);
+    await loadCompanies(employeeRole);
+    await loadFacilities();
+  }
+
+  async function deleteFacility(facilityId) {
+    await api.deleteFacility(facilityId);
+    await loadFacilities();
+  }
+
   async function updateMyProfileImage(fileList) {
     const [profileImage] = await readFilesAsDataUrls(fileList, { maxFiles: 1 });
     const payload = {
@@ -307,6 +318,11 @@ export default function App() {
     await api.removeMembership(employeeId, facilityId);
   }
 
+  async function deleteEmployee(employeeId) {
+    await api.deleteEmployee(employeeId, activeFacilityId);
+    setUsers((current) => current.filter((user) => user.id !== employeeId));
+  }
+
   if (booting) {
     return (
       <div className="flex min-h-screen items-center justify-center gap-2 bg-background text-muted-foreground">
@@ -378,6 +394,8 @@ export default function App() {
       setEmployee={(updated) => setSession({ ...session, employee: updated })}
       createCompany={createCompany}
       createFacility={createFacility}
+      deleteCompany={deleteCompany}
+      deleteFacility={deleteFacility}
       createEquipment={createEquipment}
       updateEquipment={updateEquipment}
       createInventoryItem={createInventoryItem}
@@ -385,6 +403,7 @@ export default function App() {
       deleteInventoryItem={deleteInventoryItem}
       onUpsertMembership={upsertEmployeeMembership}
       onRemoveMembership={removeEmployeeMembership}
+      onDeleteUser={deleteEmployee}
       onSelectView={selectView}
       notificationTarget={notificationTarget}
       onHandledNotificationTarget={() => setNotificationTarget(null)}

@@ -110,8 +110,16 @@ export const api = {
     return request("/companies", { method: "POST", body: payload });
   },
 
+  async deleteCompany(companyId) {
+    return request(`/companies/${encodeURIComponent(companyId)}`, { method: "DELETE" });
+  },
+
   async createFacility(payload) {
     return request("/facilities", { method: "POST", body: payload });
+  },
+
+  async deleteFacility(facilityId) {
+    return request(`/facilities/${encodeURIComponent(facilityId)}`, { method: "DELETE" });
   },
 
   async createCourse(payload) {
@@ -255,6 +263,11 @@ export const api = {
   async removeMembership(employeeId, facilityId) {
     const scopedFacilityId = asFacilityId(facilityId);
     return request(`/employees/${encodeURIComponent(employeeId)}/memberships/${encodeURIComponent(scopedFacilityId)}`, { method: "DELETE" });
+  },
+
+  async deleteEmployee(employeeId, facilityId) {
+    const scopedFacilityId = asFacilityId(facilityId);
+    return request(`/employees/${encodeURIComponent(employeeId)}?facilityId=${encodeURIComponent(scopedFacilityId)}`, { method: "DELETE" });
   },
 
   async updateServiceTemplate(templateId, payload) {

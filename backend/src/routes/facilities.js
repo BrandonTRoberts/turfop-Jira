@@ -119,6 +119,28 @@ router.patch('/:facilityId', requireAuth, async (req, res) => {
   }
 });
 
+router.delete('/:facilityId', requireAuth, async (req, res) => {
+  const { facilityId } = req.params;
+
+  try {
+    if (!isGlobalSuperUser(req.employee)) {
+      return res.status(403).json({ error: 'Only Platform Admins can remove facilities.' });
+    }
+
+    const result = await query('delete from facilities where id = $1 returning id', [facilityId]);
+    if (!result.rows.length) {
+      return res.status(404).json({ error: 'Facility not found' });
+    }
+
+    return res.status(204).send();
+  } catch (error) {
+    if (error?.code === '23503') {
+      return res.status(409).json({ error: 'Cannot delete facility while dependent records exist. Remove related data first.' });
+    }
+    return handleUnexpectedError(res, error);
+  }
+});
+
 
 
 router.get('/:facilityId/locations', requireAuth, async (req, res) => {

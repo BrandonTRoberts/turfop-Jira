@@ -27,7 +27,7 @@ function toEditForm(user) {
   };
 }
 
-export default function UsersPanel({ business, users, facilities = [], activeFacilityId, canAdmin, onInvite, onRoleChange, onLoadDetails, onUpdate, onUpsertMembership, onRemoveMembership, onResendInvite, onSendResetPassword }) {
+export default function UsersPanel({ business, users, facilities = [], activeFacilityId, canAdmin, onInvite, onRoleChange, onLoadDetails, onUpdate, onUpsertMembership, onRemoveMembership, onDeleteUser, onResendInvite, onSendResetPassword }) {
   const [search, setSearch] = useState("");
   const [invite, setInvite] = useState(emptyInvite);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -44,6 +44,7 @@ export default function UsersPanel({ business, users, facilities = [], activeFac
   const [resetPasswordSuccess, setResetPasswordSuccess] = useState("");
   const [sendingResend, setSendingResend] = useState(false);
   const [sendingReset, setSendingReset] = useState(false);
+  const [deletingUser, setDeletingUser] = useState(false);
   const [membershipFacilityId, setMembershipFacilityId] = useState(activeFacilityId || "");
   const [membershipRole, setMembershipRole] = useState("read_only");
   const [membershipSaving, setMembershipSaving] = useState(false);
@@ -158,6 +159,26 @@ export default function UsersPanel({ business, users, facilities = [], activeFac
       showToast("error", message);
     } finally {
       setSendingReset(false);
+    }
+  }
+
+  async function handleDeleteUser() {
+    if (!selectedUser || !onDeleteUser) return;
+    const confirmed = window.confirm(`Delete user ${selectedUser.name}? This removes their account.`);
+    if (!confirmed) return;
+
+    setDeletingUser(true);
+    setEditError("");
+    try {
+      await onDeleteUser(selectedUser.id);
+      showToast("success", "User removed.");
+      setSelectedUser(null);
+    } catch (err) {
+      const message = err.message || "Failed to remove user.";
+      setEditError(message);
+      showToast("error", message);
+    } finally {
+      setDeletingUser(false);
     }
   }
 
@@ -499,6 +520,10 @@ export default function UsersPanel({ business, users, facilities = [], activeFac
                       {resetPasswordSuccess && <p className="text-sm text-emerald-400">{resetPasswordSuccess}</p>}
                     </>
                   )}
+                  <Button type="button" variant="destructive" className="w-full" onClick={handleDeleteUser} disabled={deletingUser}>
+                    {deletingUser ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Remove User Account
+                  </Button>
                 </CardContent>
               </Card>
             )}

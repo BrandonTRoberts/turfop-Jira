@@ -69,4 +69,26 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
+router.delete('/:companyId', requireAuth, async (req, res) => {
+  const { companyId } = req.params;
+
+  try {
+    if (!isGlobalSuperUser(req.employee)) {
+      return res.status(403).json({ error: 'Only Platform Admins can remove businesses.' });
+    }
+
+    const result = await query('delete from companies where id = $1 returning id', [companyId]);
+    if (!result.rows.length) {
+      return res.status(404).json({ error: 'Business not found' });
+    }
+
+    return res.status(204).send();
+  } catch (error) {
+    if (error?.code === '23503') {
+      return res.status(409).json({ error: 'Cannot delete business while facilities or users still exist. Remove those first.' });
+    }
+    return handleUnexpectedError(res, error);
+  }
+});
+
 export default router;
