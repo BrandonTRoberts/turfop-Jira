@@ -85,8 +85,8 @@ router.post('/import-csv/preview', requireAuth, async (req, res) => {
     await ensureAdminForFacility(req, facilityId);
     const parsed = parseCSV(csvText || '');
     const required = entityType === 'equipment'
-      ? ['name', 'facility', 'status']
-      : ['sku', 'part_description', 'quantity_on_hand', 'facility'];
+      ? ['name', 'status']
+      : ['sku', 'part_description', 'quantity_on_hand'];
 
     const missing = required.filter((key) => !parsed.headers.includes(key));
     const errors = [];
@@ -109,36 +109,17 @@ router.post('/import-csv/preview', requireAuth, async (req, res) => {
 });
 
 router.post('/import-csv/commit', requireAuth, async (req, res) => {
-  const { facilityId, entityType, csvText, createFacilities = false } = req.body;
+  const { facilityId, entityType, csvText } = req.body;
   const client = await connect();
   try {
     await ensureAdminForFacility(req, facilityId);
     await client.query('begin');
     const parsed = parseCSV(csvText || '');
-    const facRows = await client.query('select id, name, company_id from facilities where company_id=(select company_id from facilities where id=$1)', [facilityId]);
-    const facilityMap = new Map(facRows.rows.map((f) => [String(f.name).toLowerCase(), f]));
-    const createdFacilityIds = [];
-
-    async function resolveFacility(name) {
-      const key = String(name || '').trim().toLowerCase();
-      if (!key) return facilityId;
-      if (facilityMap.has(key)) return facilityMap.get(key).id;
-      if (!createFacilities) return null;
-      const current = facRows.rows[0];
-      const created = await client.query('insert into facilities (company_id, name) values ($1,$2) returning id,name,company_id', [current.company_id, name]);
-      facilityMap.set(key, created.rows[0]);
-      createdFacilityIds.push(created.rows[0].id);
-      return created.rows[0].id;
-    }
 
     let inserted = 0;
     const errors = [];
     for (const [idx, row] of parsed.data.entries()) {
-      const targetFacilityId = await resolveFacility(row.facility);
-      if (!targetFacilityId) {
-        errors.push({ line: idx + 2, error: `Unknown facility: ${row.facility}`, row });
-        continue;
-      }
+      const targetFacilityId = facilityId;
       const issues = validateImportRow(entityType, row);
       if (issues.length) {
         errors.push({ line: idx + 2, error: issues.join('; '), row });
@@ -154,7 +135,7 @@ router.post('/import-csv/commit', requireAuth, async (req, res) => {
     }
 
     await client.query('commit');
-    res.json({ inserted, createdFacilityIds, errors });
+    res.json({ inserted, errors });
   } catch (err) {
     await client.query('rollback');
     if (err.status) return res.status(err.status).json({ error: err.message });

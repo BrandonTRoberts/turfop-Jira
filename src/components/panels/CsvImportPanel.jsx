@@ -6,16 +6,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api } from "@/services/api";
 
-const inventoryTemplate = "sku,part_description,quantity_on_hand,unit_cost,reorder_url,facility\nSKU-100,Fertilizer 16-4-8,12,39.99,https://supplier.example/fert16,Main Facility";
-const equipmentTemplate = "name,make,model,assigned_area,status,detail,facility\nFairway Mower,John Deere,7500A,Fairway 1-9,Operational,Weekly service complete,Main Facility";
+const inventoryTemplate = "sku,part_description,quantity_on_hand,unit_cost,reorder_url\nSKU-100,Fertilizer 16-4-8,12,39.99,https://supplier.example/fert16";
+const equipmentTemplate = "name,make,model,assigned_area,status,detail\nFairway Mower,John Deere,7500A,Fairway 1-9,Operational,Weekly service complete";
 const IMPORT_SCHEMA = {
   inventory: {
-    required: ['sku', 'part_description', 'quantity_on_hand', 'facility'],
-    allowed: ['sku', 'part_description', 'quantity_on_hand', 'unit_cost', 'reorder_url', 'facility']
+    required: ['sku', 'part_description', 'quantity_on_hand'],
+    allowed: ['sku', 'part_description', 'quantity_on_hand', 'unit_cost', 'reorder_url']
   },
   equipment: {
-    required: ['name', 'facility', 'status'],
-    allowed: ['name', 'make', 'model', 'assigned_area', 'status', 'detail', 'facility']
+    required: ['name', 'status'],
+    allowed: ['name', 'make', 'model', 'assigned_area', 'status', 'detail']
   }
 };
 
@@ -60,7 +60,6 @@ export default function CsvImportPanel({ facility, canWrite }) {
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [createFacilities, setCreateFacilities] = useState(true);
   const [uploadingFile, setUploadingFile] = useState(false);
 
   async function parseSpreadsheetFile(file) {
@@ -150,8 +149,8 @@ export default function CsvImportPanel({ facility, canWrite }) {
         setError(validation.errors.join(' | '));
         return;
       }
-      const result = await api.commitCsvImport({ facilityId: facility.facility_id, entityType, csvText, createFacilities });
-      setMessage(`Imported ${result.inserted} rows${result.createdFacilityIds?.length ? `, created ${result.createdFacilityIds.length} facilities` : ''}.`);
+      const result = await api.commitCsvImport({ facilityId: facility.facility_id, entityType, csvText });
+      setMessage(`Imported ${result.inserted} rows.`);
       setPreview((current) => current ? { ...current, importErrors: result.errors || [] } : current);
     } catch (err) {
       setError(err.message || 'Import failed');
@@ -193,14 +192,13 @@ export default function CsvImportPanel({ facility, canWrite }) {
         <CardTitle>Import Inventory/Equipment Data</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">Bulk import inventory or equipment. Upload CSV/XLS/XLSX/ODS or paste CSV text. Include a facility column to map cross-facility records.</p>
+        <p className="text-sm text-muted-foreground">Bulk import inventory or equipment for the currently selected facility. Upload CSV/XLS/XLSX/ODS or paste CSV text.</p>
         <Select value={entityType} onValueChange={setEntityType}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="inventory">Inventory</SelectItem><SelectItem value="equipment">Equipment</SelectItem></SelectContent></Select>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setCsvText(entityType === 'inventory' ? inventoryTemplate : equipmentTemplate)}>Load sample template</Button>
           <Button variant="outline" onClick={() => downloadTemplate('csv')}>Download CSV template</Button>
           <Button variant="outline" onClick={() => downloadTemplate('xlsx')}>Download XLSX template</Button>
           <Button variant="outline" onClick={() => downloadTemplate('ods')}>Download ODS template</Button>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={createFacilities} onChange={(e)=>setCreateFacilities(e.target.checked)} /> Auto-create missing facilities</label>
         </div>
         <label
           className="flex cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-border bg-muted/20 p-4 text-center text-sm text-muted-foreground hover:bg-muted/30"
