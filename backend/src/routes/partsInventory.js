@@ -16,7 +16,10 @@ router.get('/company', requireAuth, async (req, res) => {
   try {
     let scopedCompanyId = req.employee?.company_id || null;
 
-    if (!scopedCompanyId && facilityId) {
+    // If the request is scoped to a facility, always derive company context
+    // from that facility after access validation. This prevents stale or
+    // mismatched employee.company_id values from hiding inventory records.
+    if (facilityId) {
       const role = await getRoleForFacility(req.employee, facilityId);
       if (!role) {
         return res.status(403).json({ error: 'No access to this facility' });
