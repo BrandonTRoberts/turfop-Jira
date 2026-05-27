@@ -96,7 +96,7 @@ router.post('/import-csv/preview', requireAuth, async (req, res) => {
     for (const [idx, row] of parsed.data.entries()) {
       const issues = validateImportRow(entityType, row);
       if (issues.length) {
-        rowErrors.push({ line: idx + 2, error: issues.join('; ') });
+        rowErrors.push({ line: idx + 2, error: issues.join('; '), row });
       }
     }
 
@@ -136,12 +136,12 @@ router.post('/import-csv/commit', requireAuth, async (req, res) => {
     for (const [idx, row] of parsed.data.entries()) {
       const targetFacilityId = await resolveFacility(row.facility);
       if (!targetFacilityId) {
-        errors.push({ line: idx + 2, error: `Unknown facility: ${row.facility}` });
+        errors.push({ line: idx + 2, error: `Unknown facility: ${row.facility}`, row });
         continue;
       }
       const issues = validateImportRow(entityType, row);
       if (issues.length) {
-        errors.push({ line: idx + 2, error: issues.join('; ') });
+        errors.push({ line: idx + 2, error: issues.join('; '), row });
         continue;
       }
 

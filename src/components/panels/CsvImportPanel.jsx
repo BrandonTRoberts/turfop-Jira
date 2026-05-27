@@ -46,6 +46,14 @@ function validateImportColumns(entityType, csvText) {
   return { ok: errors.length === 0, errors, headers };
 }
 
+function escapeCsvValue(value) {
+  const text = String(value ?? '');
+  if (/[",\n\r]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
 export default function CsvImportPanel({ facility, canWrite }) {
   const [entityType, setEntityType] = useState('inventory');
   const [csvText, setCsvText] = useState('');
@@ -150,6 +158,33 @@ export default function CsvImportPanel({ facility, canWrite }) {
     }
   }
 
+  function downloadErrorCsv() {
+    if (!preview) return;
+    const source = (preview.importErrors || []).length ? preview.importErrors : (preview.rowErrors || []);
+    const withRows = source.filter((item) => item?.row && typeof item.row === 'object');
+    if (!withRows.length) {
+      setError('No row-level error data available to export yet. Run Preview or Import first.');
+      return;
+    }
+
+    const rowKeys = Array.from(new Set(withRows.flatMap((item) => Object.keys(item.row || {}))));
+    const headers = ['line', 'error', ...rowKeys];
+    const lines = [headers.map(escapeCsvValue).join(',')];
+
+    for (const item of withRows) {
+      const values = [item.line, item.error, ...rowKeys.map((key) => item.row?.[key] ?? '')];
+      lines.push(values.map(escapeCsvValue).join(','));
+    }
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${entityType}-import-errors.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (!canWrite) return null;
 
   return (
@@ -185,7 +220,13 @@ export default function CsvImportPanel({ facility, canWrite }) {
           />
         </label>
         <Input value={csvText} onChange={(e)=>setCsvText(e.target.value)} placeholder="Paste CSV content here" />
-        <div className="flex gap-2"><Button onClick={runPreview} disabled={uploadingFile || !csvText.trim()}>Preview</Button><Button onClick={runImport} disabled={uploadingFile || !csvText.trim()}>Import</Button></div>
+        <div className="flex gap-2">
+          <Button onClick={runPreview} disabled={uploadingFile || !csvText.trim()}>Preview</Button>
+          <Button onClick={runImport} disabled={uploadingFile || !csvText.trim()}>Import</Button>
+          <Button variant="outline" onClick={downloadErrorCsv} disabled={!((preview?.rowErrors || []).length || (preview?.importErrors || []).length)}>
+            Download error CSV
+          </Button>
+        </div>
         {uploadingFile ? <p className="text-sm text-muted-foreground">Reading file…</p> : null}
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
         {message ? <p className="text-sm text-emerald-600">{message}</p> : null}
