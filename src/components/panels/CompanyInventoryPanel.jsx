@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Loader2, Search, ExternalLink, Box } from "lucide-react";
+import { Loader2, Search, Box } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api } from "@/services/api";
@@ -17,6 +19,9 @@ export default function CompanyInventoryPanel({ facility }) {
   const [requestingPartId, setRequestingPartId] = useState("");
   const [transferMessage, setTransferMessage] = useState("");
   const [transferError, setTransferError] = useState("");
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [transferItem, setTransferItem] = useState(null);
+  const [transferQuantityInput, setTransferQuantityInput] = useState("1");
 
   const activeFacilityId = facility?.facility_id || facility?.course_id || "";
 
@@ -36,27 +41,40 @@ export default function CompanyInventoryPanel({ facility }) {
     load();
   }, [activeFacilityId]);
 
-  async function handleRequestTransfer(item) {
-    const quantityInput = window.prompt(`Request quantity for ${item.sku} from ${item.facility_name}:`, "1");
-    if (quantityInput === null) return;
+  function openTransferDialog(item) {
+    setTransferError("");
+    setTransferMessage("");
+    setTransferItem(item);
+    setTransferQuantityInput("1");
+    setTransferDialogOpen(true);
+  }
 
-    const quantityRequested = Number(quantityInput);
+  async function handleSubmitTransferRequest() {
+    if (!transferItem) return;
+
+    const quantityRequested = Number(transferQuantityInput);
+    const maxAvailable = Number(transferItem.quantity_on_hand || 0);
     if (!Number.isFinite(quantityRequested) || quantityRequested <= 0) {
       setTransferError("Quantity must be a positive number.");
-      setTransferMessage("");
+      return;
+    }
+    if (quantityRequested > maxAvailable) {
+      setTransferError(`Quantity cannot exceed available stock (${maxAvailable}).`);
       return;
     }
 
     try {
       setTransferError("");
       setTransferMessage("");
-      setRequestingPartId(item.id);
+      setRequestingPartId(transferItem.id);
       await api.requestInventoryTransfer({
-        sourcePartId: item.id,
+        sourcePartId: transferItem.id,
         destinationFacilityId: activeFacilityId,
         quantityRequested,
       });
-      setTransferMessage(`Transfer request ticket created in ${item.facility_name}. It will remain open until ${facility?.name || 'your facility'} confirms receipt.`);
+      setTransferDialogOpen(false);
+      setTransferItem(null);
+      setTransferMessage(`Transfer request ticket created in ${transferItem.facility_name}. It will remain open until ${facility?.name || "your facility"} confirms receipt.`);
     } catch (err) {
       setTransferError(err.message || "Failed to create transfer request ticket.");
     } finally {
@@ -102,8 +120,6 @@ export default function CompanyInventoryPanel({ facility }) {
       return tokens.every((token) => haystack.includes(token));
     });
   }, [inventory, search, selectedFacilityId]);
-
-  const outOfStockCount = useMemo(() => filtered.filter((i) => Number(i.quantity_on_hand) <= 0).length, [filtered]);
 
   useEffect(() => {
     if (selectedFacilityId === "all") return;
@@ -199,7 +215,7 @@ export default function CompanyInventoryPanel({ facility }) {
                           variant="ghost"
                           size="sm"
                           className="h-8 text-xs text-blue-600 hover:text-blue-700"
-                          onClick={() => handleRequestTransfer(item)}
+                          onClick={() => openTransferDialog(item)}
                           disabled={requestingPartId === item.id}
                         >
                           {requestingPartId === item.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
@@ -224,6 +240,61 @@ export default function CompanyInventoryPanel({ facility }) {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Inventory Transfer</DialogTitle>
+            <DialogDescription>
+              This creates a pending ticket in the source facility. Inventory only moves after the ticket is completed by the source facility and receipt is confirmed.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="rounded-md border bg-muted/20 p-3 text-sm">
+              <p><span className="font-semibold">SKU:</span> {transferItem?.sku || "—"}</p>
+              <p><span className="font-semibold">Source facility:</span> {transferItem?.facility_name || "—"}</p>
+              <p><span className="font-semibold">Requesting facility:</span> {facility?.name || "Current facility"}</p>
+              <p><span className="font-semibold">Available:</span> {Number(transferItem?.quantity_on_hand || 0)}</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="transfer-quantity">Quantity to request</Label>
+              <Input
+                id="transfer-quantity"
+                type="number"
+                min="1"
+                max={String(Math.max(1, Number(transferItem?.quantity_on_hand || 1)))}
+                value={transferQuantityInput}
+                onChange={(event) => setTransferQuantityInput(event.target.value)}
+              />
+            </div>
+            {transferError ? <p className="text-sm text-red-500">{transferError}</p> : null}
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setTransferDialogOpen(false);
+                setTransferItem(null);
+              }}
+              disabled={Boolean(requestingPartId)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSubmitTransferRequest}
+              disabled={Boolean(requestingPartId)}
+            >
+              {requestingPartId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Create transfer ticket
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
