@@ -13,7 +13,12 @@ async function seedDatabase() {
     await client.connect();
     console.log('✅ Connected to database. Seeding sample data...');
 
-    // Clear existing data (for development only)
+    const destructiveResetConfirmed = process.env.CONFIRM_DESTRUCTIVE_RESET === 'YES';
+    if (!destructiveResetConfirmed) {
+      throw new Error('Refusing to truncate tables without CONFIRM_DESTRUCTIVE_RESET=YES');
+    }
+
+    // Clear existing data (development reset only)
     await client.query('TRUNCATE TABLE work_orders, course_memberships, courses, employees, companies CASCADE;');
 
     // Create sample company

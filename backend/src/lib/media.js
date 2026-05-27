@@ -4,7 +4,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const UPLOADS_DIR = path.resolve(__dirname, '../../uploads');
+
+const configuredUploadsDir = process.env.UPLOADS_DIR;
+export const UPLOADS_DIR = configuredUploadsDir
+  ? path.resolve(configuredUploadsDir)
+  : path.resolve(__dirname, '../../uploads');
+
+const MEDIA_PUBLIC_BASE_URL = (process.env.MEDIA_PUBLIC_BASE_URL || '').replace(/\/$/, '');
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
 
@@ -107,6 +113,22 @@ function validateMagicBytes(buffer, mimeType) {
   }
 }
 
+function isPersistedMediaUrl(value) {
+  return typeof value === 'string' && (
+    value.startsWith('/uploads/')
+    || value.startsWith('http://')
+    || value.startsWith('https://')
+  );
+}
+
+function buildStoredMediaUrl(entityType, filename) {
+  if (MEDIA_PUBLIC_BASE_URL) {
+    return `${MEDIA_PUBLIC_BASE_URL}/${entityType}/${filename}`;
+  }
+
+  return `/uploads/${entityType}/${filename}`;
+}
+
 function parseDataUrl(dataUrl, { imageOnly = true } = {}) {
   if (typeof dataUrl !== 'string') {
     throw new Error('File payload must be a data URL');
@@ -145,7 +167,7 @@ async function saveDataUrlFile(dataUrl, entityType = 'asset', options = {}) {
 
   const filename = `${randomUUID()}.${extension}`;
   await writeFile(path.join(directory, filename), buffer, { mode: 0o644 });
-  return { url: `/uploads/${entityType}/${filename}`, mimeType, size };
+  return { url: buildStoredMediaUrl(entityType, filename), mimeType, size };
 }
 
 async function saveDataUrlImage(dataUrl, entityType = 'asset') {
@@ -167,7 +189,7 @@ export async function persistImageCollection(inputs, { entityType = 'asset', max
     if (!item) continue;
 
     if (typeof item === 'string') {
-      if (item.startsWith('/uploads/')) {
+      if (isPersistedMediaUrl(item)) {
         urls.push(item);
         continue;
       }
@@ -179,7 +201,7 @@ export async function persistImageCollection(inputs, { entityType = 'asset', max
     }
 
     if (typeof item === 'object') {
-      if (typeof item.url === 'string' && item.url.startsWith('/uploads/')) {
+      if (isPersistedMediaUrl(item.url)) {
         urls.push(item.url);
         continue;
       }
@@ -216,7 +238,7 @@ export async function persistAttachmentCollection(inputs, { entityType = 'attach
   for (const item of inputs) {
     if (!item) continue;
 
-    if (typeof item === 'object' && typeof item.url === 'string' && item.url.startsWith('/uploads/')) {
+    if (typeof item === 'object' && isPersistedMediaUrl(item.url)) {
       attachments.push(item);
       continue;
     }

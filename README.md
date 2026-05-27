@@ -61,6 +61,14 @@ Required backend environment variables include:
 - `CORS_ALLOWED_ORIGINS`
 - SMTP variables if invitation/reset email delivery is enabled
 
+Media durability variables:
+- `UPLOADS_DIR` (recommended): absolute filesystem path outside ephemeral deploy dirs
+- `MEDIA_PUBLIC_BASE_URL` (recommended for CDN/object storage URL output)
+
+Important safety note:
+- `backend/scripts/seed.js` now requires `CONFIRM_DESTRUCTIVE_RESET=YES` before it truncates tables.
+- This is intentional to prevent accidental data/media-reference loss during rebuild workflows.
+
 ## Validation Commands
 
 From the repo root:
