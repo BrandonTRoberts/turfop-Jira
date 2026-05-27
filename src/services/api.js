@@ -178,6 +178,18 @@ export const api = {
     return request(`/parts-inventory/${encodeURIComponent(partId)}`, { method: "DELETE", body: withFacilityId(payload) });
   },
 
+  async requestInventoryTransfer({ sourcePartId, destinationFacilityId, quantityRequested }) {
+    return request('/parts-inventory/transfer-requests', {
+      method: 'POST',
+      body: {
+        sourcePartId,
+        destinationFacilityId: asFacilityId(destinationFacilityId),
+        quantityRequested,
+        facilityId: asFacilityId(destinationFacilityId),
+      },
+    });
+  },
+
   async facilityDirectory(facilityId) {
     const scopedFacilityId = asFacilityId(facilityId);
     return request(`/employees/directory?facilityId=${encodeURIComponent(scopedFacilityId)}`);

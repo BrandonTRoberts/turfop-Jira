@@ -14,6 +14,9 @@ export default function CompanyInventoryPanel({ facility }) {
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [requestingPartId, setRequestingPartId] = useState("");
+  const [transferMessage, setTransferMessage] = useState("");
+  const [transferError, setTransferError] = useState("");
 
   const activeFacilityId = facility?.facility_id || facility?.course_id || "";
 
@@ -32,6 +35,35 @@ export default function CompanyInventoryPanel({ facility }) {
     }
     load();
   }, [activeFacilityId]);
+
+  async function handleRequestTransfer(item) {
+    const quantityInput = window.prompt(`Request quantity for ${item.sku} from ${item.facility_name}:`, "1");
+    if (quantityInput === null) return;
+
+    const quantityRequested = Number(quantityInput);
+    if (!Number.isFinite(quantityRequested) || quantityRequested <= 0) {
+      setTransferError("Quantity must be a positive number.");
+      setTransferMessage("");
+      return;
+    }
+
+    try {
+      setTransferError("");
+      setTransferMessage("");
+      setRequestingPartId(item.id);
+      await api.requestInventoryTransfer({
+        sourcePartId: item.id,
+        destinationFacilityId: activeFacilityId,
+        quantityRequested,
+      });
+      setTransferMessage(`Transfer request ticket created in ${item.facility_name}. It will remain open until ${facility?.name || 'your facility'} confirms receipt.`);
+    } catch (err) {
+      setTransferError(err.message || "Failed to create transfer request ticket.");
+    } finally {
+      setRequestingPartId("");
+    }
+  }
+
 
   const facilityOptions = useMemo(() => {
     const map = new Map();
@@ -101,6 +133,8 @@ export default function CompanyInventoryPanel({ facility }) {
           <p className="text-muted-foreground">
             Search parts across all facilities to request transfers or avoid duplicate ordering.
           </p>
+          {transferMessage ? <p className="mt-2 text-sm text-emerald-400">{transferMessage}</p> : null}
+          {transferError ? <p className="mt-2 text-sm text-red-400">{transferError}</p> : null}
         </div>
       </div>
 
@@ -161,7 +195,14 @@ export default function CompanyInventoryPanel({ facility }) {
                   <TableCell>
                     <div className="flex items-center justify-end">
                       {Number(item.quantity_on_hand) > 0 && item.facility_id !== facility?.facility_id ? (
-                        <Button variant="ghost" size="sm" className="h-8 text-xs text-blue-600 hover:text-blue-700" onClick={() => alert('Transfer request feature coming soon.')}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 text-xs text-blue-600 hover:text-blue-700"
+                          onClick={() => handleRequestTransfer(item)}
+                          disabled={requestingPartId === item.id}
+                        >
+                          {requestingPartId === item.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
                           Request
                         </Button>
                       ) : null}

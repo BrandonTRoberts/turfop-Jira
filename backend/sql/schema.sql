@@ -211,10 +211,27 @@ create table if not exists work_order_parts_usage (
   id uuid primary key default gen_random_uuid(),
   work_order_id uuid not null references work_orders (id) on delete cascade,
   part_inventory_id uuid not null references parts_inventory (id) on delete restrict,
-  quantity_used numeric(10,2) not null,
+  quantity_used numeric(10,2) not null check (quantity_used > 0),
   unit_cost numeric(10,2) not null default 0,
   total_cost numeric(10,2) not null default 0,
   created_at timestamptz not null default now()
+);
+
+create table if not exists inventory_transfer_requests (
+  id uuid primary key default gen_random_uuid(),
+  work_order_id uuid not null unique references work_orders (id) on delete cascade,
+  source_facility_id uuid not null references facilities (id) on delete restrict,
+  destination_facility_id uuid not null references facilities (id) on delete restrict,
+  source_part_inventory_id uuid not null references parts_inventory (id) on delete restrict,
+  destination_part_inventory_id uuid references parts_inventory (id) on delete set null,
+  sku text not null,
+  part_description text not null,
+  quantity_requested numeric(10,2) not null check (quantity_requested > 0),
+  status text not null default 'pending' check (status in ('pending', 'completed', 'cancelled')),
+  completed_at timestamptz,
+  created_by_employee_id uuid references employees (id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists work_order_activity (

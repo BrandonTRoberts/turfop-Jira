@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { query } from '../lib/db.js';
+import { connect, query } from '../lib/db.js';
 import { requireAuth } from '../lib/requireAuth.js';
 import { canWrite, getRoleForFacility, isAdmin } from '../lib/permissions.js';
 import { persistAttachmentCollection, persistImageCollection } from '../lib/media.js';
@@ -208,6 +208,129 @@ router.delete('/:partId', requireAuth, async (req, res) => {
 
     await query('delete from parts_inventory where id = $1', [partId]);
     res.status(204).send();
+  } catch (error) {
+    return handleUnexpectedError(res, error);
+  }
+});
+
+router.post('/transfer-requests', requireAuth, async (req, res) => {
+  const { sourcePartId, destinationFacilityId, quantityRequested } = req.body || {};
+  const selectedFacilityId = resolveFacilityId({ body: req.body, employee: req.employee });
+  const qty = Number(quantityRequested || 0);
+
+  try {
+    if (!sourcePartId || !destinationFacilityId) {
+      return res.status(400).json({ error: 'sourcePartId and destinationFacilityId are required' });
+    }
+    if (!Number.isFinite(qty) || qty <= 0) {
+      return res.status(400).json({ error: 'quantityRequested must be a positive number' });
+    }
+    if (selectedFacilityId !== destinationFacilityId) {
+      return res.status(400).json({ error: 'Transfer destination must match the currently selected facility' });
+    }
+
+    const destinationRole = await getRoleForFacility(req.employee, destinationFacilityId);
+    if (!canWrite(destinationRole)) {
+      return res.status(403).json({ error: 'Write access denied for destination facility' });
+    }
+
+    const client = await connect();
+    try {
+      await client.query('begin');
+
+      const sourceResult = await client.query(
+        `
+          select pi.id, pi.facility_id, pi.sku, pi.part_description, pi.quantity_on_hand, f.company_id, f.name as facility_name
+          from parts_inventory pi
+          join facilities f on f.id = pi.facility_id
+          where pi.id = $1
+          for update
+        `,
+        [sourcePartId]
+      );
+      const sourcePart = sourceResult.rows[0];
+      if (!sourcePart) {
+        await client.query('rollback');
+        return res.status(404).json({ error: 'Source inventory item not found' });
+      }
+      if (sourcePart.facility_id === destinationFacilityId) {
+        await client.query('rollback');
+        return res.status(400).json({ error: 'Destination facility must be different from source facility' });
+      }
+
+      const sourceRole = await getRoleForFacility(req.employee, sourcePart.facility_id);
+      if (!sourceRole) {
+        await client.query('rollback');
+        return res.status(403).json({ error: 'No access to source facility' });
+      }
+
+      const destinationFacilityResult = await client.query('select id, name, company_id from facilities where id = $1 limit 1', [destinationFacilityId]);
+      const destinationFacility = destinationFacilityResult.rows[0];
+      if (!destinationFacility) {
+        await client.query('rollback');
+        return res.status(404).json({ error: 'Destination facility not found' });
+      }
+      if (destinationFacility.company_id !== sourcePart.company_id) {
+        await client.query('rollback');
+        return res.status(400).json({ error: 'Transfers can only be requested within the same business' });
+      }
+
+      const title = `Inventory Transfer Request: ${sourcePart.sku}`;
+      const detail = `Requested by ${req.employee.full_name || req.employee.email} to transfer ${qty} of ${sourcePart.sku} (${sourcePart.part_description}) to ${destinationFacility.name}. Keep this ticket open until destination confirms receipt.`;
+      const workOrderResult = await client.query(
+        `
+          insert into work_orders (facility_id, title, detail, status, assignee, parts_cost, total_cost)
+          values ($1, $2, $3, 'Open', null, 0, 0)
+          returning id
+        `,
+        [sourcePart.facility_id, title, detail]
+      );
+      const workOrderId = workOrderResult.rows[0].id;
+
+      await client.query(
+        `
+          insert into inventory_transfer_requests (
+            work_order_id,
+            source_facility_id,
+            destination_facility_id,
+            source_part_inventory_id,
+            sku,
+            part_description,
+            quantity_requested,
+            status,
+            created_by_employee_id
+          )
+          values ($1,$2,$3,$4,$5,$6,$7,'pending',$8)
+        `,
+        [workOrderId, sourcePart.facility_id, destinationFacilityId, sourcePart.id, sourcePart.sku, sourcePart.part_description, qty, req.employee.id]
+      );
+
+      await client.query(
+        `
+          insert into work_order_activity (work_order_id, facility_id, actor_employee_id, action, from_status, to_status, detail)
+          values ($1, $2, $3, 'transfer_request_created', null, 'Open', $4)
+        `,
+        [workOrderId, sourcePart.facility_id, req.employee.id, JSON.stringify({
+          transferRequest: true,
+          sourceFacilityId: sourcePart.facility_id,
+          sourceFacilityName: sourcePart.facility_name,
+          destinationFacilityId,
+          destinationFacilityName: destinationFacility.name,
+          sourcePartId: sourcePart.id,
+          sku: sourcePart.sku,
+          partDescription: sourcePart.part_description,
+          quantityRequested: qty,
+        })]
+      );
+
+      await client.query('commit');
+      return res.status(201).json({ workOrderId, status: 'pending' });
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
   } catch (error) {
     return handleUnexpectedError(res, error);
   }

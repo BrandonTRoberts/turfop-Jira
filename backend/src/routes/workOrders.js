@@ -254,6 +254,94 @@ async function applyPartUsage(client, workOrderId, facilityId, partUsages = []) 
   return Number(partsCost.toFixed(2));
 }
 
+async function applyTransferRequestCompletionIfNeeded(client, workOrderId, transition) {
+  const transferResult = await client.query(
+    `
+      select *
+      from inventory_transfer_requests
+      where work_order_id = $1
+      for update
+    `,
+    [workOrderId]
+  );
+  const transfer = transferResult.rows[0];
+  if (!transfer) return;
+
+  if (transition.fromStatus === 'Completed' && transition.toStatus !== 'Completed') {
+    throw new Error('Completed inventory transfer tickets cannot be reopened. Create a new transfer request if needed.');
+  }
+
+  if (transition.toStatus === 'Cancelled' && transfer.status !== 'completed') {
+    await client.query(
+      `
+        update inventory_transfer_requests
+        set status = 'cancelled',
+            updated_at = now()
+        where id = $1
+      `,
+      [transfer.id]
+    );
+    return;
+  }
+
+  if (transition.toStatus !== 'Completed' || transfer.status === 'completed') return;
+
+  const sourceResult = await client.query(
+    `
+      select id, quantity_on_hand
+      from parts_inventory
+      where id = $1 and facility_id = $2
+      for update
+    `,
+    [transfer.source_part_inventory_id, transfer.source_facility_id]
+  );
+  const sourcePart = sourceResult.rows[0];
+  if (!sourcePart) {
+    throw new Error('Source inventory item for transfer request was not found.');
+  }
+
+  const qty = Number(transfer.quantity_requested || 0);
+  if (Number(sourcePart.quantity_on_hand) < qty) {
+    throw new Error(`Not enough source inventory to complete transfer (${transfer.sku}).`);
+  }
+
+  await client.query(
+    `
+      update parts_inventory
+      set quantity_on_hand = quantity_on_hand - $2,
+          updated_at = now()
+      where id = $1
+    `,
+    [sourcePart.id, qty]
+  );
+
+  const destinationResult = await client.query(
+    `
+      insert into parts_inventory (facility_id, sku, part_description, quantity_on_hand, unit_cost, reorder_url, image_urls, attachments)
+      values ($1, $2, $3, $4, 0, null, '[]'::jsonb, '[]'::jsonb)
+      on conflict (facility_id, sku)
+      do update set
+        part_description = excluded.part_description,
+        quantity_on_hand = parts_inventory.quantity_on_hand + excluded.quantity_on_hand,
+        updated_at = now()
+      returning id
+    `,
+    [transfer.destination_facility_id, transfer.sku, transfer.part_description, qty]
+  );
+
+  await client.query(
+    `
+      update inventory_transfer_requests
+      set status = 'completed',
+          completed_at = now(),
+          destination_part_inventory_id = $2,
+          updated_at = now()
+      where id = $1
+    `,
+    [transfer.id, destinationResult.rows[0].id]
+  );
+}
+
 function sanitizePartUsageRow(row, canSeeFinancials) {
   if (canSeeFinancials) {
     return row;
@@ -516,6 +604,10 @@ router.patch('/:workOrderId', requireAuth, async (req, res) => {
         `,
         [workOrderId, partsCost, totalCost]
       );
+
+      if (String(workOrder.title || '').startsWith('Inventory Transfer Request:')) {
+        await applyTransferRequestCompletionIfNeeded(client, workOrderId, transition);
+      }
       const changedFields = buildChangedFields(workOrder, {
         facilityId,
         title,
