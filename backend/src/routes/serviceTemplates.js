@@ -31,6 +31,12 @@ router.get('/', requireAuth, async (req, res) => {
       includeArchived: includeArchived === 'true'
     });
 
+    const templatesTableOk = await tableExists('service_templates');
+    if (!templatesTableOk) {
+      console.warn('service-templates:list:templates-table-missing', { facilityId });
+      return res.json([]);
+    }
+
     const rows = await query(`
       select st.*, f.name as facility_name
       from service_templates st
