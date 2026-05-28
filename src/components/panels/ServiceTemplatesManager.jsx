@@ -95,13 +95,20 @@ export default function ServiceTemplatesManager({ open, onOpenChange, facility, 
     setParts(parts.filter((_, i) => i !== index));
   };
 
+  const titleText = view === "list" ? "Manage Service Templates" : "Create New Template";
+
   const panelBody = (
     <>
-      <DialogHeader>
-        <DialogTitle>
-          {view === "list" ? "Manage Service Templates" : "Create New Template"}
-        </DialogTitle>
-      </DialogHeader>
+      {isEmbedded ? (
+        <div>
+          <h2 className="text-2xl font-semibold">{titleText}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Standardize repeatable work with facility-scoped templates.</p>
+        </div>
+      ) : (
+        <DialogHeader>
+          <DialogTitle>{titleText}</DialogTitle>
+        </DialogHeader>
+      )}
 
       {error && <div className="p-3 bg-red-100 text-red-700 rounded mb-4 text-sm">{error}</div>}
 
