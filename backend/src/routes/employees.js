@@ -152,21 +152,63 @@ router.post('/', requireAuth, async (req, res) => {
         return res.status(404).json({ error: 'Facility not found' });
       }
 
+      const normalizedEmail = normalizeEmail(email);
       const profileImageUrl = await persistSingleImage(profileImage, { entityType: 'profiles' });
-      const employeeResult = await client.query(
+
+      const existingEmployeeResult = await client.query(
         `
-          insert into employees (company_id, email, full_name, password_hash, must_change_password, hourly_rate, profile_image_url, company_role)
-          values ($1, $2, $3, null, true, $4, $5, $6)
-          returning id, company_id, email, full_name, hourly_rate, profile_image_url, created_at, must_change_password, password_hash, company_role
+          select id, company_id, email, full_name, hourly_rate, profile_image_url, created_at, must_change_password, password_hash, company_role
+          from employees
+          where company_id = $1 and email = $2
+          limit 1
         `,
-        [course.company_id, normalizeEmail(email), fullName.trim(), hourlyRate ?? null, profileImageUrl, normalizedCompanyRole]
+        [course.company_id, normalizedEmail]
       );
 
-      const employee = employeeResult.rows[0];
+      let employee;
+      let inviteAction = 'employee.invite';
+      if (existingEmployeeResult.rows[0]) {
+        const existingEmployee = existingEmployeeResult.rows[0];
+        const updatedExistingResult = await client.query(
+          `
+            update employees
+            set full_name = $2,
+                hourly_rate = $3,
+                profile_image_url = $4,
+                company_role = $5
+            where id = $1
+            returning id, company_id, email, full_name, hourly_rate, profile_image_url, created_at, must_change_password, password_hash, company_role
+          `,
+          [existingEmployee.id, fullName.trim(), hourlyRate ?? null, profileImageUrl || existingEmployee.profile_image_url, normalizedCompanyRole]
+        );
+        employee = updatedExistingResult.rows[0];
+        inviteAction = 'employee.invite.existing';
+      } else {
+        const employeeResult = await client.query(
+          `
+            insert into employees (company_id, email, full_name, password_hash, must_change_password, hourly_rate, profile_image_url, company_role)
+            values ($1, $2, $3, null, true, $4, $5, $6)
+            returning id, company_id, email, full_name, hourly_rate, profile_image_url, created_at, must_change_password, password_hash, company_role
+          `,
+          [course.company_id, normalizedEmail, fullName.trim(), hourlyRate ?? null, profileImageUrl, normalizedCompanyRole]
+        );
+        employee = employeeResult.rows[0];
+
+        await client.query(
+          `
+            insert into audit_logs (actor_employee_id, action, facility_id, target_employee_id, detail)
+            values ($1, $2, $3, $4, $5)
+          `,
+          [req.employee.id, 'employee.create', facilityId, employee.id, { email: employee.email, role }]
+        );
+      }
+
       const membershipResult = await client.query(
         `
           insert into facility_memberships (employee_id, facility_id, role)
           values ($1, $2, $3)
+          on conflict (employee_id, facility_id)
+          do update set role = excluded.role
           returning id, employee_id, facility_id, role, created_at
         `,
         [employee.id, facilityId, role]
@@ -187,15 +229,7 @@ router.post('/', requireAuth, async (req, res) => {
           insert into audit_logs (actor_employee_id, action, facility_id, target_employee_id, detail)
           values ($1, $2, $3, $4, $5)
         `,
-        [req.employee.id, 'employee.create', facilityId, employee.id, { email: employee.email, role }]
-      );
-
-      await client.query(
-        `
-          insert into audit_logs (actor_employee_id, action, facility_id, target_employee_id, detail)
-          values ($1, $2, $3, $4, $5)
-        `,
-        [req.employee.id, 'employee.invite', facilityId, employee.id, { email: employee.email }]
+        [req.employee.id, inviteAction, facilityId, employee.id, { email: employee.email, role }]
       );
 
       const delivery = await deliverMagicLinkEmail({
@@ -210,13 +244,14 @@ router.post('/', requireAuth, async (req, res) => {
 
       const { password_hash, ...safeEmployee } = employee;
 
-      return res.status(201).json({
+      return res.status(existingEmployeeResult.rows[0] ? 200 : 201).json({
         employee: {
           ...safeEmployee,
           account_status: buildAccountStatus(employee)
         },
         membership: membershipResult.rows[0],
         deliveryMode: delivery.mode,
+        reusedExisting: Boolean(existingEmployeeResult.rows[0]),
         ...buildInvitePayload(inviteToken, facilityId)
       });
     } catch (error) {

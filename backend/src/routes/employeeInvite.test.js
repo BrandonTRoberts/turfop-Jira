@@ -31,6 +31,10 @@ function createInviteHarness({ failDelivery = false } = {}) {
         return { rows: [{ id: FACILITY_ID, company_id: COMPANY_ID, name: 'Test Facility' }] };
       }
 
+      if (text.includes('from employees') && text.includes('where company_id = $1 and email = $2')) {
+        return { rows: [] };
+      }
+
       if (text.includes('insert into employees')) {
         return {
           rows: [{
