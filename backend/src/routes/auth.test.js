@@ -147,7 +147,7 @@ test('invite acceptance consumes token and clears required password change', asy
         return { rows: [] };
       }
 
-      if (text.includes('update invite_tokens') && text.includes('returning it.id')) {
+      if (text.includes('update invite_tokens') && text.includes('returning it.*')) {
         return {
           rows: [
             {

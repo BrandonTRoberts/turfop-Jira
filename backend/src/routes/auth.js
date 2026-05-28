@@ -61,6 +61,31 @@ function buildResetResponse({ delivered, token, facilityId, mode }) {
   };
 }
 
+async function insertAuditLogWithScope(executor, { actorEmployeeId, action, scopeId, targetEmployeeId, detail }) {
+  try {
+    await executor(
+      `
+        insert into audit_logs (actor_employee_id, action, facility_id, target_employee_id, detail)
+        values ($1, $2, $3, $4, $5)
+      `,
+      [actorEmployeeId, action, scopeId, targetEmployeeId, detail]
+    );
+    return;
+  } catch (error) {
+    if (error?.code !== '42703') {
+      throw error;
+    }
+  }
+
+  await executor(
+    `
+      insert into audit_logs (actor_employee_id, action, course_id, target_employee_id, detail)
+      values ($1, $2, $3, $4, $5)
+    `,
+    [actorEmployeeId, action, scopeId, targetEmployeeId, detail]
+  );
+}
+
 router.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
   const normalizedEmail = normalizeEmail(email);
@@ -311,7 +336,7 @@ router.post('/invitations/accept', inviteAcceptLimiter, async (req, res) => {
             and it.employee_id = e.id
             and it.used_at is null
             and it.expires_at > now()
-          returning it.id, it.employee_id, it.facility_id, e.email
+          returning it.*, e.email
         `,
         [tokenHash]
       );
@@ -353,13 +378,14 @@ router.post('/invitations/accept', inviteAcceptLimiter, async (req, res) => {
         [invite.employee_id, passwordHash]
       );
 
-      await client.query(
-        `
-          insert into audit_logs (actor_employee_id, action, facility_id, target_employee_id, detail)
-          values ($1, $2, $3, $4, $5)
-        `,
-        [invite.employee_id, 'invite.accept', invite.facility_id, invite.employee_id, { email: invite.email }]
-      );
+      const inviteScopeId = invite.facility_id || invite.course_id || null;
+      await insertAuditLogWithScope(client.query.bind(client), {
+        actorEmployeeId: invite.employee_id,
+        action: 'invite.accept',
+        scopeId: inviteScopeId,
+        targetEmployeeId: invite.employee_id,
+        detail: { email: invite.email }
+      });
 
       await client.query('commit');
       return res.json({ ok: true });
@@ -430,13 +456,13 @@ router.post('/invitations/request-reset', passwordResetRequestLimiter, async (re
       [employee.id, membership.facility_id, tokenHash, String(INVITE_TTL_HOURS)]
     );
 
-    await query(
-    `
-      insert into audit_logs (actor_employee_id, action, facility_id, target_employee_id, detail)
-      values ($1, $2, $3, $4, $5)
-    `,
-    [employee.id, 'password.reset.request', membership.facility_id, employee.id, { email: employee.email }]
-    );
+    await insertAuditLogWithScope(query, {
+      actorEmployeeId: employee.id,
+      action: 'password.reset.request',
+      scopeId: membership.facility_id,
+      targetEmployeeId: employee.id,
+      detail: { email: employee.email }
+    });
 
     const delivery = await deliverMagicLinkEmail({
       to: employee.email,
