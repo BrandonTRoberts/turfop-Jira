@@ -17,6 +17,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (id.includes('node_modules/xlsx')) return 'xlsx';
           if (id.includes('node_modules/recharts')) return 'charts';
           if (id.includes('node_modules/@dnd-kit')) return 'drag-drop';
           if (id.includes('node_modules/radix-ui')) return 'radix-ui';

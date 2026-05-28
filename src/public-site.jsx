@@ -4,6 +4,57 @@ import { APP_ROUTES } from './routes';
 import { api } from './services/api';
 import './public-site.css';
 
+const seoByPage = {
+  landing: {
+    title: 'TurfOp | Work Orders, Inventory, and Multi-Facility Operations',
+    description: 'TurfOp is the all-in-one SaaS platform for turf managers and grounds crews: work orders, inventory, templates, time approvals, and multi-facility coordination.',
+    ogTitle: 'TurfOp | Modern Operations for Turf Teams',
+    ogDescription: 'Run work orders, inventory, templates, and team execution from one clean platform.'
+  },
+  pricing: {
+    title: 'TurfOp Pricing | Per-Facility Plans for Turf Operations',
+    description: 'Simple per-facility pricing with unlimited users for work orders, inventory, templates, time approvals, and multi-facility management.',
+    ogTitle: 'TurfOp Pricing',
+    ogDescription: 'Choose the plan that fits your facility operations.'
+  },
+  mission: {
+    title: 'TurfOp Mission | Building the Operating System for Grounds Teams',
+    description: 'Learn TurfOp’s mission to modernize turf and grounds operations with practical, secure, field-ready software.',
+    ogTitle: 'TurfOp Mission',
+    ogDescription: 'Our mission is to help turf teams execute with clarity and confidence.'
+  },
+  security: {
+    title: 'TurfOp Security & Compliance | GDPR, SOC 2, ISO 27001 Readiness',
+    description: 'Review TurfOp’s security controls and compliance readiness roadmap, including GDPR support and SOC 2 / ISO 27001 preparation.',
+    ogTitle: 'TurfOp Security & Compliance',
+    ogDescription: 'Operational security, governance controls, and compliance readiness.'
+  },
+  privacy: {
+    title: 'TurfOp Privacy Policy | Data Processing and User Rights',
+    description: 'Understand TurfOp data categories, processing purposes, and GDPR-aligned user rights.',
+    ogTitle: 'TurfOp Privacy Policy',
+    ogDescription: 'How TurfOp processes and protects personal data.'
+  },
+  terms: {
+    title: 'TurfOp Terms of Service | Platform Usage Terms',
+    description: 'Read the terms and security responsibilities for using the TurfOp platform.',
+    ogTitle: 'TurfOp Terms of Service',
+    ogDescription: 'Platform usage terms for TurfOp customers and teams.'
+  },
+  contact: {
+    title: 'Request a TurfOp Demo | See TurfOp with Your Workflow',
+    description: 'Request a personalized TurfOp demo covering work orders, inventory, templates, approvals, and multi-facility operations.',
+    ogTitle: 'Request a TurfOp Demo',
+    ogDescription: 'See TurfOp configured for your facilities and team workflows.'
+  },
+  signin: {
+    title: 'TurfOp Sign In',
+    description: 'Sign in to TurfOp to access your facility operations dashboard.',
+    ogTitle: 'TurfOp Sign In',
+    ogDescription: 'Secure access to your TurfOp account.'
+  }
+};
+
 const productPills = [
   'Visual work order board',
   'Templates for recurring work',
@@ -677,6 +728,27 @@ function PublicSiteFooter() {
   );
 }
 
+function setMetaTag(selector, attribute, value) {
+  let tag = document.querySelector(selector);
+  if (!tag) {
+    tag = document.createElement('meta');
+    if (attribute === 'name') tag.setAttribute('name', selector.replace('meta[name="', '').replace('"]', ''));
+    if (attribute === 'property') tag.setAttribute('property', selector.replace('meta[property="', '').replace('"]', ''));
+    document.head.appendChild(tag);
+  }
+  tag.setAttribute('content', value);
+}
+
+function applySeo(pageKey) {
+  const seo = seoByPage[pageKey] || seoByPage.landing;
+  document.title = seo.title;
+  setMetaTag('meta[name="description"]', 'name', seo.description);
+  setMetaTag('meta[property="og:title"]', 'property', seo.ogTitle);
+  setMetaTag('meta[property="og:description"]', 'property', seo.ogDescription);
+  setMetaTag('meta[name="twitter:title"]', 'name', seo.ogTitle);
+  setMetaTag('meta[name="twitter:description"]', 'name', seo.ogDescription);
+}
+
 function PublicSite() {
   const [pathname, setPathname] = useState(window.location.pathname);
   const activePage = getPageFromPath(pathname);
@@ -686,6 +758,10 @@ function PublicSite() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  useEffect(() => {
+    applySeo(activePage);
+  }, [activePage]);
 
   let content;
   if (activePage === 'pricing') content = <PricingPage />;
