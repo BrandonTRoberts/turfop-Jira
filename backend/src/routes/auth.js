@@ -311,7 +311,7 @@ router.post('/invitations/accept', inviteAcceptLimiter, async (req, res) => {
             and it.employee_id = e.id
             and it.used_at is null
             and it.expires_at > now()
-          returning it.id, it.employee_id, it.course_id, e.email
+          returning it.id, it.employee_id, it.facility_id, e.email
         `,
         [tokenHash]
       );
@@ -355,10 +355,10 @@ router.post('/invitations/accept', inviteAcceptLimiter, async (req, res) => {
 
       await client.query(
         `
-          insert into audit_logs (actor_employee_id, action, course_id, target_employee_id, detail)
+          insert into audit_logs (actor_employee_id, action, facility_id, target_employee_id, detail)
           values ($1, $2, $3, $4, $5)
         `,
-        [invite.employee_id, 'invite.accept', invite.course_id, invite.employee_id, { email: invite.email }]
+        [invite.employee_id, 'invite.accept', invite.facility_id, invite.employee_id, { email: invite.email }]
       );
 
       await client.query('commit');
@@ -431,11 +431,11 @@ router.post('/invitations/request-reset', passwordResetRequestLimiter, async (re
     );
 
     await query(
-      `
-        insert into audit_logs (actor_employee_id, action, course_id, target_employee_id, detail)
-        values (null, $1, $2, $3, $4)
-      `,
-      ['password.reset.request', membership.facility_id, employee.id, { email: employee.email }]
+    `
+      insert into audit_logs (actor_employee_id, action, facility_id, target_employee_id, detail)
+      values ($1, $2, $3, $4, $5)
+    `,
+    [employee.id, 'password.reset.request', membership.facility_id, employee.id, { email: employee.email }]
     );
 
     const delivery = await deliverMagicLinkEmail({
