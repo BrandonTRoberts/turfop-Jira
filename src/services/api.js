@@ -24,6 +24,18 @@ async function request(path, { method = "GET", body } = {}) {
       requestBody: body,
       responsePayload: payload,
     });
+
+    const isAuthRoute = path.startsWith('/auth/');
+    if (response.status === 401 && !isAuthRoute) {
+      if (typeof window !== 'undefined') {
+        const currentPath = window.location.pathname;
+        if (currentPath !== '/signin') {
+          window.location.assign('/signin?reason=session-expired');
+        }
+      }
+      throw new Error('Your session expired. Please sign in again.');
+    }
+
     throw new Error(`${backendError} (${requestDescriptor})`);
   }
 
