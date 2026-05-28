@@ -5,6 +5,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getUploadUrl } from "@/lib/files";
 import { LogOut, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 
+const viewPathMap = {
+  dashboard: "/app/dashboard",
+  issues: "/app/issues",
+  users: "/app/team-members",
+  templates: "/app/templates",
+  time: "/app/time-tracking",
+  equipment: "/app/equipment",
+  inventory: "/app/inventory",
+  "company-inventory": "/app/company-inventory",
+  "time-clock-approval": "/app/time-clock-approval",
+  admin: "/app/admin",
+  profile: "/app/settings",
+};
+
 export default function AppSidebar({
   employee,
   selectedFacility,
@@ -49,24 +63,31 @@ export default function AppSidebar({
         {!effectiveCollapsed ? (
           <>
             <Button
-              type="button"
               variant="ghost"
               className="w-full justify-start px-3 py-6 mt-5 rounded-xl border border-border bg-muted/40"
-              onClick={() => onSelectView('profile')}
+              asChild
             >
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
-                  {employee.profile_image_url ? (
-                    <img src={getUploadUrl(employee.profile_image_url)} alt="Profile" className="h-full w-full object-cover" />
-                  ) : (
-                    <span className="flex h-full w-full items-center justify-center text-xs">{(employee.full_name || employee.email || "?")[0]}</span>
-                  )}
+              <a
+                href={viewPathMap.profile}
+                onClick={(event) => {
+                  event.preventDefault();
+                  onSelectView('profile');
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
+                    {employee.profile_image_url ? (
+                      <img src={getUploadUrl(employee.profile_image_url)} alt="Profile" className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center text-xs">{(employee.full_name || employee.email || "?")[0]}</span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1 text-left">
+                    <p className="truncate font-semibold">{employee.full_name || employee.email}</p>
+                    <p className="truncate text-xs text-muted-foreground">{employee.email}</p>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1 text-left">
-                  <p className="truncate font-semibold">{employee.full_name || employee.email}</p>
-                  <p className="truncate text-xs text-muted-foreground">{employee.email}</p>
-                </div>
-             </div>
+              </a>
             </Button>
             <div className="mt-2 text-right">
                <Button type="button" variant="ghost" size="icon" onClick={onLogout} title="Sign out" aria-label="Sign out">
@@ -102,15 +123,22 @@ export default function AppSidebar({
       <nav className="flex-1 space-y-1 p-3">
         {menuItems.map((item) => (
           <Button
-            type="button"
             key={item.id}
             variant={currentView === item.id ? "default" : "ghost"}
             className={`w-full ${effectiveCollapsed ? "justify-center px-0" : "justify-start"}`}
-            onClick={() => onSelectView(item.id)}
-            title={effectiveCollapsed ? item.label : undefined}
+            asChild
           >
-            <item.icon className={`h-5 w-5 ${effectiveCollapsed ? "" : "mr-3"}`} />
-            {!effectiveCollapsed ? item.label : null}
+            <a
+              href={viewPathMap[item.id] || "/app/issues"}
+              onClick={(event) => {
+                event.preventDefault();
+                onSelectView(item.id);
+              }}
+              title={effectiveCollapsed ? item.label : undefined}
+            >
+              <item.icon className={`h-5 w-5 ${effectiveCollapsed ? "" : "mr-3"}`} />
+              {!effectiveCollapsed ? item.label : null}
+            </a>
           </Button>
         ))}
       </nav>
