@@ -281,6 +281,42 @@ export default function AppMainContent({
       );
 
     default:
-      return null;
+      return (
+        <IssueBoard
+          course={selectedFacility}
+          workOrders={workOrders}
+          users={users}
+          equipment={equipment}
+          inventory={inventory}
+          loading={loadingWorkOrders}
+          error={workOrdersError}
+          canWrite={writable}
+          onCreate={async (payload) => {
+            const created = await api.createWorkOrder(payload);
+            setWorkOrders((current) => [created, ...current]);
+            return created;
+          }}
+          onUpdate={async (workOrderId, payload) => {
+            const updated = await api.updateWorkOrder(workOrderId, payload);
+            setWorkOrders((current) =>
+              current.map((ticket) => (ticket.id === workOrderId ? updated : ticket))
+            );
+            return updated;
+          }}
+          onComment={async (workOrderId, payload) => {
+            const activity = await api.addWorkOrderComment(workOrderId, payload);
+            setWorkOrders((current) =>
+              current.map((ticket) =>
+                ticket.id === workOrderId
+                  ? { ...ticket, activity_log: [activity, ...(ticket.activity_log || [])] }
+                  : ticket
+              )
+            );
+            return activity;
+          }}
+          notificationTarget={notificationTarget}
+          onHandledNotificationTarget={onHandledNotificationTarget}
+        />
+      );
   }
 }

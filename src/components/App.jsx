@@ -35,33 +35,25 @@ const viewPathMap = {
 
 function viewFromPath(pathname) {
   const normalized = pathname?.replace(/\/+$/, "") || "";
-  switch (normalized) {
-    case "/app":
-    case "/app/issues":
-      return "issues";
-    case "/app/dashboard":
-      return "dashboard";
-    case "/app/team-members":
-      return "users";
-    case "/app/templates":
-      return "templates";
-    case "/app/time-tracking":
-      return "time";
-    case "/app/equipment":
-      return "equipment";
-    case "/app/inventory":
-      return "inventory";
-    case "/app/company-inventory":
-      return "company-inventory";
-    case "/app/time-clock-approval":
-      return "time-clock-approval";
-    case "/app/admin":
-      return "admin";
-    case "/app/settings":
-      return "profile";
-    default:
-      return "issues";
-  }
+
+  if (normalized === "/app" || normalized === "/app/issues" || normalized === "/app/work-orders") return "issues";
+  if (normalized === "/app/dashboard") return "dashboard";
+  if (normalized === "/app/team-members" || normalized === "/app/team") return "users";
+  if (normalized === "/app/templates") return "templates";
+  if (normalized === "/app/time-tracking" || normalized === "/app/time") return "time";
+  if (normalized === "/app/equipment") return "equipment";
+  if (normalized === "/app/inventory") return "inventory";
+  if (normalized === "/app/company-inventory") return "company-inventory";
+  if (normalized === "/app/time-clock-approval") return "time-clock-approval";
+  if (normalized === "/app/admin") return "admin";
+  if (normalized === "/app/settings") return "profile";
+
+  if (normalized.startsWith("/app/templates")) return "templates";
+  if (normalized.startsWith("/app/time")) return "time";
+  if (normalized.startsWith("/app/equipment")) return "equipment";
+  if (normalized.startsWith("/app/inventory")) return "inventory";
+
+  return "issues";
 }
 
 function selectedFacilityId(selectedFacility, payload = {}) {
@@ -211,6 +203,7 @@ export default function App() {
 
   useEffect(() => {
     if (!session?.employee?.id) return;
+    setCurrentView(viewFromPath(window.location.pathname));
     setupPushNotifications({ employeeId: session.employee.id }).catch(() => {});
   }, [session?.employee?.id]);
 
