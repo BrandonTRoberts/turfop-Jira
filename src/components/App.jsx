@@ -278,12 +278,38 @@ export default function App() {
   }
 
   async function updateEquipment(equipmentId, payload) {
+    const activeFacilityId = selectedFacilityId(selectedFacility, payload);
     const scopedPayload = {
       ...payload,
-      facilityId: selectedFacilityId(selectedFacility, payload),
+      facilityId: activeFacilityId,
     };
+
+    console.info('[Equipment update] submitting payload', {
+      equipmentId,
+      facilityId: scopedPayload.facilityId,
+      status: scopedPayload.status,
+      expectedUpdatedAt: scopedPayload.expectedUpdatedAt,
+    });
+
     const updated = await api.updateEquipment(equipmentId, scopedPayload);
     setEquipment((current) => current.map((item) => (item.id === equipmentId ? updated : item)));
+
+    try {
+      const fresh = await api.equipment(activeFacilityId);
+      const persisted = fresh.find((item) => item.id === equipmentId);
+      console.info('[Equipment update] server refresh result', {
+        equipmentId,
+        persistedStatus: persisted?.status || null,
+        returnedStatus: updated?.status || null,
+      });
+      setEquipment(fresh);
+    } catch (refreshError) {
+      console.error('[Equipment update] post-save refresh failed', {
+        equipmentId,
+        message: refreshError?.message || 'Unknown error',
+      });
+    }
+
     return updated;
   }
 

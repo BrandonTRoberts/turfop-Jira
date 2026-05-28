@@ -6,10 +6,20 @@ import { handleUnexpectedError } from '../lib/http.js';
 
 const router = Router();
 
+async function notificationsTableExists() {
+  const result = await query("select to_regclass('public.notifications')::text as table_name");
+  return Boolean(result.rows[0]?.table_name);
+}
+
 router.get('/', requireAuth, async (req, res) => {
   const limit = Math.min(Number(req.query.limit || 30), 100);
   const unreadOnly = String(req.query.unreadOnly || 'false') === 'true';
   try {
+    const hasNotificationsTable = await notificationsTableExists();
+    if (!hasNotificationsTable) {
+      return res.json({ items: [], unreadCount: 0, degraded: 'notifications_table_missing' });
+    }
+
     const where = unreadOnly ? 'and n.read_at is null' : '';
 
     // Backward compatibility: older schemas may not include assigned_by_employee_id.
@@ -43,8 +53,17 @@ router.get('/', requireAuth, async (req, res) => {
       );
     }
 
-    const unread = await query('select count(*)::int as unread_count from notifications where employee_id = $1 and read_at is null', [req.employee.id]);
-    return res.json({ items: itemsResult.rows, unreadCount: unread.rows[0]?.unread_count || 0 });
+    let unreadCount = 0;
+    try {
+      const unread = await query('select count(*)::int as unread_count from notifications where employee_id = $1 and read_at is null', [req.employee.id]);
+      unreadCount = unread.rows[0]?.unread_count || 0;
+    } catch (unreadError) {
+      if (unreadError?.code !== '42P01') {
+        throw unreadError;
+      }
+    }
+
+    return res.json({ items: itemsResult.rows, unreadCount });
   } catch (error) {
     return handleUnexpectedError(res, error);
   }
