@@ -191,15 +191,18 @@ export default function App() {
   const isAccountAdmin = canUseAccountAdmin(session?.employee);
 
   useEffect(() => {
+    if (!session?.employee?.id) return;
+
     if (isAccountAdmin) {
       loadCompanies(employeeRole);
-    } else {
-      setCompanies([]);
-      if (currentView === "admin") {
-        setCurrentView("dashboard");
-      }
+      return;
     }
-  }, [currentView, employeeRole, isAccountAdmin, loadCompanies, setCompanies]);
+
+    setCompanies([]);
+    if (currentView === "admin") {
+      setCurrentView("dashboard");
+    }
+  }, [currentView, employeeRole, isAccountAdmin, loadCompanies, session?.employee?.id, setCompanies]);
 
   useEffect(() => {
     if (!session?.employee?.id) return;
@@ -439,11 +442,6 @@ export default function App() {
   const writable = canWriteFacility(selectedFacility);
 
   function selectView(viewId) {
-    const nextPath = viewPathMap[viewId] || "/app/issues";
-    const { pathname, search, hash } = window.location;
-    if (pathname !== nextPath) {
-      window.history.pushState({}, "", `${nextPath}${search}${hash}`);
-    }
     setCurrentView(viewId);
     setMobileNavOpen(false);
   }
