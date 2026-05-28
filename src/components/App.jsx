@@ -439,6 +439,11 @@ export default function App() {
   const writable = canWriteFacility(selectedFacility);
 
   function selectView(viewId) {
+    const nextPath = viewPathMap[viewId] || "/app/issues";
+    const { pathname, search, hash } = window.location;
+    if (pathname !== nextPath) {
+      window.history.pushState({}, "", `${nextPath}${search}${hash}`);
+    }
     setCurrentView(viewId);
     setMobileNavOpen(false);
   }

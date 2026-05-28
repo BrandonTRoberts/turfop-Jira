@@ -49,6 +49,7 @@ export default function AppSidebar({
         {!effectiveCollapsed ? (
           <>
             <Button
+              type="button"
               variant="ghost"
               className="w-full justify-start px-3 py-6 mt-5 rounded-xl border border-border bg-muted/40"
               onClick={() => onSelectView('profile')}
@@ -101,6 +102,7 @@ export default function AppSidebar({
       <nav className="flex-1 space-y-1 p-3">
         {menuItems.map((item) => (
           <Button
+            type="button"
             key={item.id}
             variant={currentView === item.id ? "default" : "ghost"}
             className={`w-full ${effectiveCollapsed ? "justify-center px-0" : "justify-start"}`}

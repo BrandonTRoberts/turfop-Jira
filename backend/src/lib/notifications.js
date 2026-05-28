@@ -12,17 +12,36 @@ function compactBody({ detail, requiredTools = [], checklist = [] }) {
   return parts.join(' • ').slice(0, 400);
 }
 
+function defaultNotificationPreference(employeeId) {
+  return {
+    employee_id: employeeId,
+    notifications_enabled: true,
+    assignment_notifications_enabled: true,
+    push_enabled: false,
+    email_enabled: false,
+    updated_at: null,
+    degraded: 'notification_preferences_table_missing',
+  };
+}
+
 export async function getNotificationPreference(employeeId) {
-  const result = await query(
-    `
-      insert into notification_preferences (employee_id)
-      values ($1)
-      on conflict (employee_id) do update set employee_id = excluded.employee_id
-      returning employee_id, notifications_enabled, assignment_notifications_enabled, push_enabled, email_enabled, updated_at
-    `,
-    [employeeId]
-  );
-  return result.rows[0];
+  try {
+    const result = await query(
+      `
+        insert into notification_preferences (employee_id)
+        values ($1)
+        on conflict (employee_id) do update set employee_id = excluded.employee_id
+        returning employee_id, notifications_enabled, assignment_notifications_enabled, push_enabled, email_enabled, updated_at
+      `,
+      [employeeId]
+    );
+    return result.rows[0];
+  } catch (error) {
+    if (error?.code === '42P01') {
+      return defaultNotificationPreference(employeeId);
+    }
+    throw error;
+  }
 }
 
 export async function updateNotificationPreference(employeeId, patch = {}) {
@@ -34,20 +53,38 @@ export async function updateNotificationPreference(employeeId, patch = {}) {
     email_enabled: patch.emailEnabled ?? current.email_enabled,
   };
 
-  const result = await query(
-    `
-      update notification_preferences
-      set notifications_enabled = $2,
-          assignment_notifications_enabled = $3,
-          push_enabled = $4,
-          email_enabled = $5,
-          updated_at = now()
-      where employee_id = $1
-      returning employee_id, notifications_enabled, assignment_notifications_enabled, push_enabled, email_enabled, updated_at
-    `,
-    [employeeId, next.notifications_enabled, next.assignment_notifications_enabled, next.push_enabled, next.email_enabled]
-  );
-  return result.rows[0];
+  if (current?.degraded === 'notification_preferences_table_missing') {
+    return {
+      ...current,
+      ...next,
+      updated_at: null,
+    };
+  }
+
+  try {
+    const result = await query(
+      `
+        update notification_preferences
+        set notifications_enabled = $2,
+            assignment_notifications_enabled = $3,
+            push_enabled = $4,
+            email_enabled = $5,
+            updated_at = now()
+        where employee_id = $1
+        returning employee_id, notifications_enabled, assignment_notifications_enabled, push_enabled, email_enabled, updated_at
+      `,
+      [employeeId, next.notifications_enabled, next.assignment_notifications_enabled, next.push_enabled, next.email_enabled]
+    );
+    return result.rows[0];
+  } catch (error) {
+    if (error?.code === '42P01') {
+      return {
+        ...defaultNotificationPreference(employeeId),
+        ...next,
+      };
+    }
+    throw error;
+  }
 }
 
 export async function upsertDeviceToken({ employeeId, provider = 'onesignal', deviceToken, deviceType = 'web', appVersion = null, metadata = {} }) {
