@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AppMainContent from "./AppMainContent";
 import AppSidebar from "./AppSidebar";
 import { api } from "@/services/api";
@@ -17,6 +17,51 @@ import { setupPushNotifications } from "@/lib/pushNotifications";
 
 function canWriteFacility(facility) {
   return facility?.role === "admin" || facility?.role === "read_write";
+}
+
+const viewPathMap = {
+  dashboard: "/app/dashboard",
+  issues: "/app/issues",
+  users: "/app/team-members",
+  templates: "/app/templates",
+  time: "/app/time-tracking",
+  equipment: "/app/equipment",
+  inventory: "/app/inventory",
+  "company-inventory": "/app/company-inventory",
+  "time-clock-approval": "/app/time-clock-approval",
+  admin: "/app/admin",
+  profile: "/app/settings",
+};
+
+function viewFromPath(pathname) {
+  const normalized = pathname?.replace(/\/+$/, "") || "";
+  switch (normalized) {
+    case "/app":
+    case "/app/issues":
+      return "issues";
+    case "/app/dashboard":
+      return "dashboard";
+    case "/app/team-members":
+      return "users";
+    case "/app/templates":
+      return "templates";
+    case "/app/time-tracking":
+      return "time";
+    case "/app/equipment":
+      return "equipment";
+    case "/app/inventory":
+      return "inventory";
+    case "/app/company-inventory":
+      return "company-inventory";
+    case "/app/time-clock-approval":
+      return "time-clock-approval";
+    case "/app/admin":
+      return "admin";
+    case "/app/settings":
+      return "profile";
+    default:
+      return "issues";
+  }
 }
 
 function selectedFacilityId(selectedFacility, payload = {}) {
@@ -78,7 +123,7 @@ function LoginScreen({ onLogin }) {
 }
 
 export default function App() {
-  const [currentView, setCurrentView] = useState("issues");
+  const [currentView, setCurrentView] = useState(() => viewFromPath(window.location.pathname));
   const [notificationTarget, setNotificationTarget] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const ticket = params.get("ticket");
@@ -322,6 +367,22 @@ export default function App() {
     await api.deleteEmployee(employeeId, activeFacilityId);
     setUsers((current) => current.filter((user) => user.id !== employeeId));
   }
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentView(viewFromPath(window.location.pathname));
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    const nextPath = viewPathMap[currentView] || "/app/issues";
+    const { pathname, search, hash } = window.location;
+    if (pathname !== nextPath) {
+      window.history.pushState({}, "", `${nextPath}${search}${hash}`);
+    }
+  }, [currentView]);
 
   if (booting) {
     return (

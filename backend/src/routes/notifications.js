@@ -11,19 +11,40 @@ router.get('/', requireAuth, async (req, res) => {
   const unreadOnly = String(req.query.unreadOnly || 'false') === 'true';
   try {
     const where = unreadOnly ? 'and n.read_at is null' : '';
-    const result = await query(
-      `
-        select n.*, e.full_name as assigned_by_name
-        from notifications n
-        left join employees e on e.id = n.assigned_by_employee_id
-        where n.employee_id = $1 ${where}
-        order by n.created_at desc
-        limit $2
-      `,
-      [req.employee.id, limit]
-    );
+
+    // Backward compatibility: older schemas may not include assigned_by_employee_id.
+    let itemsResult;
+    try {
+      itemsResult = await query(
+        `
+          select n.*, e.full_name as assigned_by_name
+          from notifications n
+          left join employees e on e.id = n.assigned_by_employee_id
+          where n.employee_id = $1 ${where}
+          order by n.created_at desc
+          limit $2
+        `,
+        [req.employee.id, limit]
+      );
+    } catch (joinError) {
+      if (joinError?.code !== '42703') {
+        throw joinError;
+      }
+
+      itemsResult = await query(
+        `
+          select n.*
+          from notifications n
+          where n.employee_id = $1 ${where}
+          order by n.created_at desc
+          limit $2
+        `,
+        [req.employee.id, limit]
+      );
+    }
+
     const unread = await query('select count(*)::int as unread_count from notifications where employee_id = $1 and read_at is null', [req.employee.id]);
-    return res.json({ items: result.rows, unreadCount: unread.rows[0]?.unread_count || 0 });
+    return res.json({ items: itemsResult.rows, unreadCount: unread.rows[0]?.unread_count || 0 });
   } catch (error) {
     return handleUnexpectedError(res, error);
   }
