@@ -270,6 +270,25 @@ export default function App() {
     setEquipment((current) => [created, ...current]);
   }
 
+  function mergeEquipmentByRecency(current = [], incoming = []) {
+    const currentById = new Map((current || []).map((item) => [item.id, item]));
+
+    return (incoming || []).map((next) => {
+      const prev = currentById.get(next.id);
+      if (!prev) return next;
+
+      const prevUpdatedAt = Date.parse(prev.updated_at || 0);
+      const nextUpdatedAt = Date.parse(next.updated_at || 0);
+
+      // Keep the newer record when async responses arrive out of order.
+      if (Number.isFinite(prevUpdatedAt) && Number.isFinite(nextUpdatedAt) && prevUpdatedAt > nextUpdatedAt) {
+        return prev;
+      }
+
+      return next;
+    });
+  }
+
   async function updateEquipment(equipmentId, payload) {
     const activeFacilityId = selectedFacilityId(selectedFacility, payload);
     const scopedPayload = {
@@ -285,7 +304,7 @@ export default function App() {
     });
 
     const updated = await api.updateEquipment(equipmentId, scopedPayload);
-    setEquipment((current) => current.map((item) => (item.id === equipmentId ? updated : item)));
+    setEquipment((current) => current.map((item) => (item.id === equipmentId ? { ...item, ...updated } : item)));
 
     try {
       const fresh = await api.equipment(activeFacilityId);
@@ -295,7 +314,7 @@ export default function App() {
         persistedStatus: persisted?.status || null,
         returnedStatus: updated?.status || null,
       });
-      setEquipment(fresh);
+      setEquipment((current) => mergeEquipmentByRecency(current, fresh));
     } catch (refreshError) {
       console.error('[Equipment update] post-save refresh failed', {
         equipmentId,

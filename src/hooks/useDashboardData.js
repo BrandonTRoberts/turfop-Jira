@@ -15,6 +15,23 @@ function mapDirectoryRows(rows) {
   }));
 }
 
+function mergeEquipmentByRecency(current = [], incoming = []) {
+  const currentById = new Map((current || []).map((item) => [item.id, item]));
+  return (incoming || []).map((next) => {
+    const prev = currentById.get(next.id);
+    if (!prev) return next;
+
+    const prevUpdatedAt = Date.parse(prev.updated_at || 0);
+    const nextUpdatedAt = Date.parse(next.updated_at || 0);
+
+    if (Number.isFinite(prevUpdatedAt) && Number.isFinite(nextUpdatedAt) && prevUpdatedAt > nextUpdatedAt) {
+      return prev;
+    }
+
+    return next;
+  });
+}
+
 export function useDashboardData(selectedFacility) {
   const [equipment, setEquipment] = useState([]);
   const [inventory, setInventory] = useState([]);
@@ -48,7 +65,7 @@ export function useDashboardData(selectedFacility) {
     setLoadingEquipment(true);
     setEquipmentError("");
     api.equipment(activeFacilityId)
-      .then(setEquipment)
+      .then((rows) => setEquipment((current) => mergeEquipmentByRecency(current, rows)))
       .catch((error) => setEquipmentError(error.message))
       .finally(() => setLoadingEquipment(false));
 
