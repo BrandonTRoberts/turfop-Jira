@@ -4,6 +4,11 @@ import { requireAuth } from '../lib/requireAuth.js';
 import { getRoleForFacility, canWrite, isAdmin } from '../lib/permissions.js';
 import { handleUnexpectedError } from '../lib/http.js';
 
+async function tableExists(tableName) {
+  const result = await query('select to_regclass($1) as regclass', [tableName]);
+  return Boolean(result.rows[0]?.regclass);
+}
+
 const router = Router();
 
 async function ensureFacilityAccess(req, facilityId) {
@@ -29,21 +34,47 @@ router.get('/', requireAuth, async (req, res) => {
       order by st.name asc
     `, [facilityId, includeArchived === 'true']);
 
-    const parts = await query(`
-      select tp.*, pi.sku, pi.part_description
-      from service_template_parts tp
-      left join parts_inventory pi on pi.id = tp.part_inventory_id
-      where tp.template_id = any($1::uuid[])
-    `, [rows.rows.map(r => r.id)]);
+    const templateIds = rows.rows.map(r => r.id);
 
-    const equipment = await query(`
-      select * from service_template_equipment where template_id = any($1::uuid[])
-    `, [rows.rows.map(r => r.id)]);
+    let partsRows = [];
+    let equipmentRows = [];
+
+    if (templateIds.length > 0) {
+      const [partsTableOk, equipmentTableOk] = await Promise.all([
+        tableExists('service_template_parts'),
+        tableExists('service_template_equipment')
+      ]);
+
+      if (partsTableOk) {
+        try {
+          const parts = await query(`
+            select tp.*, pi.sku, pi.part_description
+            from service_template_parts tp
+            left join parts_inventory pi on pi.id = tp.part_inventory_id
+            where tp.template_id = any($1::uuid[])
+          `, [templateIds]);
+          partsRows = parts.rows;
+        } catch (partsErr) {
+          if (partsErr.code !== '42P01') throw partsErr;
+        }
+      }
+
+      if (equipmentTableOk) {
+        try {
+          const equipment = await query(`
+            select * from service_template_equipment where template_id = any($1::uuid[])
+          `, [templateIds]);
+          equipmentRows = equipment.rows;
+        } catch (equipmentErr) {
+          if (equipmentErr.code !== '42P01') throw equipmentErr;
+        }
+      }
+    }
 
     const templates = rows.rows.map(t => ({
       ...t,
-      parts: parts.rows.filter(p => p.template_id === t.id),
-      equipment: equipment.rows.filter(e => e.template_id === t.id)
+      parts: partsRows.filter(p => p.template_id === t.id),
+      equipment: equipmentRows.filter(e => e.template_id === t.id)
     }));
 
     res.json(templates);
