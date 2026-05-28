@@ -25,6 +25,12 @@ router.get('/', requireAuth, async (req, res) => {
   const { facilityId, includeArchived = 'false' } = req.query;
   try {
     await ensureFacilityAccess(req, facilityId);
+    console.info('service-templates:list:start', {
+      employeeId: req.employee?.id,
+      facilityId,
+      includeArchived: includeArchived === 'true'
+    });
+
     const rows = await query(`
       select st.*, f.name as facility_name
       from service_templates st
@@ -45,6 +51,13 @@ router.get('/', requireAuth, async (req, res) => {
         tableExists('service_template_equipment')
       ]);
 
+      console.info('service-templates:list:child-table-check', {
+        facilityId,
+        templateCount: templateIds.length,
+        partsTableOk,
+        equipmentTableOk
+      });
+
       if (partsTableOk) {
         try {
           const parts = await query(`
@@ -55,6 +68,11 @@ router.get('/', requireAuth, async (req, res) => {
           `, [templateIds]);
           partsRows = parts.rows;
         } catch (partsErr) {
+          console.warn('service-templates:list:parts-query-failed', {
+            facilityId,
+            code: partsErr.code,
+            message: partsErr.message
+          });
           if (partsErr.code !== '42P01') throw partsErr;
         }
       }
@@ -66,6 +84,11 @@ router.get('/', requireAuth, async (req, res) => {
           `, [templateIds]);
           equipmentRows = equipment.rows;
         } catch (equipmentErr) {
+          console.warn('service-templates:list:equipment-query-failed', {
+            facilityId,
+            code: equipmentErr.code,
+            message: equipmentErr.message
+          });
           if (equipmentErr.code !== '42P01') throw equipmentErr;
         }
       }
@@ -79,6 +102,13 @@ router.get('/', requireAuth, async (req, res) => {
 
     res.json(templates);
   } catch (err) {
+    console.error('service-templates:list:failed', {
+      facilityId,
+      includeArchived: includeArchived === 'true',
+      code: err.code,
+      status: err.status,
+      message: err.message
+    });
     if (err.status) return res.status(err.status).json({ error: err.message });
     handleUnexpectedError(res, err);
   }
